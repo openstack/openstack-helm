@@ -86,14 +86,9 @@ spec:
 {{ tuple $envAll "ironic_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
-            - /tmp/ironic-api.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/ironic-api.sh
-                  - stop
+            - uwsgi
+            - --ini
+            - /etc/ironic/ironic-api-uwsgi.ini
           ports:
             - containerPort: {{ tuple "baremetal" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           readinessProbe:
@@ -106,10 +101,6 @@ spec:
               mountPath: /tmp
             - name: oslo-lock-path
               mountPath: {{ .Values.conf.ironic.oslo_concurrency.lock_path }}
-            - name: ironic-bin
-              mountPath: /tmp/ironic-api.sh
-              subPath: ironic-api.sh
-              readOnly: true
             - name: ironic-etc
               mountPath: /etc/ironic/ironic.conf
               subPath: ironic.conf

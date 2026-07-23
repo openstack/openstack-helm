@@ -95,7 +95,10 @@ spec:
 {{ tuple $envAll "skyline" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ dict "envAll" $envAll "application" "skyline" "container" "skyline" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/skyline-apiserver.sh
+            - gunicorn
+            - -c
+            - /etc/skyline/gunicorn.py
+            - skyline_apiserver.main:app
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -108,10 +111,6 @@ spec:
             - name: skyline-etc
               mountPath: /etc/skyline/gunicorn.py
               subPath: gunicorn.py
-              readOnly: true
-            - name: skyline-bin
-              mountPath: /tmp/skyline-apiserver.sh
-              subPath: skyline-apiserver.sh
               readOnly: true
 {{ if $mounts_skyline.volumeMounts }}{{ toYaml $mounts_skyline.volumeMounts | indent 12 }}{{ end }}
       volumes:

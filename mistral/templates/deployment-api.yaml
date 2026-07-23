@@ -60,14 +60,11 @@ spec:
           securityContext:
             runAsUser: {{ .Values.pod.user.mistral.uid }}
           command:
-            - /tmp/mistral-api.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/mistral-api.sh
-                  - stop
+            - mistral-server
+            - --server
+            - api
+            - --config-file
+            - /etc/mistral/mistral.conf
           ports:
             - name: w-api
               containerPort: {{ tuple "workflowv2" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -83,10 +80,6 @@ spec:
               mountPath: {{ .Values.conf.mistral.oslo_concurrency.lock_path }}
             - name: pod-etc-mistral
               mountPath: /etc/mistral
-            - name: mistral-bin
-              mountPath: /tmp/mistral-api.sh
-              subPath: mistral-api.sh
-              readOnly: true
             - name: mistral-etc
               mountPath: /etc/mistral/mistral.conf
               subPath: mistral.conf

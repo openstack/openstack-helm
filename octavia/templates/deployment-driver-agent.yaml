@@ -69,14 +69,11 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.driver_agent | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "octavia_driver_agent" "container" "octavia_driver_agent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/octavia-driver-agent.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/octavia-driver-agent.sh
-                  - stop
+            - octavia-driver-agent
+            - --config-file
+            - /etc/octavia/octavia.conf
+            - --config-dir
+            - /etc/octavia/octavia.conf.d
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -84,10 +81,6 @@ spec:
               mountPath: {{ .Values.conf.octavia.oslo_concurrency.lock_path }}
             - name: pod-etc-octavia
               mountPath: /etc/octavia
-            - name: octavia-bin
-              mountPath: /tmp/octavia-driver-agent.sh
-              subPath: octavia-driver-agent.sh
-              readOnly: true
             - name: octavia-etc
               mountPath: /etc/octavia/octavia.conf
               subPath: octavia.conf

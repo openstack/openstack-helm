@@ -76,19 +76,14 @@ spec:
 {{ dict "envAll" $envAll "component" "api" "container" "barbican-api" "type" "readiness" "probeTemplate" (include "probeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
 {{ dict "envAll" $envAll "component" "api" "container" "barbican-api" "type" "liveness" "probeTemplate" (include "probeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
-            - /tmp/barbican.sh
-            - start
+            - uwsgi
+            - --ini
+            - /etc/barbican/barbican-api-uwsgi.ini
           env:
 {{- if or .Values.manifests.certificates .Values.tls.identity }}
             - name: REQUESTS_CA_BUNDLE
               value: "/etc/barbican/certs/ca.crt"
 {{- end }}
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/barbican.sh
-                  - stop
           ports:
             - name: b-api
               containerPort: {{ tuple "key_manager" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -127,10 +122,6 @@ spec:
             - name: barbican-etc
               mountPath: /etc/barbican/policy.yaml
               subPath: policy.yaml
-              readOnly: true
-            - name: barbican-bin
-              mountPath: /tmp/barbican.sh
-              subPath: barbican.sh
               readOnly: true
 {{- dict "enabled" .Values.tls.oslo_db "name" "client-certs" "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" .Values.tls.identity "name" .Values.secrets.tls.key_manager.api.internal "path" "/etc/barbican/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}

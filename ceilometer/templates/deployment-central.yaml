@@ -62,7 +62,13 @@ spec:
 {{ tuple $envAll "ceilometer_central" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.central | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
-            - /tmp/ceilometer-central.sh
+            - ceilometer-polling
+            - --polling-namespaces
+            - central
+            - --config-file
+            - /etc/ceilometer/ceilometer.conf
+            - --config-dir
+            - /etc/ceilometer/ceilometer.conf.d
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -104,10 +110,6 @@ spec:
             - name: ceilometer-etc
               mountPath: /etc/ceilometer/polling.yaml
               subPath: polling.yaml
-              readOnly: true
-            - name: ceilometer-bin
-              mountPath: /tmp/ceilometer-central.sh
-              subPath: ceilometer-central.sh
               readOnly: true
 {{ if $mounts_ceilometer_central.volumeMounts }}{{ toYaml $mounts_ceilometer_central.volumeMounts | indent 12 }}{{ end }}
       volumes:

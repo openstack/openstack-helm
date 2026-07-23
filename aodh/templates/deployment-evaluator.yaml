@@ -66,14 +66,9 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.evaluator | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "aodh" "container" "aodh_evaluator" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/aodh-evaluator.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/aodh-evaluator.sh
-                  - stop
+            - aodh-evaluator
+            - --config-file=/etc/aodh/aodh.conf
+            - --config-dir=/etc/aodh/aodh.conf.d
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -97,10 +92,6 @@ spec:
             - name: aodh-etc
               mountPath: /etc/aodh/policy.yaml
               subPath: policy.yaml
-              readOnly: true
-            - name: aodh-bin
-              mountPath: /tmp/aodh-evaluator.sh
-              subPath: aodh-evaluator.sh
               readOnly: true
 {{ if $mounts_aodh_evaluator.volumeMounts }}{{ toYaml $mounts_aodh_evaluator.volumeMounts | indent 12 }}{{ end }}
       volumes:

@@ -64,7 +64,11 @@ spec:
 {{ tuple $envAll "ironic_novncproxy" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.novncproxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
-            - /tmp/ironic-novncproxy.sh
+            - ironic-novncproxy
+            - --config-file
+            - /etc/ironic/ironic.conf
+            - --config-dir
+            - /etc/ironic/ironic.conf.d
           ports:
             - containerPort: {{ tuple "baremetal_vnc_proxy" "internal" "novncproxy" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
           readinessProbe:
@@ -78,10 +82,6 @@ spec:
               mountPath: /tmp
             - name: oslo-lock-path
               mountPath: {{ .Values.conf.ironic.oslo_concurrency.lock_path }}
-            - name: ironic-bin
-              mountPath: /tmp/ironic-novncproxy.sh
-              subPath: ironic-novncproxy.sh
-              readOnly: true
             - name: ironic-etc
               mountPath: /etc/ironic/ironic.conf
               subPath: ironic.conf

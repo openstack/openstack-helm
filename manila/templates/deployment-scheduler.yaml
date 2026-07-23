@@ -66,7 +66,11 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.scheduler | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "manila" "container" "manila_scheduler" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/manila-scheduler.sh
+            - manila-scheduler
+            - --config-file
+            - /etc/manila/manila.conf
+            - --config-dir
+            - /etc/manila/manila.conf.d
           env:
 {{- if or .Values.manifests.certificates .Values.tls.identity }}
             - name: REQUESTS_CA_BUNDLE
@@ -97,10 +101,6 @@ spec:
             - name: manila-etc
               mountPath: /etc/manila/policy.yaml
               subPath: policy.yaml
-              readOnly: true
-            - name: manila-bin
-              mountPath: /tmp/manila-scheduler.sh
-              subPath: manila-scheduler.sh
               readOnly: true
 {{- dict "enabled" .Values.tls.oslo_db "name" "client-certs" "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" (or .Values.manifests.certificates .Values.tls.identity) "name" .Values.secrets.tls.share.api.internal "path" "/etc/manila/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}

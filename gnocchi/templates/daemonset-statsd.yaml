@@ -70,7 +70,9 @@ spec:
 {{ tuple $envAll "gnocchi_statsd" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.statsd | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           command:
-            - /tmp/gnocchi-statsd.sh
+            - gnocchi-statsd
+            - --config-file
+            - /etc/gnocchi/gnocchi.conf
           ports:
             - name: gn-stats
               containerPort: {{ tuple "metric_statsd" "internal" "statsd" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -92,10 +94,6 @@ spec:
             - name: gnocchi-etc
               mountPath: /etc/gnocchi/policy.yaml
               subPath: policy.yaml
-              readOnly: true
-            - name: gnocchi-bin
-              mountPath: /tmp/gnocchi-statsd.sh
-              subPath: gnocchi-statsd.sh
               readOnly: true
             - name: etcceph
               mountPath: /etc/ceph

@@ -84,7 +84,11 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.scheduler | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "cinder_scheduler" "container" "cinder_scheduler" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/cinder-scheduler.sh
+            - cinder-scheduler
+            - --config-file
+            - /etc/cinder/cinder.conf
+            - --config-dir
+            - /etc/cinder/cinder.conf.d
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
@@ -92,10 +96,6 @@ spec:
               mountPath: {{ .Values.conf.cinder.oslo_concurrency.lock_path }}
             - name: pod-var-cinder
               mountPath: {{ .Values.conf.cinder.DEFAULT.state_path }}
-            - name: cinder-bin
-              mountPath: /tmp/cinder-scheduler.sh
-              subPath: cinder-scheduler.sh
-              readOnly: true
             - name: cinder-etc
               mountPath: /etc/cinder/cinder.conf
               subPath: cinder.conf

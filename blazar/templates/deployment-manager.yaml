@@ -60,7 +60,9 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.manager | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "blazar" "container" "blazar_manager" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/blazar-manager.sh
+            - blazar-manager
+            - --config-file
+            - /etc/blazar/blazar.conf
           env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.blazar "envAll" $envAll }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
@@ -72,10 +74,6 @@ spec:
               mountPath: {{ .Values.conf.blazar.oslo_concurrency.lock_path }}
             - name: pod-etc-blazar
               mountPath: /etc/blazar
-            - name: blazar-bin
-              mountPath: /tmp/blazar-manager.sh
-              subPath: blazar-manager.sh
-              readOnly: true
             - name: blazar-etc
               mountPath: /etc/blazar/blazar.conf
               subPath: blazar.conf

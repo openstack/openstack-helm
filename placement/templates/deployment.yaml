@@ -90,14 +90,9 @@ spec:
               value: "/etc/ssl/certs/openstack-helm.crt"
 {{- end }}
           command:
-            - /tmp/placement-api.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/placement-api.sh
-                  - stop
+            - uwsgi
+            - --ini
+            - /etc/placement/placement-api-uwsgi.ini
           ports:
             - name: p-api
               containerPort: {{ tuple "placement" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -124,10 +119,6 @@ spec:
               mountPath: /tmp
             - name: oslo-lock-path
               mountPath: {{ .Values.conf.placement.oslo_concurrency.lock_path }}
-            - name: placement-bin
-              mountPath: /tmp/placement-api.sh
-              subPath: placement-api.sh
-              readOnly: true
             - name: placement-etc
               mountPath: /etc/placement/placement.conf
               subPath: placement.conf

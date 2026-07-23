@@ -59,14 +59,9 @@ spec:
           securityContext:
             runAsUser: {{ .Values.pod.user.watcher.uid }}
           command:
-            - /tmp/watcher-api.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/watcher-api.sh
-                  - stop
+            - watcher-api
+            - --config-file
+            - /etc/watcher/watcher.conf
           ports:
             - name: w-api
               containerPort: {{ tuple "infra-optim" "internal" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -82,10 +77,6 @@ spec:
               mountPath: {{ .Values.conf.watcher.oslo_concurrency.lock_path }}
             - name: pod-etc-watcher
               mountPath: /etc/watcher
-            - name: watcher-bin
-              mountPath: /tmp/watcher-api.sh
-              subPath: watcher-api.sh
-              readOnly: true
             - name: watcher-etc
               mountPath: /etc/watcher/watcher.conf
               subPath: watcher.conf

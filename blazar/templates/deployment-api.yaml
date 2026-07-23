@@ -81,14 +81,9 @@ spec:
               value: "/etc/blazar/certs/ca.crt"
 {{- end }}
           command:
-            - /tmp/blazar-api.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/blazar-api.sh
-                  - stop
+            - blazar-api
+            - --config-file
+            - /etc/blazar/blazar.conf
           ports:
             - name: b-api
               containerPort: {{ tuple "reservation" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -101,10 +96,6 @@ spec:
               mountPath: {{ .Values.conf.blazar.oslo_concurrency.lock_path }}
             - name: pod-etc-blazar
               mountPath: /etc/blazar
-            - name: blazar-bin
-              mountPath: /tmp/blazar-api.sh
-              subPath: blazar-api.sh
-              readOnly: true
             - name: blazar-etc
               mountPath: /etc/blazar/blazar.conf
               subPath: blazar.conf
