@@ -23,7 +23,7 @@ helm.sh/hook-weight: "-4"
 {{- $serviceName := "skyline" -}}
 {{- $nodeSelector := dict .Values.labels.job.node_selector_key .Values.labels.job.node_selector_value -}}
 {{- $configMapEtc := (printf "%s-%s" $serviceName "etc" ) -}}
-{{- $dbAdminTlsSecret := .Values.endpoints.oslo_db.auth.admin.secret.tls.internal -}}
+{{- $dbAdminTlsSecret := .Values.secrets.tls.client.skyline -}}
 {{- $serviceAccountName := printf "%s-%s" $serviceName "db-sync" }}
 {{ tuple . "db_sync" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -78,7 +78,7 @@ spec:
               mountPath: /etc/skyline/skyline.yaml
               subPath: skyline.yaml
               readOnly: true
-{{- dict "enabled" .Values.manifests.certificates "name" $dbAdminTlsSecret "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" .Values.tls.oslo_db "name" $dbAdminTlsSecret "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -92,7 +92,7 @@ spec:
           secret:
             secretName: {{ $configMapEtc | quote }}
             defaultMode: 0444
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbAdminTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" $envAll.Values.tls.oslo_db "name" $dbAdminTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
 {{- end }}
 
