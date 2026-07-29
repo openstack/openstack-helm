@@ -120,4 +120,5 @@ openstack volume type list --long
 openstack volume qos list
 {{- end }}
 
+{{ .Values.bootstrap.script | default "echo 'No other bootstrap customizations found.'" }}
 exit 0
