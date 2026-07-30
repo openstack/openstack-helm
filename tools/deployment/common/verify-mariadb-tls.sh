@@ -20,17 +20,21 @@
 #   SERVICE    OpenStack service / db user name (default: keystone)
 #   NAMESPACE  Kubernetes namespace (default: osh)
 #
-# The client certificate is the single per-chart client certificate shared by
-# the MariaDB and RabbitMQ connections (<service>-client). Override the
-# auto-derived names with env vars if a chart deviates from the
-# <service>-db-user / <service>-db-admin / <service>-client convention
-# (e.g. nova-db-api-user):
-#   USER_SECRET, ADMIN_SECRET, CLIENT_SECRET, MARIADB_SELECTOR
+# The service user connection string is read from the rendered oslo config
+# stored in the <service>-etc Secret (there is no dedicated per-service db-user
+# secret). The client certificate is the single per-chart client certificate
+# shared by the MariaDB and RabbitMQ connections (<service>-client). Override
+# the auto-derived names/locations with env vars if a chart deviates from the
+# <service>-etc / <service>.conf / [database] / <service>-db-admin /
+# <service>-client convention:
+#   CONFIG_SECRET, CONFIG_FILE, CONFIG_SECTION, CONFIG_KEY,
+#   ADMIN_SECRET, CLIENT_SECRET, MARIADB_SELECTOR
 #
 # Examples:
 #   tools/deployment/common/verify-mariadb-tls.sh keystone
 #   tools/deployment/common/verify-mariadb-tls.sh glance
-#   USER_SECRET=nova-db-api-user ADMIN_SECRET=nova-db-api-admin \
+#   # verify the nova api_database connection instead of the main one:
+#   CONFIG_SECTION=api_database ADMIN_SECRET=nova-db-api-admin \
 #     CLIENT_SECRET=nova-client tools/deployment/common/verify-mariadb-tls.sh nova
 
 set -uo pipefail
@@ -38,11 +42,24 @@ set -uo pipefail
 SERVICE="${1:-keystone}"
 NAMESPACE="${2:-osh}"
 RELEASE="${RELEASE:-$SERVICE}"
-USER_SECRET="${USER_SECRET:-${SERVICE}-db-user}"
 ADMIN_SECRET="${ADMIN_SECRET:-${SERVICE}-db-admin}"
 CLIENT_SECRET="${CLIENT_SECRET:-${SERVICE}-client}"
 SERVER_SECRET="${SERVER_SECRET:-mariadb-tls-direct}"
 MARIADB_SELECTOR="${MARIADB_SELECTOR:-application=mariadb,component=server}"
+
+# The service user connection string is sourced from the rendered oslo config
+# in the <service>-etc Secret. Most services keep it under [database] connection
+# in <service>.conf; a few deviate (config filename or section).
+_def_config_file="${SERVICE}.conf"
+_def_config_section="database"
+case "$SERVICE" in
+  glance)    _def_config_file="glance-api.conf" ;;
+  placement) _def_config_section="placement_database" ;;
+esac
+CONFIG_SECRET="${CONFIG_SECRET:-${SERVICE}-etc}"
+CONFIG_FILE="${CONFIG_FILE:-$_def_config_file}"
+CONFIG_SECTION="${CONFIG_SECTION:-$_def_config_section}"
+CONFIG_KEY="${CONFIG_KEY:-connection}"
 
 PASS=0 FAIL=0 WARN=0
 ok()    { echo "  PASS: $*"; PASS=$((PASS+1)); }
@@ -54,6 +71,16 @@ kgsecret() { # namespace secret key  -> decoded value
   kubectl -n "$NAMESPACE" get secret "$1" -o "jsonpath={.data.$2}" 2>/dev/null | base64 -d
 }
 
+# Extract "key = value" from a given [section] of an oslo/ini config.
+ini_get() { # text section key
+  awk -v sec="[$2]" -v key="$3" '
+    { line=$0; sub(/^[ \t]+/,"",line); sub(/[ \t]+$/,"",line) }
+    line ~ /^\[/ { inseg = (line==sec); next }
+    inseg && line ~ ("^" key "[ \t]*=") {
+      sub(/^[^=]*=[ \t]*/, "", line); print line; exit
+    }' <<<"$1"
+}
+
 # Parse a SQLAlchemy URI: scheme://user:pass@host:port/db?params
 uri_user() { local r="${1#*://}"; r="${r%%@*}"; printf '%s' "${r%%:*}"; }
 uri_pass() { local r="${1#*://}"; r="${r%%@*}"; printf '%s' "${r#*:}"; }
@@ -62,7 +89,8 @@ uri_port() { local r="${1#*://}"; r="${r#*@}"; r="${r%%/*}"; case "$r" in *:*) p
 
 hdr "Target"
 echo "  service=$SERVICE namespace=$NAMESPACE"
-echo "  user-secret=$USER_SECRET  admin-secret=$ADMIN_SECRET  client-cert-secret=$CLIENT_SECRET"
+echo "  config=$CONFIG_SECRET:$CONFIG_FILE [$CONFIG_SECTION].$CONFIG_KEY"
+echo "  admin-secret=$ADMIN_SECRET  client-cert-secret=$CLIENT_SECRET"
 
 # Discover a MariaDB pod (has the mysql client; used to run queries in-cluster).
 MARIADB_POD="$(kubectl -n "$NAMESPACE" get pods -l "$MARIADB_SELECTOR" \
@@ -73,17 +101,24 @@ if [[ -z "$MARIADB_POD" ]]; then
 fi
 echo "  mariadb-pod=$MARIADB_POD"
 
-DB_URI="$(kgsecret "$USER_SECRET" DB_CONNECTION)"
+# jsonpath keys are dot-separated, so escape dots in the config filename.
+CONFIG_FILE_KEY="${CONFIG_FILE//./\\.}"
+CONF_TEXT="$(kgsecret "$CONFIG_SECRET" "$CONFIG_FILE_KEY")"
+if [[ -z "$CONF_TEXT" ]]; then
+  echo "Could not read $CONFIG_FILE from secret $CONFIG_SECRET in ns $NAMESPACE." >&2
+  exit 2
+fi
+DB_URI="$(ini_get "$CONF_TEXT" "$CONFIG_SECTION" "$CONFIG_KEY")"
 if [[ -z "$DB_URI" ]]; then
-  echo "Could not read DB_CONNECTION from secret $USER_SECRET in ns $NAMESPACE." >&2
+  echo "Could not find [$CONFIG_SECTION] $CONFIG_KEY in $CONFIG_FILE (secret $CONFIG_SECRET)." >&2
   exit 2
 fi
 DB_USER="$(uri_user "$DB_URI")"; DB_PASS="$(uri_pass "$DB_URI")"
 DB_HOST="$(uri_host "$DB_URI")"; DB_PORT="$(uri_port "$DB_URI")"
 
 # Is MariaDB TLS (tls.oslo_db) enabled for this release? Prefer the value
-# reported by Helm; fall back to the SSL params the chart only adds to
-# DB_CONNECTION when tls.oslo_db is true.
+# reported by Helm; fall back to the SSL params the chart only adds to the
+# rendered connection string when tls.oslo_db is true.
 tls_oslo_db_enabled() {
   local v="" json
   if command -v helm >/dev/null 2>&1; then
@@ -120,9 +155,9 @@ mysql_in_pod() { # user pass extra-args... ; SQL on stdin
 ###############################################################################
 hdr "1. Client connection string is configured for TLS"
 if grep -q "ssl_verify_cert" <<<"$DB_URI" && grep -q "ssl_cert=" <<<"$DB_URI"; then
-  ok "DB_CONNECTION in $USER_SECRET carries ssl_ca/ssl_cert/ssl_key/ssl_verify_cert"
+  ok "[$CONFIG_SECTION] $CONFIG_KEY carries ssl_ca/ssl_cert/ssl_key/ssl_verify_cert"
 else
-  no "DB_CONNECTION in $USER_SECRET has no SSL parameters -> service connects in plaintext"
+  no "[$CONFIG_SECTION] $CONFIG_KEY has no SSL parameters -> service connects in plaintext"
 fi
 
 ###############################################################################
