@@ -1,0 +1,159 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- /*
+MariaDB custom resources declaring the database this chart owns. They are
+reconciled by the mariadb chart's db controller, which creates the database,
+the account and its grants, and writes the connection string into the secret
+named below as an oslo.config snippet.
+
+Enable this instead of the db-init job, and null out the connection in
+conf.cinder.database so the projected snippet is the only source. See
+values_overrides/cinder/mariadb-crd.yaml.
+*/}}
+{{- if .Values.manifests.mariadb_db }}
+{{- $envAll := . }}
+{{- if .Values.manifests.job_db_init }}
+{{- fail "manifests.mariadb_db and manifests.job_db_init are mutually exclusive, set manifests.job_db_init to false" }}
+{{- end }}
+{{- /*
+The API group is chosen in values, so the same resources can be reconciled
+either by the mariadb chart's own db controller or by the upstream
+mariadb-operator. Two things differ between the two targets:
+Connection.retryInterval does not exist upstream and is omitted, and the
+password placeholder is .PasswordEncoded here but .Password upstream, which
+renders no percent-encoded variant. A password containing a character that is
+reserved in a URI therefore needs the osh group.
+*/}}
+{{- $apiGroup := .Values.mariadb_db.api_group }}
+{{- $osh := eq $apiGroup "mariadb.osh.openstack.org" }}
+{{- if not (or $osh (eq $apiGroup "k8s.mariadb.com")) }}
+{{- fail (printf "mariadb_db.api_group must be mariadb.osh.openstack.org or k8s.mariadb.com, not %s" $apiGroup) }}
+{{- end }}
+{{- $apiVersion := printf "%s/v1alpha1" $apiGroup }}
+{{- $mariadbHost := index .Values.endpoints.oslo_db.hosts "default" }}
+{{- $cinderAuth := .Values.endpoints.oslo_db.auth.cinder }}
+
+{{- /* One account for the cinder database. */}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cinder-db-password
+  labels:
+{{ tuple $envAll "cinder" "db-password" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+type: Opaque
+data:
+  password: {{ $cinderAuth.password | b64enc }}
+---
+apiVersion: {{ $apiVersion }}
+kind: User
+metadata:
+  name: cinder
+  labels:
+{{ tuple $envAll "cinder" "db-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+    waitForIt: true
+  name: {{ $cinderAuth.username | quote }}
+  host: "%"
+  passwordSecretKeyRef:
+    name: cinder-db-password
+    key: password
+  {{- /* 0 means unlimited. Anything else throttles the service. */}}
+  maxUserConnections: 0
+{{- if .Values.tls.oslo_db }}
+  require:
+    x509: true
+{{- end }}
+  retryInterval: 10s
+
+{{- /* The cinder database. */}}
+{{- $cinderName := .Values.endpoints.oslo_db.path | trimPrefix "/" }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Database
+metadata:
+  name: cinder
+  labels:
+{{ tuple $envAll "cinder" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+    waitForIt: true
+  {{- /* spec.name carries the schema name: it may contain an underscore, which
+  metadata.name may not. */}}
+  name: {{ $cinderName | quote }}
+  characterSet: utf8
+  collate: utf8_general_ci
+  retryInterval: 10s
+---
+apiVersion: {{ $apiVersion }}
+kind: Grant
+metadata:
+  name: cinder
+  labels:
+{{ tuple $envAll "cinder" "db-grant" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+    waitForIt: true
+  privileges:
+    - ALL
+  database: {{ $cinderName | quote }}
+  table: "*"
+  username: {{ $cinderAuth.username | quote }}
+  host: "%"
+  grantOption: false
+  retryInterval: 10s
+---
+apiVersion: {{ $apiVersion }}
+kind: Connection
+metadata:
+  name: cinder-db-conn
+  labels:
+{{ tuple $envAll "cinder" "db-connection" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+  serviceName: {{ $mariadbHost | quote }}
+  host: {{ tuple "oslo_db" "internal" $envAll | include "helm-toolkit.endpoints.endpoint_host_lookup" | quote }}
+  port: {{ tuple "oslo_db" "internal" "mysql" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  username: {{ $cinderAuth.username | quote }}
+  passwordSecretKeyRef:
+    name: cinder-db-password
+    key: password
+  database: {{ $cinderName | quote }}
+  secretName: cinder-db-conn
+  secretTemplate:
+    {{- /* One file per config section, so several connection secrets can be
+    projected into the same config directory without colliding. oslo.config
+    reads every .conf file in that directory. */}}
+    key: database.conf
+    {{- /* The placeholders are rendered by the controller, not by Helm, so they
+    are escaped here. TLS parameters go in the format string rather than
+    spec.params because ssl_verify_cert takes no value and a string map would
+    emit a trailing equals sign. */}}
+    format: |
+      [database]
+      connection = {{ .Values.endpoints.oslo_db.scheme }}://{{ `{{ .Username }}` }}:{{ if $osh }}{{ `{{ .PasswordEncoded }}` }}{{ else }}{{ `{{ .Password }}` }}{{ end }}@{{ `{{ .Host }}` }}:{{ `{{ .Port }}` }}/{{ `{{ .Database }}` }}{{ if .Values.tls.oslo_db }}?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert{{ else }}?charset=utf8{{ end }}
+  healthCheck:
+    interval: 30s
+    retryInterval: 3s
+{{- if $osh }}
+  {{- /* Not a field upstream has; it paces the osh controller's retries. */}}
+  retryInterval: 10s
+{{- end }}
+{{- end }}

@@ -65,8 +65,11 @@ CONFIG_FILE="${CONFIG_FILE:-$_def_config_file}"
 CONFIG_SECTION="${CONFIG_SECTION:-$_def_config_section}"
 CONFIG_KEY="${CONFIG_KEY:-connection}"
 # Fallback location, used when the connection is not generated into the service
-# config: mariadb-operator writes it into this secret and the service projects
-# it into the config directory.
+# config but written into a secret the service projects into its config
+# directory. Both declarative paths do that; they just name the key
+# differently. mariadb-operator's Connection uses db_conn.conf, while the
+# in-chart db controller (manifests.mariadb_db) names it after the config
+# section, so the section name is tried as well.
 CONN_SECRET="${CONN_SECRET:-${SERVICE}-db-conn}"
 CONN_FILE="${CONN_FILE:-db_conn.conf}"
 
@@ -99,6 +102,7 @@ uri_port() { local r="${1#*://}"; r="${r#*@}"; r="${r%%/*}"; case "$r" in *:*) p
 hdr "Target"
 echo "  service=$SERVICE namespace=$NAMESPACE"
 echo "  config=$CONFIG_SECRET:$CONFIG_FILE [$CONFIG_SECTION].$CONFIG_KEY"
+echo "  connection-secret-fallback=$CONN_SECRET:$CONFIG_SECTION.conf"
 echo "  admin-secret=$ADMIN_SECRET  client-cert-secret=$CLIENT_SECRET"
 
 # Discover a MariaDB pod (has the mysql client; used to run queries in-cluster).
@@ -121,10 +125,15 @@ read_conf_uri() { # secret file section -> uri
 DB_URI="$(read_conf_uri "$CONFIG_SECRET" "$CONFIG_FILE" "$CONFIG_SECTION")"
 if [[ -z "$DB_URI" ]]; then
   # The connection is not always generated into the service config: with
-  # mariadb-operator the chart nulls it and the operator writes it into its own
-  # secret, which the service projects into the config directory instead.
-  DB_URI="$(read_conf_uri "$CONN_SECRET" "$CONN_FILE" "$CONFIG_SECTION")"
-  [[ -n "$DB_URI" ]] && echo "  connection read from $CONN_SECRET:$CONN_FILE"
+  # declarative provisioning the chart nulls it and a controller writes it into
+  # a secret which the service projects into the config directory instead.
+  for _conn_file in "$CONN_FILE" "${CONFIG_SECTION}.conf"; do
+    DB_URI="$(read_conf_uri "$CONN_SECRET" "$_conn_file" "$CONFIG_SECTION")"
+    if [[ -n "$DB_URI" ]]; then
+      echo "  connection read from $CONN_SECRET:$_conn_file"
+      break
+    fi
+  done
 fi
 
 # Is MariaDB TLS (tls.oslo_db) enabled for this release? Prefer the value
@@ -160,8 +169,9 @@ fi
 # here, after the gate: when tls.oslo_db is off there is nothing to verify, and
 # a deployment is free to supply the connection some other way.
 if [[ -z "$DB_URI" ]]; then
-  echo "Could not find [$CONFIG_SECTION] $CONFIG_KEY in $CONFIG_FILE" \
-       "(secret $CONFIG_SECRET) or in $CONN_SECRET:$CONN_FILE." >&2
+  echo "Could not find [$CONFIG_SECTION] $CONFIG_KEY in $CONFIG_FILE (secret" \
+       "$CONFIG_SECRET), or in $CONN_FILE or ${CONFIG_SECTION}.conf (secret" \
+       "$CONN_SECRET)." >&2
   exit 2
 fi
 DB_USER="$(uri_user "$DB_URI")"; DB_PASS="$(uri_pass "$DB_URI")"

@@ -205,16 +205,18 @@
 - job:
     name: openstack-helm-mariadb-operator-2026-1-ubuntu_noble
     description: |
-      Run the compute kit with its databases provisioned declaratively.
-      mariadb-operator reconciles the Database, User, Grant and Connection
-      custom resources declared by each chart's mariadb-operator.yaml value
-      override, and materializes every service's connection string into a
-      secret which the service projects into its config directory. This
-      replaces both the mariadb chart and the per-chart db-init jobs: the
-      database is a single operator-managed MariaDB instance, not a Galera
+      The mariadb-crd job with the other operator. The charts render exactly
+      the same Database/User/Grant/Connection resources from exactly the same
+      overrides; mariadb-operator.yaml changes mariadb_db.api_group to
+      k8s.mariadb.com, so the upstream mariadb-operator reconciles them
+      instead of the mariadb chart's db controller. Everything else -- the
+      nodeset, Ceph, cinder, which secrets are projected into which workloads
+      -- is identical, which is what makes a difference between the two jobs
+      attributable to the operator. The mariadb chart is not deployed at all
+      here: the database is a single operator-managed instance, not a Galera
       cluster.
     parent: openstack-helm-deploy
-    nodeset: openstack-helm-3nodes-ubuntu_noble
+    nodeset: openstack-helm-5nodes-ubuntu_noble
     run:
       - playbooks/deploy-env.yaml
       - playbooks/deploy-mariadb-operator.yaml
@@ -224,9 +226,11 @@
       # Makes deploy-compute-kit skip the mariadb chart: the database is
       # already there, created by deploy-mariadb-operator.
       mariadb_operator_enabled: true
+      cinder_enabled: true
       osh_values_overrides:
         - "2026.1-ubuntu_noble.yaml"
         - "gateway.yaml"
+        - "mariadb-crd.yaml"
         - "mariadb-operator.yaml"
 
 - job:
@@ -339,4 +343,31 @@
     files:
       - ^zaqar/.*
       - ^playbooks/deploy-zaqar\.yaml
+
+- job:
+    name: openstack-helm-mariadb-crd-2026-1-ubuntu_noble
+    description: |
+      Deploy the compute kit plus Ceph and cinder with declarative MariaDB
+      database management. Every chart in this deployment that owns a database
+      -- keystone, cinder, heat, glance, placement, nova and neutron -- renders
+      Database/User/Grant/Connection custom resources (manifests.mariadb_db)
+      which the mariadb chart's db controller reconciles, instead of running
+      the per-chart db-init jobs (manifests.job_db_init=false). This exercises
+      the single-database case, the multi-database case (nova owns nova,
+      nova_cell0 and nova_cell1 behind one account) and the non-default config
+      section case (placement writes [placement_database]). The 5-node rook
+      nodeset is needed because cinder is deployed with a Ceph backend.
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-5nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-compute-kit.yaml
+    vars:
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      # Also deploy Ceph and cinder (gated tasks in deploy-compute-kit).
+      cinder_enabled: true
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+        - "mariadb-crd.yaml"
 ...

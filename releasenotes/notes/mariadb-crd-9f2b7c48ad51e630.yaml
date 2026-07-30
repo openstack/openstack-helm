@@ -1,0 +1,102 @@
+---
+mariadb:
+  - |
+    The chart now ships four namespaced custom resource definitions in the
+    ``mariadb.osh.openstack.org/v1alpha1`` API group -- ``Database``, ``User``,
+    ``Grant`` and ``Connection`` -- gated by ``.Values.manifests.crds`` (on by
+    default; they are inert without any resources to reconcile). They carry
+    ``helm.sh/resource-policy: keep`` so that uninstalling the release does not
+    cascade-delete the resources and connection secrets that running OpenStack
+    services depend on.
+
+    The resources are deliberately close to their upstream mariadb-operator
+    counterparts. Every field the upstream ``k8s.mariadb.com/v1alpha1``
+    resources accept is declared, so a resource written against upstream
+    documentation is not silently stripped by the API server, and the status
+    subresource is structurally identical to upstream's: a single conditions
+    list of ``metav1.Condition``, which means ``kubectl wait
+    --for=condition=Ready`` works on all four kinds. Fields this reconciler
+    does not implement -- ``passwordPlugin``, ``require.ssl``,
+    ``require.issuer``, ``require.subject``, ``maxScaleRef``,
+    ``tlsClientCertSecretRef``, the object reference fields that pin a
+    referent's identity, and ``optional`` on a secret key reference -- are
+    rejected with a ``Ready`` condition of ``False`` rather than ignored, so
+    nothing appears to have been honored when it was not. Values that agree
+    with what the reconciler already does, such as ``optional: false``, are
+    accepted.
+
+    A new ``mariadb-db-controller`` deployment, gated by
+    ``.Values.manifests.deployment_db_controller`` and **off by default**,
+    reconciles those resources: it creates databases, users and grants, and
+    materializes connection strings into secrets. It is a single-file Python
+    reconciler modelled on the existing ``mariadb-controller``, runs with
+    ``replicas: 1`` and no leader election, and reads the administrative
+    credentials from ``mariadb-dbadmin-password`` plus ``admin_user.cnf`` (so
+    mutual TLS works with no extra configuration). Every operation is
+    idempotent and a periodic resync repairs drift made outside the controller.
+
+    Enabling the controller adds a key to the ``mariadb-bin`` configmap, whose
+    hash annotates the galera statefulset, so it rolls the cluster. Leaving it
+    off keeps the rendered chart byte-identical to before.
+
+    Also defines ``pod.resources.controller``, which
+    ``deployment-controller.yaml`` has always referenced but which was never
+    declared in ``values.yaml``.
+other:
+  - |
+    The keystone, cinder, glance, heat, placement, nova and neutron charts can
+    now provision their databases declaratively instead of running a per-chart
+    db-init job that needs the MariaDB administrative connection URI mounted
+    into the OpenStack namespace.
+
+    Each chart declares its own resources in ``templates/mariadb-db.yaml``,
+    gated by ``manifests.mariadb_db`` (off by default), deriving the database
+    name and credentials from the ``endpoints.oslo_db*`` values it already
+    declares.
+
+    Which operator reconciles them is a choice: ``mariadb_db.api_group``
+    selects either ``mariadb.osh.openstack.org``, served by the MariaDB chart's
+    own controller, or ``k8s.mariadb.com``, served by the upstream
+    mariadb-operator deployed separately. The resources are otherwise
+    identical, and rendering fails on any other value rather than producing
+    resources nothing reconciles. Two caveats when choosing the upstream group:
+    ``Connection.retryInterval`` does not exist there and is omitted, and
+    ``User.spec.require`` was only added in mariadb-operator 0.37.0, so an
+    older operator combined with ``tls.oslo_db`` would create accounts without
+    ``REQUIRE X509``. Rendering fails if ``manifests.job_db_init`` is also enabled,
+    since both paths would write the same account's password. Nova declares
+    three databases -- ``nova``, ``nova_cell0`` and ``nova_cell1`` -- behind a
+    single account, so it gets one ``User`` and one password secret for the
+    three of them. Nothing in ``nova.conf`` points at ``nova_cell0``, because
+    nova reads that connection from the cell mapping in the api database, so its
+    ``Connection`` writes a bare URI which db-sync consumes as the
+    ``DB_CONNECTION_CELL0`` environment variable instead of an ``oslo.config``
+    snippet. A ``Connection`` can materialize either shape: ``secretTemplate``
+    names both the key and the format.
+
+    To enable it, set ``manifests.mariadb_db: true`` and
+    ``manifests.job_db_init: false``, null out the connection in the service
+    config (for example ``conf.cinder.database.connection: null``), and list
+    the connection secret in ``pod.etcSources`` for each workload that reads
+    the database. The per-chart ``values_overrides/<chart>/mariadb-crd.yaml``
+    overrides do all of this. The connection string then comes from the secret
+    the MariaDB controller writes, projected into the service's config
+    directory; because a projected volume source is not optional, kubelet holds
+    the pod until the secret exists, which also makes db-sync wait for the
+    database to be provisioned.
+
+    Both defaults are unchanged, so existing deployments keep using the db-init
+    job and render identically.
+
+    ``nova-compute`` and the neutron agents deliberately do not get the
+    connection secret, because they do not use the database. The
+    ``<service>-db-admin`` secrets are still rendered. Nova's override points
+    ``secrets.oslo_db_cell0.nova`` at the cell0 ``Connection`` secret and turns
+    ``manifests.secret_db_cell0`` off, so the chart no longer generates a cell0
+    connection URI of its own; both defaults are unchanged.
+  - |
+    ``tools/deployment/common/verify-mariadb-tls.sh`` now falls back to the
+    Connection secret when the service config carries no connection string,
+    and only insists on finding one once it knows ``tls.oslo_db`` is enabled,
+    so a deployment that does not use MariaDB TLS is skipped either way.
+...

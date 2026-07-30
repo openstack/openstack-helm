@@ -19,6 +19,22 @@ limitations under the License.
 {{- $saName := index . 3 | replace "_" "-" }}
 {{- $saNamespace := index . 4 -}}
 {{- $releaseName := $envAll.Release.Name }}
+{{- /*
+Custom resource dependencies need rules of their own: their API group is not
+one of the fixed groups below, and the resource name is not known until the
+dependency names a kind. kubernetes-entrypoint reads them with a dynamic
+client, so it needs get on the plural in that group. Discovery, which it uses
+to find the plural, needs no rule -- it is granted to all authenticated users.
+*/}}
+{{- $customResources := list }}
+{{- if has "custom_resources" $deps }}
+{{- range $cr := (dig "custom_resources" list ($envAll.Values.__kubernetes_entrypoint_init_container.deps | default dict)) }}
+{{- if eq ($cr.namespace | default $saNamespace) $namespace }}
+{{- $customResources = append $customResources $cr }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $coreResources := without $deps "custom_resources" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -40,6 +56,7 @@ metadata:
   name: {{ $releaseName }}-{{ $saNamespace }}-{{ $saName }}
   namespace: {{ $namespace }}
 rules:
+{{- if $coreResources }}
   - apiGroups:
       - ""
       - extensions
@@ -50,7 +67,7 @@ rules:
       - get
       - list
     resources:
-      {{- range $k, $v := $deps -}}
+      {{- range $k, $v := $coreResources -}}
       {{ if eq $v "daemonsets" }}
       - daemonsets
       {{- end -}}
@@ -69,4 +86,16 @@ rules:
       - secrets
       {{- end -}}
       {{- end -}}
+{{- end }}
+{{- range $cr := $customResources }}
+  - apiGroups:
+      - {{ regexReplaceAll "/.*$" $cr.apiVersion "" }}
+    verbs:
+      - get
+    resources:
+      {{- /* The plural is derived from the kind, which covers every kind whose
+      plural is the lowercased kind plus an s. Anything irregular sets
+      resource explicitly. */}}
+      - {{ $cr.resource | default (printf "%ss" (lower $cr.kind)) }}
+{{- end }}
 {{- end -}}

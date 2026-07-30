@@ -1,0 +1,618 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{/*
+Custom resource definitions reconciled by the mariadb-db-controller
+deployment. The field names are a subset of, and compatible with, the
+upstream mariadb-operator k8s.mariadb.com/v1alpha1 group so that the same
+consumer chart templates can be retargeted at the full upstream operator
+by changing a single apiVersion argument. Fields the minimal controller
+does not implement are still declared, so a resource written against
+upstream documentation applies unchanged.
+
+These objects are cluster scoped. They carry helm.sh/resource-policy: keep
+so that uninstalling the mariadb release does not cascade-delete every
+Database/User/Grant/Connection in the cluster along with the connection
+secrets every OpenStack service depends on.
+*/}}
+
+{{/*
+Reference to another object, with the full set of fields upstream accepts.
+
+Only name and namespace are honoured. The rest are declared so that a resource
+written against upstream documentation is not silently stripped by the API
+server, and the controller rejects them rather than ignoring them, so that a
+reference meant to pin a particular object never appears to have been honoured
+when it was not.
+*/}}
+{{- define "mariadb.crds.object_ref" }}
+type: object
+properties:
+  name:
+    type: string
+  namespace:
+    type: string
+  apiVersion:
+    description: Declared for compatibility. Rejected by this controller.
+    type: string
+  kind:
+    description: Declared for compatibility. Rejected by this controller.
+    type: string
+  uid:
+    description: Declared for compatibility. Rejected by this controller.
+    type: string
+  resourceVersion:
+    description: Declared for compatibility. Rejected by this controller.
+    type: string
+  fieldPath:
+    description: Declared for compatibility. Rejected by this controller.
+    type: string
+{{- end }}
+
+{{/* Fields shared by every kind in this group. */}}
+{{- define "mariadb.crds.common_spec_properties" }}
+mariaDbRef:
+  description: |
+    Reference to the MariaDB cluster serving this resource. The controller
+    treats it as a guard: a name that does not match the cluster it serves
+    leaves the resource untouched, with a Ready condition whose reason is
+    NotOwned, so that this controller and the upstream mariadb-operator can
+    coexist.
+  type: object
+  properties:
+    name:
+      type: string
+    namespace:
+      type: string
+    waitForIt:
+      description: Accepted for compatibility. The controller always retries.
+      type: boolean
+      default: true
+    apiVersion:
+      description: Declared for compatibility. Rejected by this controller.
+      type: string
+    kind:
+      description: Declared for compatibility. Rejected by this controller.
+      type: string
+    uid:
+      description: Declared for compatibility. Rejected by this controller.
+      type: string
+    resourceVersion:
+      description: Declared for compatibility. Rejected by this controller.
+      type: string
+    fieldPath:
+      description: Declared for compatibility. Rejected by this controller.
+      type: string
+retryInterval:
+  description: Minimum delay before retrying this resource after a failure.
+  type: string
+  pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
+requeueInterval:
+  description: Accepted for compatibility. Ignored by this controller.
+  type: string
+  pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
+cleanupPolicy:
+  description: |
+    Whether deleting this resource also removes the object it created in
+    MariaDB. Defaults to Skip so that data is never dropped implicitly.
+  type: string
+  enum:
+    - Skip
+    - Delete
+  default: Skip
+{{- end }}
+
+{{/*
+Status subresource shared by every kind in this group.
+
+Structurally identical to the upstream status: a single conditions list whose
+items are metav1.Condition, with the same types, formats, enums, patterns and
+required fields. Readiness is the condition of type Ready, which is what
+kubectl wait --for=condition=Ready reads and what the upstream printer columns
+select on.
+
+A single string field would be easier for kubernetes-entrypoint to wait on,
+since it compares one nested field against a string and cannot index into a
+list, but diverging from upstream here would make every resource in this group
+subtly incompatible with tooling written for the real operator. Teaching
+kubernetes-entrypoint to match a condition by type is the better fix and is a
+prerequisite for declaring a custom_resources dependency on readiness.
+*/}}
+{{- define "mariadb.crds.common_status" }}
+type: object
+properties:
+  conditions:
+    description: Conditions observed for this resource.
+    type: array
+    items:
+      description: Condition contains details for one aspect of the current state of this API resource.
+      type: object
+      required:
+        - lastTransitionTime
+        - message
+        - reason
+        - status
+        - type
+      properties:
+        lastTransitionTime:
+          description: |
+            When the condition last moved from one status to another. It does
+            not change while the status stays the same.
+          type: string
+          format: date-time
+        message:
+          description: Human readable detail about the transition. May be empty.
+          type: string
+          maxLength: 32768
+        observedGeneration:
+          description: |
+            The metadata.generation this condition was computed from. A value
+            behind the current generation means the condition is out of date.
+          type: integer
+          format: int64
+          minimum: 0
+        reason:
+          description: |
+            CamelCase programmatic identifier for the reason of the last
+            transition. Reconciled, ReconcileError or NotOwned.
+          type: string
+          minLength: 1
+          maxLength: 1024
+          pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+        status:
+          description: Status of the condition, one of True, False, Unknown.
+          type: string
+          enum:
+            - "True"
+            - "False"
+            - Unknown
+        type:
+          description: Type of condition in CamelCase.
+          type: string
+          maxLength: 316
+          pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+{{- end }}
+
+{{/* Reference to a key in a Secret. */}}
+{{- define "mariadb.crds.secret_key_ref" }}
+type: object
+required:
+  - name
+properties:
+  name:
+    type: string
+  key:
+    type: string
+    default: password
+  optional:
+    description: |
+      Declared for compatibility. Rejected by this controller: a missing
+      credential is a reconcile error here, never something to continue
+      without. Deliberately has no default, so only an explicit value is
+      rejected.
+    type: boolean
+{{- end }}
+
+{{/*
+The API group is hardcoded rather than driven from values because each consumer
+chart declares its own resources in its own templates/mariadb-db.yaml and
+cannot read this chart's values. Those templates carry the same group literal,
+which must stay in sync with the one below.
+*/}}
+{{- if .Values.manifests.crds }}
+{{- $group := "mariadb.osh.openstack.org" }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: databases.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "mariadb" "db-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Database
+    listKind: DatabaseList
+    plural: databases
+    singular: database
+    categories:
+      - mariadb-db
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Database
+          type: string
+          jsonPath: .spec.name
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].status
+        - name: Status
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].message
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+{{ include "mariadb.crds.common_spec_properties" . | indent 16 }}
+                name:
+                  description: |
+                    The MariaDB schema name. Defaults to metadata.name. Set it
+                    explicitly whenever the schema name is not a valid
+                    Kubernetes object name, for example nova_cell0.
+                  type: string
+                  pattern: ^[A-Za-z0-9_$]{1,64}$
+                characterSet:
+                  type: string
+                  default: utf8
+                collate:
+                  type: string
+                  default: utf8_general_ci
+            status:
+{{ include "mariadb.crds.common_status" . | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: users.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "mariadb" "db-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: User
+    listKind: UserList
+    plural: users
+    singular: user
+    categories:
+      - mariadb-db
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: User
+          type: string
+          jsonPath: .spec.name
+        - name: Host
+          type: string
+          jsonPath: .spec.host
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].status
+        - name: Status
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].message
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+{{ include "mariadb.crds.common_spec_properties" . | indent 16 }}
+                name:
+                  description: The MariaDB user name. Defaults to metadata.name.
+                  type: string
+                  pattern: ^[A-Za-z0-9_$.-]{1,80}$
+                host:
+                  type: string
+                  default: "%"
+                passwordSecretKeyRef:
+                  description: Secret key holding the plain text password.
+{{ include "mariadb.crds.secret_key_ref" . | indent 18 }}
+                passwordHashSecretKeyRef:
+                  description: |
+                    Secret key holding a pre-hashed password, used with
+                    IDENTIFIED BY PASSWORD. Mutually exclusive with
+                    passwordSecretKeyRef.
+{{ include "mariadb.crds.secret_key_ref" . | indent 18 }}
+                maxUserConnections:
+                  description: |
+                    Maximum simultaneous connections for this account, 0 means
+                    unlimited. Note this defaults to 0 rather than upstream's
+                    10, which would throttle every OpenStack service.
+                  type: integer
+                  format: int32
+                  minimum: 0
+                  default: 0
+                require:
+                  description: |
+                    Connection requirements for the account. x509 defaults to
+                    the controller's own TLS setting, so a chart deployed with
+                    mariadb TLS enabled gets REQUIRE X509 accounts.
+                  type: object
+                  properties:
+                    x509:
+                      type: boolean
+                    ssl:
+                      description: |
+                        Declared for compatibility. Rejected by this
+                        controller, which emits only REQUIRE X509.
+                      type: boolean
+                    issuer:
+                      description: |
+                        Declared for compatibility. Rejected by this
+                        controller, which emits only REQUIRE X509.
+                      type: string
+                    subject:
+                      description: |
+                        Declared for compatibility. Rejected by this
+                        controller, which emits only REQUIRE X509.
+                      type: string
+                passwordPlugin:
+                  description: |
+                    Authentication plugin for the account. Declared for
+                    compatibility and rejected by this controller: silently
+                    falling back to password authentication would leave the
+                    account weaker than the resource asked for.
+                  type: object
+                  properties:
+                    pluginNameSecretKeyRef:
+{{ include "mariadb.crds.secret_key_ref" . | indent 22 }}
+                    pluginArgSecretKeyRef:
+{{ include "mariadb.crds.secret_key_ref" . | indent 22 }}
+            status:
+{{ include "mariadb.crds.common_status" . | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: grants.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "mariadb" "db-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Grant
+    listKind: GrantList
+    plural: grants
+    singular: grant
+    categories:
+      - mariadb-db
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Database
+          type: string
+          jsonPath: .spec.database
+        - name: User
+          type: string
+          jsonPath: .spec.username
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].status
+        - name: Status
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].message
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - username
+                - privileges
+              properties:
+{{ include "mariadb.crds.common_spec_properties" . | indent 16 }}
+                privileges:
+                  description: |
+                    Privileges to grant. Applied additively: removing an entry
+                    does not issue a REVOKE, the drift is reported in
+                    status.message instead.
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    pattern: ^[A-Za-z][A-Za-z ]*$
+                database:
+                  type: string
+                  default: "*"
+                table:
+                  type: string
+                  default: "*"
+                username:
+                  type: string
+                host:
+                  type: string
+                  default: "%"
+                grantOption:
+                  type: boolean
+                  default: false
+            status:
+{{ include "mariadb.crds.common_status" . | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: connections.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "mariadb" "db-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Connection
+    listKind: ConnectionList
+    plural: connections
+    singular: connection
+    categories:
+      - mariadb-db
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Secret
+          type: string
+          jsonPath: .spec.secretName
+        - name: Database
+          type: string
+          jsonPath: .spec.database
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].status
+        - name: Status
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].message
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - username
+              properties:
+{{ include "mariadb.crds.common_spec_properties" . | indent 16 }}
+                username:
+                  type: string
+                passwordSecretKeyRef:
+{{ include "mariadb.crds.secret_key_ref" . | indent 18 }}
+                maxScaleRef:
+                  description: |
+                    Reference to a MaxScale to connect through instead of the
+                    cluster. Declared for compatibility and rejected by this
+                    controller, which has no MaxScale support: connecting
+                    straight to MariaDB would bypass the proxy the resource
+                    asked for.
+{{ include "mariadb.crds.object_ref" . | indent 18 }}
+                tlsClientCertSecretRef:
+                  description: |
+                    Client certificate to put in the connection. Declared for
+                    compatibility and rejected by this controller, which takes
+                    TLS parameters from secretTemplate.format instead.
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                database:
+                  type: string
+                host:
+                  description: |
+                    Host to put in the connection string. Defaults to
+                    serviceName resolved in this namespace, or to the
+                    controller's own MariaDB host.
+                  type: string
+                port:
+                  type: integer
+                  format: int32
+                serviceName:
+                  description: |
+                    Name of the Kubernetes service fronting MariaDB. Expanded
+                    to a fully qualified in-cluster name when host is unset.
+                  type: string
+                params:
+                  description: |
+                    Extra query parameters appended to the connection string,
+                    sorted by key.
+                  type: object
+                  additionalProperties:
+                    type: string
+                secretName:
+                  description: |
+                    Name of the secret to write. Defaults to metadata.name. The
+                    secret is owned by this resource, so deleting the resource
+                    garbage-collects the secret.
+                  type: string
+                secretTemplate:
+                  type: object
+                  properties:
+                    key:
+                      description: |
+                        Secret key to write the rendered format string to.
+                      type: string
+                    format:
+                      description: |
+                        Go template rendered with .Username, .Password, .Host,
+                        .Port, .Database and .Params, plus .UsernameEncoded and
+                        .PasswordEncoded which are percent-encoded and are what
+                        a URI should use.
+                      type: string
+                    usernameKey:
+                      type: string
+                    passwordKey:
+                      type: string
+                    hostKey:
+                      type: string
+                    portKey:
+                      type: string
+                    databaseKey:
+                      type: string
+                    paramsKey:
+                      type: string
+                    metadata:
+                      type: object
+                      properties:
+                        labels:
+                          type: object
+                          additionalProperties:
+                            type: string
+                        annotations:
+                          type: object
+                          additionalProperties:
+                            type: string
+                healthCheck:
+                  description: |
+                    Accepted for compatibility. This controller verifies the
+                    connection once per reconcile sweep.
+                  type: object
+                  properties:
+                    interval:
+                      type: string
+                      pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
+                    retryInterval:
+                      type: string
+                      pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
+            status:
+{{ include "mariadb.crds.common_status" . | indent 14 }}
+{{- end }}

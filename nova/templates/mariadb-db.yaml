@@ -1,0 +1,321 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- /*
+MariaDB custom resources declaring the database this chart owns. They are
+reconciled by the mariadb chart's db controller, which creates the database,
+the account and its grants, and writes the connection string into the secret
+named below as an oslo.config snippet.
+
+Enable this instead of the db-init job, and null out the connection in
+conf.nova.database and conf.nova.api_database so the projected snippets are
+the only source. See values_overrides/nova/mariadb-crd.yaml.
+*/}}
+{{- if .Values.manifests.mariadb_db }}
+{{- $envAll := . }}
+{{- if .Values.manifests.job_db_init }}
+{{- fail "manifests.mariadb_db and manifests.job_db_init are mutually exclusive, set manifests.job_db_init to false" }}
+{{- end }}
+{{- /*
+The API group is chosen in values, so the same resources can be reconciled
+either by the mariadb chart's own db controller or by the upstream
+mariadb-operator. Two things differ between the two targets:
+Connection.retryInterval does not exist upstream and is omitted, and the
+password placeholder is .PasswordEncoded here but .Password upstream, which
+renders no percent-encoded variant. A password containing a character that is
+reserved in a URI therefore needs the osh group.
+*/}}
+{{- $apiGroup := .Values.mariadb_db.api_group }}
+{{- $osh := eq $apiGroup "mariadb.osh.openstack.org" }}
+{{- if not (or $osh (eq $apiGroup "k8s.mariadb.com")) }}
+{{- fail (printf "mariadb_db.api_group must be mariadb.osh.openstack.org or k8s.mariadb.com, not %s" $apiGroup) }}
+{{- end }}
+{{- $apiVersion := printf "%s/v1alpha1" $apiGroup }}
+{{- $mariadbHost := index .Values.endpoints.oslo_db.hosts "default" }}
+
+{{- /*
+All three nova databases are reached with the same MariaDB account, so there
+is one password secret and one User for the three of them. Note which
+endpoint feeds which config section: oslo_db is the api database, and the
+plain [database] section addresses cell1. cell0 has no config section at all
+-- nothing in nova.conf points at it, because nova reads its connection from
+the cell mapping in the api database -- so its Connection emits a bare URI for
+job-db-sync to consume as the DB_CONNECTION_CELL0 environment variable rather
+than an oslo.config snippet.
+*/}}
+{{- $novaAuth := .Values.endpoints.oslo_db.auth.nova }}
+
+{{- /* One account for all three nova databases. */}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nova-db-password
+  labels:
+{{ tuple $envAll "nova" "db-password" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+type: Opaque
+data:
+  password: {{ $novaAuth.password | b64enc }}
+---
+apiVersion: {{ $apiVersion }}
+kind: User
+metadata:
+  name: nova
+  labels:
+{{ tuple $envAll "nova" "db-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+    waitForIt: true
+  name: {{ $novaAuth.username | quote }}
+  host: "%"
+  passwordSecretKeyRef:
+    name: nova-db-password
+    key: password
+  {{- /* 0 means unlimited. Anything else throttles the service. */}}
+  maxUserConnections: 0
+{{- if .Values.tls.oslo_db }}
+  require:
+    x509: true
+{{- end }}
+  retryInterval: 10s
+
+{{- /* The cell1 database. */}}
+{{- $novaName := .Values.endpoints.oslo_db.path | trimPrefix "/" }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Database
+metadata:
+  name: nova
+  labels:
+{{ tuple $envAll "nova" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+    waitForIt: true
+  {{- /* spec.name carries the schema name: it may contain an underscore, which
+  metadata.name may not. */}}
+  name: {{ $novaName | quote }}
+  characterSet: utf8
+  collate: utf8_general_ci
+  retryInterval: 10s
+---
+apiVersion: {{ $apiVersion }}
+kind: Grant
+metadata:
+  name: nova
+  labels:
+{{ tuple $envAll "nova" "db-grant" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+    waitForIt: true
+  privileges:
+    - ALL
+  database: {{ $novaName | quote }}
+  table: "*"
+  username: {{ $novaAuth.username | quote }}
+  host: "%"
+  grantOption: false
+  retryInterval: 10s
+---
+apiVersion: {{ $apiVersion }}
+kind: Connection
+metadata:
+  name: nova-db-conn
+  labels:
+{{ tuple $envAll "nova" "db-connection" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+  serviceName: {{ $mariadbHost | quote }}
+  host: {{ tuple "oslo_db" "internal" $envAll | include "helm-toolkit.endpoints.endpoint_host_lookup" | quote }}
+  port: {{ tuple "oslo_db" "internal" "mysql" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  username: {{ $novaAuth.username | quote }}
+  passwordSecretKeyRef:
+    name: nova-db-password
+    key: password
+  database: {{ $novaName | quote }}
+  secretName: nova-db-conn
+  secretTemplate:
+    {{- /* One file per config section, so several connection secrets can be
+    projected into the same config directory without colliding. oslo.config
+    reads every .conf file in that directory. */}}
+    key: api_database.conf
+    {{- /* The placeholders are rendered by the controller, not by Helm, so they
+    are escaped here. TLS parameters go in the format string rather than
+    spec.params because ssl_verify_cert takes no value and a string map would
+    emit a trailing equals sign. */}}
+    format: |
+      [api_database]
+      connection = {{ .Values.endpoints.oslo_db.scheme }}://{{ `{{ .Username }}` }}:{{ if $osh }}{{ `{{ .PasswordEncoded }}` }}{{ else }}{{ `{{ .Password }}` }}{{ end }}@{{ `{{ .Host }}` }}:{{ `{{ .Port }}` }}/{{ `{{ .Database }}` }}{{ if .Values.tls.oslo_db }}?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert{{ else }}?charset=utf8{{ end }}
+  healthCheck:
+    interval: 30s
+    retryInterval: 3s
+{{- if $osh }}
+  {{- /* Not a field upstream has; it paces the osh controller's retries. */}}
+  retryInterval: 10s
+{{- end }}
+
+{{- /* The API database. */}}
+{{- $novacell1Name := .Values.endpoints.oslo_db_cell1.path | trimPrefix "/" }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Database
+metadata:
+  name: nova-cell1
+  labels:
+{{ tuple $envAll "nova" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+    waitForIt: true
+  {{- /* spec.name carries the schema name: it may contain an underscore, which
+  metadata.name may not. */}}
+  name: {{ $novacell1Name | quote }}
+  characterSet: utf8
+  collate: utf8_general_ci
+  retryInterval: 10s
+---
+apiVersion: {{ $apiVersion }}
+kind: Grant
+metadata:
+  name: nova-cell1
+  labels:
+{{ tuple $envAll "nova" "db-grant" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+    waitForIt: true
+  privileges:
+    - ALL
+  database: {{ $novacell1Name | quote }}
+  table: "*"
+  username: {{ $novaAuth.username | quote }}
+  host: "%"
+  grantOption: false
+  retryInterval: 10s
+---
+apiVersion: {{ $apiVersion }}
+kind: Connection
+metadata:
+  name: nova-cell1-db-conn
+  labels:
+{{ tuple $envAll "nova" "db-connection" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+  serviceName: {{ $mariadbHost | quote }}
+  host: {{ tuple "oslo_db_cell1" "internal" $envAll | include "helm-toolkit.endpoints.endpoint_host_lookup" | quote }}
+  port: {{ tuple "oslo_db_cell1" "internal" "mysql" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  username: {{ $novaAuth.username | quote }}
+  passwordSecretKeyRef:
+    name: nova-db-password
+    key: password
+  database: {{ $novacell1Name | quote }}
+  secretName: nova-cell1-db-conn
+  secretTemplate:
+    {{- /* One file per config section, so several connection secrets can be
+    projected into the same config directory without colliding. oslo.config
+    reads every .conf file in that directory. */}}
+    key: database.conf
+    {{- /* The placeholders are rendered by the controller, not by Helm, so they
+    are escaped here. TLS parameters go in the format string rather than
+    spec.params because ssl_verify_cert takes no value and a string map would
+    emit a trailing equals sign. */}}
+    format: |
+      [database]
+      connection = {{ .Values.endpoints.oslo_db_cell1.scheme }}://{{ `{{ .Username }}` }}:{{ if $osh }}{{ `{{ .PasswordEncoded }}` }}{{ else }}{{ `{{ .Password }}` }}{{ end }}@{{ `{{ .Host }}` }}:{{ `{{ .Port }}` }}/{{ `{{ .Database }}` }}{{ if .Values.tls.oslo_db }}?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert{{ else }}?charset=utf8{{ end }}
+  healthCheck:
+    interval: 30s
+    retryInterval: 3s
+{{- if $osh }}
+  {{- /* Not a field upstream has; it paces the osh controller's retries. */}}
+  retryInterval: 10s
+{{- end }}
+
+{{- /* The cell0 database. */}}
+{{- $novacell0Name := .Values.endpoints.oslo_db_cell0.path | trimPrefix "/" }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Database
+metadata:
+  name: nova-cell0
+  labels:
+{{ tuple $envAll "nova" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+    waitForIt: true
+  {{- /* spec.name carries the schema name: it may contain an underscore, which
+  metadata.name may not. */}}
+  name: {{ $novacell0Name | quote }}
+  characterSet: utf8
+  collate: utf8_general_ci
+  retryInterval: 10s
+---
+apiVersion: {{ $apiVersion }}
+kind: Grant
+metadata:
+  name: nova-cell0
+  labels:
+{{ tuple $envAll "nova" "db-grant" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+    waitForIt: true
+  privileges:
+    - ALL
+  database: {{ $novacell0Name | quote }}
+  table: "*"
+  username: {{ $novaAuth.username | quote }}
+  host: "%"
+  grantOption: false
+  retryInterval: 10s
+---
+apiVersion: {{ $apiVersion }}
+kind: Connection
+metadata:
+  name: nova-cell0-db-conn
+  labels:
+{{ tuple $envAll "nova" "db-connection" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+  serviceName: {{ $mariadbHost | quote }}
+  host: {{ tuple "oslo_db_cell0" "internal" $envAll | include "helm-toolkit.endpoints.endpoint_host_lookup" | quote }}
+  port: {{ tuple "oslo_db_cell0" "internal" "mysql" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  username: {{ $novaAuth.username | quote }}
+  passwordSecretKeyRef:
+    name: nova-db-password
+    key: password
+  database: {{ $novacell0Name | quote }}
+  secretName: nova-cell0-db-conn
+  secretTemplate:
+    {{- /* A bare URI rather than an oslo.config snippet: job-db-sync takes this
+    as the DB_CONNECTION_CELL0 environment variable and writes it into the cell
+    mapping, so the key is the one the chart's own secret_db_cell0 used. The
+    block scalar strips the trailing newline -- an environment variable carries
+    the bytes verbatim, and nova-manage would be handed the newline too. */}}
+    key: DB_CONNECTION
+    format: |-
+      {{ .Values.endpoints.oslo_db_cell0.scheme }}://{{ `{{ .Username }}` }}:{{ if $osh }}{{ `{{ .PasswordEncoded }}` }}{{ else }}{{ `{{ .Password }}` }}{{ end }}@{{ `{{ .Host }}` }}:{{ `{{ .Port }}` }}/{{ `{{ .Database }}` }}{{ if .Values.tls.oslo_db }}?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert{{ else }}?charset=utf8{{ end }}
+  healthCheck:
+    interval: 30s
+    retryInterval: 3s
+{{- if $osh }}
+  {{- /* Not a field upstream has; it paces the osh controller's retries. */}}
+  retryInterval: 10s
+{{- end }}
+{{- end }}

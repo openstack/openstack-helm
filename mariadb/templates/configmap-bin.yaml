@@ -53,6 +53,16 @@ data:
   mariadb_controller.py: |
 {{ tuple "bin/_mariadb_controller.py.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
 {{- end }}
+{{- /*
+Gated so that a deployment which leaves the db controller disabled keeps a
+byte-identical bin configmap. This configmap's hash annotates the galera
+statefulset pod template, so an unconditional key here would roll every
+existing mariadb cluster on upgrade.
+*/}}
+{{- if .Values.manifests.deployment_db_controller }}
+  mariadb_db_controller.py: |
+{{ tuple "bin/_mariadb_db_controller.py.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
   mariadb-wait-for-cluster.py: |
 {{ tuple "bin/_mariadb-wait-for-cluster.py.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
 {{- end }}

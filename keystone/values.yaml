@@ -1120,6 +1120,19 @@ tls:
   oslo_messaging: false
   oslo_db: false
 
+mariadb_db:
+  # -- API group of the MariaDB custom resources this chart renders when
+  ## manifests.mariadb_db is enabled. Either group works: the resources are
+  ## the same, only who reconciles them differs.
+  ##   mariadb.osh.openstack.org -- the mariadb chart's own db controller
+  ##                                (manifests.deployment_db_controller)
+  ##   k8s.mariadb.com           -- the upstream mariadb-operator, which must
+  ##                                then be deployed separately
+  ## With k8s.mariadb.com and tls.oslo_db enabled, use mariadb-operator 0.37.0
+  ## or newer. User.spec.require was added in that release, so older operators
+  ## drop it and create accounts without REQUIRE X509.
+  api_group: mariadb.osh.openstack.org
+
 manifests:
   configmap_bin: true
   configmap_etc: true
@@ -1130,6 +1143,10 @@ manifests:
   job_credential_cleanup: true
   job_credential_setup: true
   job_db_init: true
+  # -- Render the MariaDB Database/User/Grant/Connection custom resources
+  ## reconciled by the mariadb chart's db controller, instead of running the
+  ## db-init job. Mutually exclusive with job_db_init.
+  mariadb_db: false
   job_db_sync: true
   job_db_drop: false
   job_domain_manage: true

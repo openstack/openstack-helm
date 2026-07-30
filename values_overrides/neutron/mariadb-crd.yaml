@@ -1,0 +1,36 @@
+---
+# Provision this chart's database declaratively: the chart renders MariaDB
+# Database/User/Grant/Connection custom resources (templates/mariadb-db.yaml)
+# which the mariadb chart's db controller reconciles, instead of running the
+# db-init job.
+#
+# The connection string is no longer generated into the service config. The
+# controller writes it into a secret which every workload that reads the
+# database projects into the service config directory. A projected volume
+# source is not optional, so kubelet holds a pod until the secret exists,
+# which is what makes db-sync wait for the database to be provisioned.
+
+manifests:
+  job_db_init: false
+  mariadb_db: true
+
+conf:
+  neutron:
+    database:
+      connection: null
+
+pod:
+  etcSources:
+    neutron_server:
+      - secret:
+          name: neutron-db-conn
+    neutron_rpc_server:
+      - secret:
+          name: neutron-db-conn
+    neutron_db_sync:
+      - secret:
+          name: neutron-db-conn
+    neutron_ovn_db_sync:
+      - secret:
+          name: neutron-db-conn
+...

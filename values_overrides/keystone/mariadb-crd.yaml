@@ -1,0 +1,45 @@
+---
+# Provision this chart's database declaratively: the chart renders MariaDB
+# Database/User/Grant/Connection custom resources (templates/mariadb-db.yaml)
+# which the mariadb chart's db controller reconciles, instead of running the
+# db-init job.
+#
+# The connection string is no longer generated into the service config. The
+# controller writes it into a secret which every workload that reads the
+# database projects into the service config directory. A projected volume
+# source is not optional, so kubelet holds a pod until the secret exists,
+# which is what makes db-sync wait for the database to be provisioned.
+
+manifests:
+  job_db_init: false
+  mariadb_db: true
+
+conf:
+  keystone:
+    database:
+      connection: null
+
+pod:
+  etcSources:
+    keystone_api:
+      - secret:
+          name: keystone-db-conn
+    keystone_db_sync:
+      - secret:
+          name: keystone-db-conn
+    keystone_domain_manage:
+      - secret:
+          name: keystone-db-conn
+    keystone_credential_setup:
+      - secret:
+          name: keystone-db-conn
+    keystone_credential_rotate:
+      - secret:
+          name: keystone-db-conn
+    keystone_fernet_setup:
+      - secret:
+          name: keystone-db-conn
+    keystone_fernet_rotate:
+      - secret:
+          name: keystone-db-conn
+...

@@ -1,0 +1,107 @@
+---
+# Provision this chart's database declaratively: the chart renders MariaDB
+# Database/User/Grant/Connection custom resources (templates/mariadb-db.yaml)
+# which the mariadb chart's db controller reconciles, instead of running the
+# db-init job.
+#
+# The connection string is no longer generated into the service config. The
+# controller writes it into a secret which every workload that reads the
+# database projects into the service config directory. A projected volume
+# source is not optional, so kubelet holds a pod until the secret exists,
+# which is what makes db-sync wait for the database to be provisioned.
+#
+# cell0 is the exception: nothing in nova.conf points at it, so its Connection
+# emits a bare URI which db-sync consumes as an environment variable. Pointing
+# secrets.oslo_db_cell0.nova at that secret is all it takes to consume it, so
+# the chart no longer has to render a cell0 secret of its own.
+
+manifests:
+  job_db_init: false
+  mariadb_db: true
+  secret_db_cell0: false
+
+secrets:
+  oslo_db_cell0:
+    nova: nova-cell0-db-conn
+
+# Every other consumer waits for its connection secret through a projected
+# volume, which kubelet will not mount until the secret exists. cell0 is read
+# from an environment variable instead, which gets no such gate, so db-sync
+# waits on the resource itself. Waiting on the Ready condition rather than on
+# the secret also means db-sync starts only once the reconciler has verified
+# the credentials work.
+dependencies:
+  static:
+    db_sync:
+      custom_resources:
+        - apiVersion: mariadb.osh.openstack.org/v1alpha1
+          kind: Connection
+          name: nova-cell0-db-conn
+          conditions:
+            - type: Ready
+
+conf:
+  nova:
+    database:
+      connection: null
+    api_database:
+      connection: null
+
+pod:
+  etcSources:
+    nova_api_osapi:
+      - secret:
+          name: nova-db-conn
+      - secret:
+          name: nova-cell1-db-conn
+    nova_api_metadata:
+      - secret:
+          name: nova-db-conn
+      - secret:
+          name: nova-cell1-db-conn
+    nova_conductor:
+      - secret:
+          name: nova-db-conn
+      - secret:
+          name: nova-cell1-db-conn
+    nova_scheduler:
+      - secret:
+          name: nova-db-conn
+      - secret:
+          name: nova-cell1-db-conn
+    nova_db_sync:
+      - secret:
+          name: nova-db-conn
+      - secret:
+          name: nova-cell1-db-conn
+    nova_cell_setup:
+      - secret:
+          name: nova-db-conn
+      - secret:
+          name: nova-cell1-db-conn
+    nova_novncproxy:
+      - secret:
+          name: nova-db-conn
+      - secret:
+          name: nova-cell1-db-conn
+    nova_serialproxy:
+      - secret:
+          name: nova-db-conn
+      - secret:
+          name: nova-cell1-db-conn
+    nova_spiceproxy:
+      - secret:
+          name: nova-db-conn
+      - secret:
+          name: nova-cell1-db-conn
+    nova_archive_deleted_rows:
+      - secret:
+          name: nova-db-conn
+      - secret:
+          name: nova-cell1-db-conn
+    nova_service_cleaner:
+      - secret:
+          name: nova-db-conn
+      - secret:
+          name: nova-cell1-db-conn
+...

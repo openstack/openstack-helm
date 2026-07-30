@@ -64,6 +64,13 @@ imagePullSecrets:
 {{- $_ := set $allNamespace $saNamespace  (printf "%s%s" "pods," ((index $allNamespace $saNamespace) | default "")) }}
 {{- else if and (eq $k "secret") $v }}
 {{- $_ := set $allNamespace $saNamespace  (printf "%s%s" "secrets," ((index $allNamespace $saNamespace) | default "")) }}
+{{- else if and (eq $k "custom_resources") $v }}
+{{- range $cr := $v }}
+{{- $crNamespace := $cr.namespace | default $saNamespace }}
+{{- if not (contains "custom_resources" ((index $allNamespace $crNamespace) | default "")) }}
+{{- $_ := set $allNamespace $crNamespace (printf "%s%s" "custom_resources," ((index $allNamespace $crNamespace) | default "")) }}
+{{- end -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- $_ := unset $allNamespace $randomKey }}

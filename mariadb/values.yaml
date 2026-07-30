@@ -30,6 +30,7 @@ images:
     ks_user: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
     scripted_test: quay.io/airshipit/mariadb:latest-ubuntu_noble
     mariadb_controller: quay.io/airshipit/mariadb:latest-ubuntu_noble
+    mariadb_db_controller: quay.io/airshipit/mariadb:latest-ubuntu_noble
   pull_policy: "IfNotPresent"
   local_registry:
     active: false
@@ -53,6 +54,9 @@ labels:
   controller:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  db_controller:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 pod:
   env:
@@ -60,6 +64,19 @@ pod:
       MARIADB_CONTROLLER_DEBUG: 0
       MARIADB_CONTROLLER_CHECK_PODS_DELAY: 10
       MARIADB_CONTROLLER_PYKUBE_REQUEST_TIMEOUT: 60
+    mariadb_db_controller:
+      MARIADB_DB_CONTROLLER_DEBUG: 0
+      # -- Delay between reconcile sweeps of the custom resources
+      MARIADB_DB_CONTROLLER_RECONCILE_INTERVAL: 10
+      # -- How often to re-apply SQL for resources whose desired state has not
+      ## changed, repairing drift caused by changes made outside the controller
+      MARIADB_DB_CONTROLLER_FULL_RESYNC_INTERVAL: 1800
+      # -- Retry delay for a resource that does not set spec.retryInterval
+      MARIADB_DB_CONTROLLER_ERROR_BACKOFF: 10
+      MARIADB_DB_CONTROLLER_PYKUBE_REQUEST_TIMEOUT: 60
+      MARIADB_DB_CONTROLLER_DB_CONNECT_TIMEOUT: 10
+      MARIADB_DB_CONTROLLER_DEFAULT_CHARACTER_SET: utf8
+      MARIADB_DB_CONTROLLER_DEFAULT_COLLATE: utf8_general_ci
   probes:
     server:
       mariadb:
@@ -144,6 +161,17 @@ pod:
         controller:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+    db_controller:
+      pod:
+        runAsUser: 65534
+        runAsNonRoot: true
+      container:
+        db_controller:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
     cluster_wait:
       pod:
         runAsUser: 65534
@@ -175,6 +203,8 @@ pod:
   replicas:
     server: 3
     controller: 1
+    # -- Must stay at 1: the controller does no leader election
+    db_controller: 1
   lifecycle:
     upgrades:
       deployments:
@@ -192,6 +222,20 @@ pod:
   resources:
     enabled: false
     server:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    controller:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    db_controller:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -265,6 +309,12 @@ dependencies:
           service: oslo_db
     controller:
       services: null
+    db_controller:
+      jobs:
+        - mariadb-cluster-wait
+      services:
+        - endpoint: internal
+          service: oslo_db
     cluster_wait:
       services:
         - endpoint: internal
@@ -685,6 +735,9 @@ network_policy:
 manifests:
   certificates: false
   configmap_bin: true
+  # -- Deploy the Database/User/Grant/Connection custom resource definitions
+  ## reconciled by the mariadb-db-controller deployment. Inert on their own.
+  crds: true
   configmap_etc: true
   configmap_services_tcp: true
   job_image_repo_sync: true
@@ -710,6 +763,11 @@ manifests:
   service: true
   statefulset: true
   deployment_controller: true
+  # -- Deploy the controller reconciling the Database/User/Grant/Connection
+  ## custom resources. Off by default: enabling it adds a pod, RBAC and a new
+  ## configmap-bin key, which changes the bin configmap hash and therefore
+  ## rolls the galera statefulset on upgrade.
+  deployment_db_controller: false
   service_master: true
   job_cluster_wait: false
 
