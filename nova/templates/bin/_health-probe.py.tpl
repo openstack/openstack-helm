@@ -151,7 +151,7 @@ def configured_port_in_conf():
         sys.exit(0)  # return success
 
     try:
-        for section in ['database', 'api_database', 'cell0_database']:
+        for section in ['database', 'api_database']:
             group = getattr(cfg.CONF, section)
             if not group.connection:
                 continue
@@ -216,9 +216,6 @@ def test_rpc_liveness():
     cfg.CONF.register_opt(cfg.StrOpt('host'))
     cfg.CONF.register_opts(oslo_db_options.database_opts, 'database')
     cfg.CONF.register_opts(oslo_db_options.database_opts, 'api_database')
-    # cell0_database is an OSH specific section used by db-init and db-drop Job.
-    # It is not an official Nova configuration section.
-    cfg.CONF.register_opts(oslo_db_options.database_opts, 'cell0_database')
 
     cfg.CONF(sys.argv[1:], project='nova')
 

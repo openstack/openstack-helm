@@ -157,6 +157,14 @@
       args:
         chdir: "{{ osh_git_repo }}"
         executable: /bin/bash
+      # nova no longer exposes a <svc>-db-user secret: its api and cell1 DB
+      # connections live in nova.conf (the [api_database] and [database]
+      # sections) and only cell0 keeps a user/admin secret pair.
+      # Point nova's check at the cell0 secrets; the empty string lets every
+      # other service fall back to the default <svc>-db-user / <svc>-db-admin.
+      environment:
+        USER_SECRET: "{{ 'nova-db-cell0-user' if item == 'nova' else '' }}"
+        ADMIN_SECRET: "{{ 'nova-db-cell0-admin' if item == 'nova' else '' }}"
       loop:
         - keystone
         - glance

@@ -1,0 +1,30 @@
+---
+
+nova:
+  - |
+    The oslo_messaging secret no longer renders a ``TRANSPORT_URL`` key; like
+    the other charts it now exposes only ``RABBITMQ_CONNECTION``.
+  - |
+    The database connection configuration has been reworked. The invalid
+    ``[cell0_database]`` section is no longer written to ``nova.conf`` (it was
+    never a real Nova config group). The API and cell1 database connections
+    remain in ``nova.conf`` as the ``[api_database]`` and ``[database]``
+    sections. The cell0 connection is treated as data (it lives in the API
+    database via the cell mapping) and is delivered as the
+    ``nova-db-cell0-user`` secret rather than a config section.
+  - |
+    db-init/db-drop initialize the API and cell1 databases from the
+    ``[api_database]`` and ``[database]`` sections of ``nova.conf`` (``oslo``
+    init type) and cell0 from the secret (``secret`` init type). The db-sync
+    job receives the cell0 connection as the ``DB_CONNECTION_CELL0`` environment
+    variable; cell1 mapping defaults its transport URL and database connection
+    from config rather than dedicated environment variables.
+  - |
+    The database endpoints and their secrets have been renamed to reflect
+    nova's cell layout. The API database endpoint ``oslo_db_api`` was renamed
+    to ``oslo_db`` (``/nova``), and the former ``oslo_db`` (cell1's main
+    database) was renamed to ``oslo_db_cell1`` (``/nova_cell1``).
+    ``oslo_db_cell0`` (``/nova_cell0``) is unchanged. Their secrets follow the
+    same renaming (for example ``nova-db-api-*`` becomes ``nova-db-*`` and the
+    former ``nova-db-*`` becomes ``nova-db-cell1-*``).
+...

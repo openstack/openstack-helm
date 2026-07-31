@@ -36,17 +36,9 @@ function manage_cells () {
     --transport-url="${CELL0_TRANSPORT}" \
     --database_connection="${DB_CONNECTION_CELL0}"
 
-  for VAR in TRANSPORT_URL DB_CONNECTION; do
-    if [ -z "${!VAR}" ]; then
-      echo "ERROR: missing $VAR variable"
-      exit 1
-    fi
-  done
   nova-manage cell_v2 update_cell \
     --cell_uuid="${CELL1_ID}" \
-    --name="cell1" \
-    --transport-url="${TRANSPORT_URL}" \
-    --database_connection="${DB_CONNECTION}"
+    --name="cell1"
   set -x
 }
 
