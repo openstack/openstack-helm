@@ -1,0 +1,31 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Prepare the host directory that backs the MariaDB PersistentVolume.
+#
+# kubelet creates a hostPath directory as root:root 0755, and the operator runs
+# mariadbd as a non-root user, so the server aborts with 'Can't create/write to
+# file ... (Errcode: 13 "Permission denied")'. fsGroup does not help: Kubernetes
+# does not apply ownership management to hostPath volumes.
+#
+# The mode is deliberately permissive rather than a specific owner: the uid
+# mariadbd runs as belongs to the operator and the image, and this is a
+# disposable volume in a single-use CI node.
+#
+# Runs on every node, because nothing pins the pod to one.
+---
+- name: Create the host directory backing the MariaDB volume
+  file:
+    path: "{{ osh_mariadb_operator_storage_path }}"
+    state: directory
+    mode: "0777"
+  become: true

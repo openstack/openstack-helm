@@ -1,0 +1,245 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Create a single MariaDB instance managed by mariadb-operator, in place of the
+# mariadb chart. Galera is not configured, so this is one server, not a
+# cluster.
+#
+# The instance is deliberately named "mariadb": the operator names its client
+# service after the custom resource, and both the mariaDbRef in the charts'
+# mariadb-operator.yaml overrides and the endpoints.oslo_db.hosts.default that
+# every OpenStack chart already ships resolve to that name, so no endpoint
+# overrides are needed anywhere.
+#
+# The mariadb-cluster chart is not used here. Its MariaDB resource still
+# targets the retired mariadb.mmontes.io API group, and updating it is a
+# separate change from fixing the consumer overrides.
+---
+- name: Create the namespace for the MariaDB instance
+  shell: |
+    set -xe
+    kubectl create namespace {{ osh_namespace | default('osh') }} \
+      --dry-run=client -o yaml | kubectl apply -f -
+  changed_when: true
+
+- name: Create the MariaDB root password secret
+  shell: |
+    set -xe
+    kubectl -n {{ osh_namespace | default('osh') }} create secret generic \
+      {{ osh_mariadb_operator_root_secret }} \
+      --from-literal=password='{{ osh_mariadb_operator_root_password }}' \
+      --dry-run=client -o yaml | kubectl apply -f -
+  changed_when: true
+  no_log: true
+
+# The operator always mounts a PVC, and the deploy-env cluster has no storage
+# class -- which is why the mariadb chart writes to a host path instead. Give
+# the operator a host-path volume to bind to, statically: one replica, and the
+# data is disposable, so a provisioner would be overkill.
+#
+# spec.storage.ephemeral would avoid all of this, but it is not usable here:
+# on its own the operator's storage reconciler rejects it with "invalid
+# existing storage size" on every pass and never reaches the phase that creates
+# the Services, and combining it with a size -- which the reconciler wants --
+# is refused by the validating webhook, since the two are mutually exclusive.
+- name: Write the storage manifest for the MariaDB instance
+  copy:
+    dest: /tmp/mariadb-storage.yaml
+    content: |
+      ---
+      apiVersion: storage.k8s.io/v1
+      kind: StorageClass
+      metadata:
+        name: {{ osh_mariadb_operator_storage_class }}
+      provisioner: kubernetes.io/no-provisioner
+      volumeBindingMode: Immediate
+      reclaimPolicy: Retain
+      ---
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: {{ osh_mariadb_operator_instance }}-storage
+      spec:
+        capacity:
+          storage: {{ osh_mariadb_operator_storage_size }}
+        accessModes:
+          - ReadWriteOnce
+        persistentVolumeReclaimPolicy: Retain
+        storageClassName: {{ osh_mariadb_operator_storage_class }}
+        hostPath:
+          path: {{ osh_mariadb_operator_storage_path }}
+          type: DirectoryOrCreate
+      ...
+
+- name: Create the storage for the MariaDB instance
+  command: kubectl apply -f /tmp/mariadb-storage.yaml
+  changed_when: true
+
+- name: Write the MariaDB manifest
+  copy:
+    dest: /tmp/mariadb-instance.yaml
+    content: |
+      ---
+      apiVersion: k8s.mariadb.com/v1alpha1
+      kind: MariaDB
+      metadata:
+        name: {{ osh_mariadb_operator_instance }}
+        namespace: {{ osh_namespace | default('osh') }}
+      spec:
+        rootPasswordSecretKeyRef:
+          name: {{ osh_mariadb_operator_root_secret }}
+          key: password
+        image: {{ osh_mariadb_operator_image }}
+        replicas: 1
+        port: 3306
+        # Binds to the host-path volume created above.
+        storage:
+          size: {{ osh_mariadb_operator_storage_size }}
+          storageClassName: {{ osh_mariadb_operator_storage_class }}
+        # tools/deployment/common/verify-mariadb-tls.sh and the rest of the
+        # OSH tooling look up the database pod by these labels.
+        podMetadata:
+          labels:
+            application: mariadb
+            component: server
+        myCnf: |
+          [mariadb]
+          bind-address=0.0.0.0
+          default_storage_engine=InnoDB
+          max_allowed_packet=256M
+
+          character_set_server=utf8
+          collation_server=utf8_general_ci
+          skip-character-set-client-handshake
+
+          # Hostname resolution is skipped, so grants must be by IP or
+          # wildcard -- the overrides all use host "%".
+          skip_name_resolve
+          max_connections=8192
+          max-connect-errors=1000000
+          open_files_limit=10240
+
+          sql_mode="STRICT_ALL_TABLES,STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION"
+
+          innodb_buffer_pool_size=1024M
+          innodb_file_per_table=1
+          innodb_log_file_size=128M
+      ...
+
+# Retried because the operator's webhook can still be unreachable here even
+# after its deployment has rolled out and its CA bundle has been issued. The
+# until condition stops the loop as soon as the webhook gives a real verdict,
+# so an actual rejection fails immediately instead of being retried for minutes.
+- name: Create the MariaDB instance
+  command: kubectl apply -f /tmp/mariadb-instance.yaml
+  register: _osh_mariadb_apply
+  until: >-
+    _osh_mariadb_apply.rc == 0
+    or 'denied the request' in _osh_mariadb_apply.stderr
+  retries: 20
+  delay: 15
+  changed_when: true
+
+# The Ready condition on the MariaDB resource is derived from the StatefulSet,
+# so it says nothing about the rest of the reconcile: a MariaDB whose storage
+# the operator rejects still reports Ready, with a running pod and no Services
+# at all. Every OpenStack chart resolves its oslo_db endpoint to that Service
+# and kubernetes-entrypoint blocks on its endpoints, so wait for that too --
+# and report the state of everything involved if any of it does not arrive,
+# rather than leaving a bare "timed out waiting for the condition".
+- name: Wait for the MariaDB instance and the service the charts connect to
+  block:
+    - name: Wait for the MariaDB instance to become ready
+      command: >-
+        kubectl -n {{ osh_namespace | default('osh') }}
+        wait --for=condition=Ready
+        mariadb/{{ osh_mariadb_operator_instance }}
+        --timeout={{ osh_helm_timeout }}s
+      changed_when: false
+
+    - name: Wait for the client service the oslo_db endpoint points at
+      command: >-
+        kubectl -n {{ osh_namespace | default('osh') }}
+        get service {{ osh_mariadb_operator_instance }}
+      register: _osh_mariadb_service
+      until: _osh_mariadb_service.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Wait for that service to have a ready endpoint
+      shell: |
+        kubectl -n {{ osh_namespace | default('osh') }} \
+          get endpoints {{ osh_mariadb_operator_instance }} \
+          -o jsonpath='{.subsets[*].addresses[*].ip}' | grep -q .
+      register: _osh_mariadb_endpoints
+      until: _osh_mariadb_endpoints.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+  rescue:
+    - name: Show the MariaDB resource the operator is working on
+      command: >-
+        kubectl -n {{ osh_namespace | default('osh') }} get
+        mariadb/{{ osh_mariadb_operator_instance }} -o yaml
+      changed_when: false
+      failed_when: false
+
+    - name: Show what the operator did create
+      command: >-
+        kubectl -n {{ osh_namespace | default('osh') }} get
+        all,endpoints,pvc -o wide
+      changed_when: false
+      failed_when: false
+
+    - name: Show whether the storage bound
+      command: kubectl get pv,storageclass -o wide
+      changed_when: false
+      failed_when: false
+
+    - name: Describe the database pod
+      command: >-
+        kubectl -n {{ osh_namespace | default('osh') }} describe
+        pod/{{ osh_mariadb_operator_instance }}-0
+      changed_when: false
+      failed_when: false
+
+    - name: Show what the database server itself said
+      shell: |
+        kubectl -n {{ osh_namespace | default('osh') }} logs \
+          {{ osh_mariadb_operator_instance }}-0 -c mariadb --tail=40 \
+          --previous 2>/dev/null \
+          || kubectl -n {{ osh_namespace | default('osh') }} logs \
+               {{ osh_mariadb_operator_instance }}-0 -c mariadb --tail=40
+      changed_when: false
+      failed_when: false
+
+    - name: Show why the operator stopped, from its own log
+      shell: |
+        kubectl -n {{ osh_mariadb_operator_namespace }} logs \
+          -l app.kubernetes.io/name=mariadb-operator --tail=-1 \
+          | grep '"level":"error"' | tail -3
+      changed_when: false
+      failed_when: false
+
+    - name: Fail now that the state of the database has been reported
+      fail:
+        msg: >-
+          The {{ osh_mariadb_operator_instance }} database did not come up, or
+          the operator never created its service. See the output above.
+
+- name: Show the MariaDB instance, its pods and its services
+  command: >-
+    kubectl -n {{ osh_namespace | default('osh') }} get
+    mariadb,pods,svc,endpoints -o wide
+  changed_when: false
+  failed_when: false
