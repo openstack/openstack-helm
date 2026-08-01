@@ -85,8 +85,8 @@ the Openstack public names to the LB IP.
 
 How exactly users expose their workloads may vary. ``HTTPRoute`` objects
 can be added to any OpenStack-Helm chart via
-the ``.Values.extraObjects`` field. For a complete example see
-``values_overrides/nova/gateway.yaml``.
+the ``.Values.extraObjects`` field, which accepts either a list or a map of
+manifests. For a complete example see ``values_overrides/nova/gateway.yaml``.
 
 .. _Kubernetes Gateway API: https://gateway-api.sigs.k8s.io/
 .. _Envoy Gateway: https://gateway.envoyproxy.io/
