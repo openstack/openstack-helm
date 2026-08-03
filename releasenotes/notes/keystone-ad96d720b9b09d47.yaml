@@ -1,0 +1,16 @@
+---
+keystone:
+  - |
+    The keystone-fernet-keys and keystone-credential-keys secrets are
+    pre-install hooks annotated with helm.sh/resource-policy: keep, but set
+    no helm.sh/hook-delete-policy. GitOps tools such as Argo CD re-run
+    pre-install hooks on every sync and, absent a delete-policy, default to
+    before-hook-creation -- deleting and recreating the populated secret
+    empty each sync. The fernet/credential setup jobs then regenerate the
+    keys, invalidating all issued tokens.
+
+    Set helm.sh/hook-delete-policy: hook-failed so the kept secrets are never
+    deleted, matching the existing resource-policy: keep intent. This has no
+    effect on plain Helm installs: pre-install hooks run only on install, and
+    a Secret hook never enters a failed state.
+...
