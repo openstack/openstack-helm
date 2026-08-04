@@ -38,14 +38,20 @@ At this point we assume all the prerequisites listed below are met:
 
     The way to expose a service is to provide the necessary objects via the
     ``.Values.extraObjects`` field available in all OpenStack-Helm charts.
-    This accepts an arbitrary list of manifests (rendered as Helm templates)
-    that are deployed together with the chart. Use it to add ``HTTPRoute``
-    and ``BackendTLSPolicy`` objects when exposing services through the
-    Gateway API, or, if you prefer the legacy approach, an ``Ingress`` object
-    and its accompanying ``Service``. For Gateway API examples see
-    ``values_overrides/<chart>/gateway.yaml`` (e.g.
-    ``values_overrides/nova/gateway.yaml`` and
+    This accepts arbitrary manifests (rendered as Helm templates) that are
+    deployed together with the chart, either as a list or as a map of named
+    manifests. Use it to add ``HTTPRoute`` and ``BackendTLSPolicy`` objects
+    when exposing services through the Gateway API, or, if you prefer the
+    legacy approach, an ``Ingress`` object and its accompanying ``Service``.
+    For Gateway API examples see ``values_overrides/<chart>/gateway.yaml``
+    (e.g. ``values_overrides/nova/gateway.yaml`` and
     ``values_overrides/keystone/gateway-tls.yaml``).
+
+    Prefer the map form whenever more than one values file contributes
+    objects. Helm merges maps but *replaces* lists, so two ``--values`` files
+    that both define ``extraObjects`` as a list silently drop each other's
+    objects — only the last one takes effect. With a map, each file just needs
+    keys that are unique across the set of files.
 
 .. _Kubernetes Gateway API: https://gateway-api.sigs.k8s.io/
 

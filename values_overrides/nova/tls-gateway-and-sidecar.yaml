@@ -199,7 +199,8 @@ extraObjects:
   # in-cluster Service FQDNs so the gateway's BackendTLSPolicy hostname
   # validation succeeds. The novnc / serial / spice proxy certs (when enabled)
   # stay in the chart.
-  - apiVersion: cert-manager.io/v1
+  cert_nova_tls_api:
+    apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
       name: nova-tls-api
@@ -215,7 +216,8 @@ extraObjects:
         - nova-api
         - "nova-api.{{ .Release.Namespace }}"
         - "nova-api.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
-  - apiVersion: cert-manager.io/v1
+  cert_metadata_tls_metadata:
+    apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
       name: metadata-tls-metadata
@@ -232,7 +234,8 @@ extraObjects:
         - "nova-metadata.{{ .Release.Namespace }}"
         - "nova-metadata.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
   # Public exposure via the Gateway API (kept verbatim from gateway-tls.yaml).
-  - apiVersion: gateway.networking.k8s.io/v1
+  nova_route_osapi:
+    apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: nova-route-osapi
@@ -252,7 +255,8 @@ extraObjects:
             - name: nova-api
               port: 8774
 
-  - apiVersion: gateway.networking.k8s.io/v1
+  nova_route_metadata:
+    apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: nova-route-metadata
@@ -272,7 +276,8 @@ extraObjects:
             - name: nova-metadata
               port: 8775
 
-  - apiVersion: gateway.networking.k8s.io/v1
+  nova_route_novncproxy:
+    apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: nova-route-novncproxy
@@ -292,7 +297,8 @@ extraObjects:
             - name: nova-novncproxy
               port: 6080
 
-  - apiVersion: gateway.networking.k8s.io/v1
+  nova_route_serialproxy:
+    apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: nova-route-serialproxy
@@ -312,7 +318,8 @@ extraObjects:
             - name: nova-serialproxy
               port: 6083
 
-  - apiVersion: gateway.networking.k8s.io/v1
+  nova_route_spiceproxy:
+    apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: nova-route-spiceproxy
@@ -335,7 +342,8 @@ extraObjects:
   # nginx sidecar server block for osapi (proxies TLS:443 -> uwsgi
   # 127.0.0.1:8774). The $-prefixed tokens are nginx variables, escaped so the
   # chart's tpl pass leaves them intact.
-  - apiVersion: v1
+  cm_nova_nginx_tls_api:
+    apiVersion: v1
     kind: ConfigMap
     metadata:
       name: nova-nginx-tls-api
@@ -359,7 +367,8 @@ extraObjects:
         }
   # nginx sidecar server block for metadata (proxies TLS:443 -> uwsgi
   # 127.0.0.1:8775).
-  - apiVersion: v1
+  cm_nova_nginx_tls_metadata:
+    apiVersion: v1
     kind: ConfigMap
     metadata:
       name: nova-nginx-tls-metadata
@@ -383,7 +392,8 @@ extraObjects:
         }
   # Make the Envoy Gateway originate TLS to the nginx sidecars instead of plain
   # HTTP, validating the ca-issuer cert from each api cert Secret's ca.crt.
-  - apiVersion: gateway.networking.k8s.io/v1
+  nova_api_backend_tls:
+    apiVersion: gateway.networking.k8s.io/v1
     kind: BackendTLSPolicy
     metadata:
       name: nova-api-backend-tls
@@ -400,7 +410,8 @@ extraObjects:
             kind: Secret
             name: nova-tls-api
         hostname: "nova-api.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
-  - apiVersion: gateway.networking.k8s.io/v1
+  nova_metadata_backend_tls:
+    apiVersion: gateway.networking.k8s.io/v1
     kind: BackendTLSPolicy
     metadata:
       name: nova-metadata-backend-tls

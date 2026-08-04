@@ -89,7 +89,8 @@ extraObjects:
   # Server certificate for the nginx sidecar (issued by the ca-issuer). SANs must
   # include the in-cluster Service FQDN so the gateway's BackendTLSPolicy hostname
   # validation succeeds. The chart no longer renders any dashboard TLS cert.
-  - apiVersion: cert-manager.io/v1
+  cert_horizon_tls_web:
+    apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
       name: horizon-tls-web
@@ -105,7 +106,8 @@ extraObjects:
         - horizon-int
         - "horizon-int.{{ .Release.Namespace }}"
         - "horizon-int.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
-  - apiVersion: gateway.networking.k8s.io/v1
+  horizon_route:
+    apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: horizon-route
@@ -128,7 +130,8 @@ extraObjects:
   # client_max_body_size is set since the dashboard handles file uploads. The
   # $-prefixed tokens are nginx variables, escaped so the chart's tpl pass leaves
   # them intact.
-  - apiVersion: v1
+  cm_horizon_nginx_tls:
+    apiVersion: v1
     kind: ConfigMap
     metadata:
       name: horizon-nginx-tls
@@ -153,7 +156,8 @@ extraObjects:
         }
   # Make the Envoy Gateway originate TLS to the nginx sidecar instead of plain
   # HTTP, validating the ca-issuer cert from the web cert Secret's ca.crt.
-  - apiVersion: gateway.networking.k8s.io/v1
+  horizon_web_backend_tls:
+    apiVersion: gateway.networking.k8s.io/v1
     kind: BackendTLSPolicy
     metadata:
       name: horizon-web-backend-tls

@@ -92,7 +92,8 @@ extraObjects:
   # chart no longer renders any API TLS certificate; it lives here next to the
   # sidecar that consumes it. The SANs must include the in-cluster Service FQDN
   # so the gateway's BackendTLSPolicy hostname validation succeeds.
-  - apiVersion: cert-manager.io/v1
+  cert_placement_tls_api:
+    apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
       name: placement-tls-api
@@ -109,7 +110,8 @@ extraObjects:
         - "placement-api.{{ .Release.Namespace }}"
         - "placement-api.{{ .Release.Namespace }}.svc.{{ .Values.endpoints.cluster_domain_suffix }}"
   # Public exposure via the Gateway API.
-  - apiVersion: gateway.networking.k8s.io/v1
+  placement_route:
+    apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
     metadata:
       name: placement-route
@@ -131,7 +133,8 @@ extraObjects:
   # nginx sidecar server block (proxies TLS:443 -> uwsgi 127.0.0.1:8778). The
   # $-prefixed tokens are nginx variables, escaped so the chart's tpl pass
   # leaves them intact.
-  - apiVersion: v1
+  cm_placement_nginx_tls:
+    apiVersion: v1
     kind: ConfigMap
     metadata:
       name: placement-nginx-tls
@@ -155,7 +158,8 @@ extraObjects:
         }
   # Make the Envoy Gateway originate TLS to the nginx sidecar instead of plain
   # HTTP, validating the ca-issuer cert from the api cert Secret's ca.crt.
-  - apiVersion: gateway.networking.k8s.io/v1
+  placement_api_backend_tls:
+    apiVersion: gateway.networking.k8s.io/v1
     kind: BackendTLSPolicy
     metadata:
       name: placement-api-backend-tls
