@@ -28,7 +28,11 @@
 # <service>-etc / <service>.conf / [database] / <service>-db-admin /
 # <service>-client convention:
 #   CONFIG_SECRET, CONFIG_FILE, CONFIG_SECTION, CONFIG_KEY,
-#   ADMIN_SECRET, CLIENT_SECRET, MARIADB_SELECTOR
+#   CONN_SECRET, CONN_FILE, ADMIN_SECRET, CLIENT_SECRET, MARIADB_SELECTOR
+#
+# CONN_SECRET/CONN_FILE are the fallback the connection is read from when it is
+# not generated into the service config, e.g. nova's cell database with
+# mariadb-operator: CONN_SECRET=nova-cell1-db-conn.
 #
 # Examples:
 #   tools/deployment/common/verify-mariadb-tls.sh keystone
@@ -60,6 +64,11 @@ CONFIG_SECRET="${CONFIG_SECRET:-${SERVICE}-etc}"
 CONFIG_FILE="${CONFIG_FILE:-$_def_config_file}"
 CONFIG_SECTION="${CONFIG_SECTION:-$_def_config_section}"
 CONFIG_KEY="${CONFIG_KEY:-connection}"
+# Fallback location, used when the connection is not generated into the service
+# config: mariadb-operator writes it into this secret and the service projects
+# it into the config directory.
+CONN_SECRET="${CONN_SECRET:-${SERVICE}-db-conn}"
+CONN_FILE="${CONN_FILE:-db_conn.conf}"
 
 PASS=0 FAIL=0 WARN=0
 ok()    { echo "  PASS: $*"; PASS=$((PASS+1)); }
@@ -102,19 +111,21 @@ fi
 echo "  mariadb-pod=$MARIADB_POD"
 
 # jsonpath keys are dot-separated, so escape dots in the config filename.
-CONFIG_FILE_KEY="${CONFIG_FILE//./\\.}"
-CONF_TEXT="$(kgsecret "$CONFIG_SECRET" "$CONFIG_FILE_KEY")"
-if [[ -z "$CONF_TEXT" ]]; then
-  echo "Could not read $CONFIG_FILE from secret $CONFIG_SECRET in ns $NAMESPACE." >&2
-  exit 2
-fi
-DB_URI="$(ini_get "$CONF_TEXT" "$CONFIG_SECTION" "$CONFIG_KEY")"
+read_conf_uri() { # secret file section -> uri
+  local text
+  text="$(kgsecret "$1" "${2//./\\.}")"
+  [[ -n "$text" ]] || return 1
+  ini_get "$text" "$3" "$CONFIG_KEY"
+}
+
+DB_URI="$(read_conf_uri "$CONFIG_SECRET" "$CONFIG_FILE" "$CONFIG_SECTION")"
 if [[ -z "$DB_URI" ]]; then
-  echo "Could not find [$CONFIG_SECTION] $CONFIG_KEY in $CONFIG_FILE (secret $CONFIG_SECRET)." >&2
-  exit 2
+  # The connection is not always generated into the service config: with
+  # mariadb-operator the chart nulls it and the operator writes it into its own
+  # secret, which the service projects into the config directory instead.
+  DB_URI="$(read_conf_uri "$CONN_SECRET" "$CONN_FILE" "$CONFIG_SECTION")"
+  [[ -n "$DB_URI" ]] && echo "  connection read from $CONN_SECRET:$CONN_FILE"
 fi
-DB_USER="$(uri_user "$DB_URI")"; DB_PASS="$(uri_pass "$DB_URI")"
-DB_HOST="$(uri_host "$DB_URI")"; DB_PORT="$(uri_port "$DB_URI")"
 
 # Is MariaDB TLS (tls.oslo_db) enabled for this release? Prefer the value
 # reported by Helm; fall back to the SSL params the chart only adds to the
@@ -144,6 +155,17 @@ else
   echo "  tls.oslo_db is NOT enabled for $SERVICE -> nothing to verify, skipping"
   exit 0
 fi
+
+# Everything past this point needs the connection string. It is required only
+# here, after the gate: when tls.oslo_db is off there is nothing to verify, and
+# a deployment is free to supply the connection some other way.
+if [[ -z "$DB_URI" ]]; then
+  echo "Could not find [$CONFIG_SECTION] $CONFIG_KEY in $CONFIG_FILE" \
+       "(secret $CONFIG_SECRET) or in $CONN_SECRET:$CONN_FILE." >&2
+  exit 2
+fi
+DB_USER="$(uri_user "$DB_URI")"; DB_PASS="$(uri_pass "$DB_URI")"
+DB_HOST="$(uri_host "$DB_URI")"; DB_PORT="$(uri_port "$DB_URI")"
 
 # helper: run mysql inside the mariadb pod
 mysql_in_pod() { # user pass extra-args... ; SQL on stdin

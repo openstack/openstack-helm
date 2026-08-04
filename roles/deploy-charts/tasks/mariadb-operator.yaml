@@ -1,0 +1,90 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Install mariadb-operator, which reconciles the Database, User, Grant and
+# Connection custom resources declared by the charts' mariadb-operator.yaml
+# value overrides.
+#
+# The pinned chart version matters: the API group was renamed from
+# mariadb.mmontes.io to k8s.mariadb.com after 0.25.0, and the overrides target
+# k8s.mariadb.com/v1alpha1. Versions up to and including 0.34.0 bundle their
+# own CRDs; from 0.35.0 the CRDs moved into a separate mariadb-operator-crds
+# chart, so bumping past that needs an extra install here.
+---
+- name: Add the mariadb-operator Helm repository
+  command: >-
+    helm repo add mariadb-operator
+    https://mariadb-operator.github.io/mariadb-operator
+    --force-update
+  changed_when: true
+
+- name: Update the mariadb-operator Helm repository
+  command: helm repo update mariadb-operator
+  changed_when: false
+
+- name: Deploy mariadb-operator
+  shell: |
+    set -xe
+    helm upgrade --install mariadb-operator \
+      mariadb-operator/mariadb-operator \
+      --version {{ osh_mariadb_operator_version }} \
+      --namespace {{ osh_mariadb_operator_namespace }} \
+      --create-namespace \
+      --wait \
+      --timeout {{ osh_helm_timeout }}s
+  args:
+    chdir: "{{ osh_git_repo }}"
+  changed_when: true
+
+- name: Wait for mariadb-operator pods
+  command: >-
+    helm osh wait-for-pods {{ osh_mariadb_operator_namespace }}
+  args:
+    chdir: "{{ osh_git_repo }}"
+  changed_when: false
+
+# helm --wait and wait-for-pods are both satisfied as soon as the deployments
+# report available replicas, which happens before the cert-controller has
+# issued the webhook's serving certificate and patched the CA bundle into the
+# webhook configurations. Creating a MariaDB in that window fails with
+# 'failed calling webhook "mmariadb.kb.io": context deadline exceeded'.
+- name: Wait for the operator deployments to roll out
+  command: >-
+    kubectl -n {{ osh_mariadb_operator_namespace }}
+    rollout status deployment/{{ item }} --timeout={{ osh_helm_timeout }}s
+  loop:
+    - mariadb-operator-cert-controller
+    - mariadb-operator-webhook
+    - mariadb-operator
+  changed_when: false
+
+- name: Wait for the webhook CA bundle to be issued
+  shell: |
+    kubectl get mutatingwebhookconfiguration mariadb-operator-webhook \
+      -o jsonpath='{.webhooks[*].clientConfig.caBundle}' | grep -q .
+  register: _osh_mariadb_ca_bundle
+  until: _osh_mariadb_ca_bundle.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Show the custom resource definitions the operator installed
+  shell: kubectl get crd -o name | grep k8s.mariadb.com
+  changed_when: false
+  failed_when: false
+
+- name: Confirm the operator serves the API group the overrides target
+  command: >-
+    kubectl get crd
+    databases.k8s.mariadb.com users.k8s.mariadb.com
+    grants.k8s.mariadb.com connections.k8s.mariadb.com
+  changed_when: false
