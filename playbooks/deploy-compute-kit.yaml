@@ -202,3 +202,15 @@
       loop:
         - ./tools/deployment/common/use-it.sh
         - ./tools/deployment/common/force-cronjob-run.sh
+
+    # Self-skipping: exits 0 when no rabbitmq.osh.openstack.org resources exist,
+    # which is every job that still provisions messaging with the per-chart
+    # rabbit-init jobs. The definitions themselves are installed either way, so
+    # they do not distinguish the two paths.
+    - name: Verify the RabbitMQ topology custom resources reconciled
+      shell: |
+        set -e
+        ./tools/deployment/common/verify-rabbitmq-topology.sh {{ osh_namespace | default('osh') }}
+      args:
+        chdir: "{{ osh_git_repo }}"
+        executable: /bin/bash

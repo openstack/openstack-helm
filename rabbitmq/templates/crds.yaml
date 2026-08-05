@@ -1,0 +1,729 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{/*
+Custom resource definitions reconciled by the rabbitmq-topology-controller
+deployment. The field names are compatible with the upstream
+messaging-topology-operator rabbitmq.com/v1beta1 group, so that a resource
+written against upstream documentation applies unchanged and the same consumer
+chart templates can be retargeted at that operator instead.
+
+Retargeting takes one step more than changing the apiVersion: upstream resolves
+rabbitmqClusterReference.name to a RabbitmqCluster resource owned by the RabbitMQ
+cluster operator, which this chart does not deploy, so a deployment running the
+upstream operator against this broker must reference it with a connectionSecret
+naming a secret whose keys are username, password and uri.
+
+Note there is deliberately no Connection kind. Upstream has none either: nothing
+in rabbitmq.com/v1beta1 carries a broker address, and the credentials secret its
+User controller writes holds username and password and nothing else. These
+resources provision a broker; the chart's endpoints.oslo_messaging values remain
+the source of truth for how to reach it.
+
+Every field upstream accepts is declared, because a definition that omits a
+field does not reject it -- the API server strips it silently -- and every field
+is implemented, so nothing is refused. The one thing the reconciler declines to
+act on is a resource whose rabbitmqClusterReference names a broker it does not
+serve: that is not an error but somebody else's resource, so it is left alone
+entirely, status included.
+
+Upstream enforces immutability of several Queue and Exchange fields with an
+admission webhook. This chart ships no webhook, so an edit is accepted here and
+RabbitMQ itself refuses an incompatible redeclaration with a 406, which
+surfaces in the Ready condition. That is a later error, not a missing one.
+
+These objects are cluster scoped. They carry helm.sh/resource-policy: keep so
+that uninstalling the rabbitmq release does not cascade-delete every Vhost,
+User and Permission in the cluster, and with them the messaging accounts every
+OpenStack service depends on.
+*/}}
+
+{{/*
+Fields shared by every kind in this group.
+
+spec.deletionPolicy keeps upstream's "delete" default so that a resource copied
+from upstream documentation behaves identically. The consumer chart templates
+in this repository set "retain" explicitly instead: deleting a Vhost deletes
+every message in it, and helm uninstall of a service chart should not do that.
+Putting the safe value in the templates rather than in the schema default keeps
+compatibility and safety at the same time.
+*/}}
+{{- define "rabbitmq.crds.common_spec_properties" }}
+rabbitmqClusterReference:
+  description: |
+    Reference to the RabbitMQ cluster serving this resource. The reconciler
+    never resolves it -- it is deployed alongside one broker and takes that
+    broker's address from its own environment -- so it reads this only to ask
+    whether the resource is its own. A reference naming anything else, by name,
+    by connectionSecret or by namespace, is left completely untouched,
+    including its status, so that this reconciler and the upstream
+    messaging-topology-operator can share a namespace without contending over
+    the same objects.
+  type: object
+  {{- /*
+  The rule upstream enforces with an admission webhook, expressed declaratively
+  so that this chart needs no webhook of its own.
+  */}}
+  x-kubernetes-validations:
+    - rule: has(self.name) != has(self.connectionSecret)
+      message: must provide either name or connectionSecret, and not both
+  properties:
+    name:
+      {{- /*
+      minLength closes the gap between the rule above and what upstream's
+      webhook does. has() tests presence, so it is satisfied by name: "",
+      whereas upstream compares against the empty string and treats it as not
+      provided. Without this, an empty name -- a values slip, say -- would be
+      admitted and then served against the local broker, which is exactly the
+      declare-against-the-wrong-thing this reference exists to prevent.
+      */}}
+      type: string
+      minLength: 1
+    namespace:
+      description: |
+        Namespace of the referenced cluster. A namespace other than the
+        reconciler's own means the resource is not its to serve.
+      type: string
+    connectionSecret:
+      description: |
+        Secret holding the uri, username and password of an external cluster.
+        This reconciler only talks to the cluster it is deployed with, so a
+        resource naming one this way is somebody else's to serve, not its own.
+      type: object
+      {{- /* A nameless connectionSecret resolves to nothing upstream either. */}}
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+deletionPolicy:
+  description: |
+    Whether deleting this resource also removes the object it created in
+    RabbitMQ. Defaults to delete, as upstream does.
+  type: string
+  enum:
+    - delete
+    - retain
+  default: delete
+{{- end }}
+
+{{/*
+Status subresource shared by every kind in this group.
+
+Structurally identical to the upstream status: observedGeneration at the root
+plus a conditions list, with the same types and required fields. Readiness is
+the condition of type Ready, which is what kubectl wait --for=condition=Ready
+reads and what the printer columns select on.
+
+A single string field would be easier for kubernetes-entrypoint to wait on,
+since it compares one nested field against a string and cannot index into a
+list, but diverging from upstream here would make every resource in this group
+subtly incompatible with tooling written for the real operator. Teaching
+kubernetes-entrypoint to match a condition by type is the better fix.
+*/}}
+{{- define "rabbitmq.crds.common_status" }}
+type: object
+properties:
+  observedGeneration:
+    description: |
+      The metadata.generation the conditions below were computed from. A value
+      behind the current generation means the status is out of date.
+    type: integer
+    format: int64
+  conditions:
+    description: Conditions observed for this resource.
+    type: array
+    items:
+      type: object
+      required:
+        - status
+        - type
+      properties:
+        lastTransitionTime:
+          description: |
+            When the condition last moved from one status to another. It does
+            not change while the status stays the same.
+          type: string
+          format: date-time
+        message:
+          description: Human readable detail about the transition. May be empty.
+          type: string
+        reason:
+          description: |
+            CamelCase programmatic identifier for the reason of the last
+            transition. SuccessfulCreateOrUpdate or FailedCreateOrUpdate, the
+            two reasons upstream defines.
+          type: string
+        status:
+          description: Status of the condition, one of True, False, Unknown.
+          type: string
+          enum:
+            - "True"
+            - "False"
+            - Unknown
+        type:
+          description: Type of condition in CamelCase.
+          type: string
+{{- end }}
+
+{{/* The printer columns every kind shares. */}}
+{{- define "rabbitmq.crds.common_printer_columns" }}
+- name: Ready
+  type: string
+  jsonPath: .status.conditions[?(@.type=="Ready")].status
+- name: Status
+  type: string
+  jsonPath: .status.conditions[?(@.type=="Ready")].message
+- name: Age
+  type: date
+  jsonPath: .metadata.creationTimestamp
+{{- end }}
+
+{{/*
+Arguments and definition maps are free form: upstream types them as
+runtime.RawExtension, so nested keys must survive the API server rather than
+being pruned.
+*/}}
+{{- define "rabbitmq.crds.raw_object" }}
+type: object
+x-kubernetes-preserve-unknown-fields: true
+{{- end }}
+
+{{/*
+The API group is hardcoded rather than driven from values because each consumer
+chart declares its own resources in its own templates/rabbitmq-topology.yaml
+and cannot read this chart's values. Those templates carry the same group
+literal, which must stay in sync with the one below.
+*/}}
+{{- if .Values.manifests.crds }}
+{{- $group := "rabbitmq.osh.openstack.org" }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vhosts.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "rabbitmq" "topology-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Vhost
+    listKind: VhostList
+    plural: vhosts
+    singular: vhost
+    categories:
+      - rabbitmq-topology
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Vhost
+          type: string
+          jsonPath: .spec.name
+{{ include "rabbitmq.crds.common_printer_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - name
+                - rabbitmqClusterReference
+              properties:
+{{ include "rabbitmq.crds.common_spec_properties" . | indent 16 }}
+                name:
+                  description: The virtual host name.
+                  type: string
+                  minLength: 1
+                tags:
+                  type: array
+                  items:
+                    type: string
+                tracing:
+                  type: boolean
+                  default: false
+                defaultQueueType:
+                  description: |
+                    Queue type for queues declared in this vhost without one of
+                    their own. Requires RabbitMQ 3.11 or later.
+                  type: string
+                  enum:
+                    - quorum
+                    - classic
+                    - stream
+            status:
+{{ include "rabbitmq.crds.common_status" . | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: users.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "rabbitmq" "topology-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: User
+    listKind: UserList
+    plural: users
+    singular: user
+    categories:
+      - rabbitmq-topology
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: User
+          type: string
+          jsonPath: .status.username
+{{ include "rabbitmq.crds.common_printer_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              {{- /*
+              There is deliberately no password in the spec, which is upstream's
+              design: either importCredentialsSecret names a secret holding
+              username and password, or the reconciler generates a password and
+              publishes it in a secret named after the resource.
+              */}}
+              type: object
+              required:
+                - rabbitmqClusterReference
+              properties:
+{{ include "rabbitmq.crds.common_spec_properties" . | indent 16 }}
+                tags:
+                  description: |
+                    Permission tags. An account with no tags can use the
+                    messaging protocols but not the management interface, which
+                    is what an OpenStack service needs.
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - management
+                      - policymaker
+                      - monitoring
+                      - administrator
+                importCredentialsSecret:
+                  description: |
+                    Secret holding the username and password keys to declare
+                    this account with. Without it the reconciler generates a
+                    password once and writes it to a secret named
+                    <resource>-user-credentials.
+                  type: object
+                  properties:
+                    name:
+                      type: string
+            status:
+              {{- /* Adds the two fields upstream reports for a User. */}}
+              type: object
+              properties:
+                username:
+                  description: The account name as declared in RabbitMQ.
+                  type: string
+                credentials:
+                  description: The secret holding this account's credentials.
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                observedGeneration:
+                  type: integer
+                  format: int64
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - status
+                      - type
+                    properties:
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      message:
+                        type: string
+                      reason:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                      type:
+                        type: string
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: permissions.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "rabbitmq" "topology-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Permission
+    listKind: PermissionList
+    plural: permissions
+    singular: permission
+    categories:
+      - rabbitmq-topology
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Vhost
+          type: string
+          jsonPath: .spec.vhost
+        - name: User
+          type: string
+          jsonPath: .spec.user
+{{ include "rabbitmq.crds.common_printer_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - vhost
+                - permissions
+                - rabbitmqClusterReference
+              properties:
+{{ include "rabbitmq.crds.common_spec_properties" . | indent 16 }}
+                vhost:
+                  type: string
+                  minLength: 1
+                user:
+                  description: |
+                    The account name. Mutually exclusive with userReference.
+                  type: string
+                userReference:
+                  description: |
+                    A User resource in this namespace, whose declared account
+                    name this permission applies to. Mutually exclusive with
+                    user.
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                permissions:
+                  description: |
+                    Regular expressions selecting the resources the account may
+                    configure, write to and read from. An empty string denies
+                    everything.
+                  type: object
+                  properties:
+                    configure:
+                      type: string
+                    write:
+                      type: string
+                    read:
+                      type: string
+            status:
+{{ include "rabbitmq.crds.common_status" . | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: queues.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "rabbitmq" "topology-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Queue
+    listKind: QueueList
+    plural: queues
+    singular: queue
+    categories:
+      - rabbitmq-topology
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Queue
+          type: string
+          jsonPath: .spec.name
+        - name: Vhost
+          type: string
+          jsonPath: .spec.vhost
+{{ include "rabbitmq.crds.common_printer_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - name
+                - rabbitmqClusterReference
+              properties:
+{{ include "rabbitmq.crds.common_spec_properties" . | indent 16 }}
+                name:
+                  type: string
+                  minLength: 1
+                vhost:
+                  type: string
+                  default: /
+                type:
+                  description: |
+                    Queue type, sent to the broker as the x-queue-type
+                    argument. An explicit x-queue-type in arguments wins.
+                  type: string
+                durable:
+                  type: boolean
+                  default: false
+                autoDelete:
+                  type: boolean
+                  default: false
+                arguments:
+{{ include "rabbitmq.crds.raw_object" . | indent 18 }}
+            status:
+{{ include "rabbitmq.crds.common_status" . | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: exchanges.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "rabbitmq" "topology-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Exchange
+    listKind: ExchangeList
+    plural: exchanges
+    singular: exchange
+    categories:
+      - rabbitmq-topology
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Exchange
+          type: string
+          jsonPath: .spec.name
+        - name: Vhost
+          type: string
+          jsonPath: .spec.vhost
+{{ include "rabbitmq.crds.common_printer_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - name
+                - rabbitmqClusterReference
+              properties:
+{{ include "rabbitmq.crds.common_spec_properties" . | indent 16 }}
+                name:
+                  type: string
+                  minLength: 1
+                vhost:
+                  type: string
+                  default: /
+                type:
+                  type: string
+                  default: direct
+                durable:
+                  type: boolean
+                  default: false
+                autoDelete:
+                  type: boolean
+                  default: false
+                arguments:
+{{ include "rabbitmq.crds.raw_object" . | indent 18 }}
+            status:
+{{ include "rabbitmq.crds.common_status" . | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: bindings.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "rabbitmq" "topology-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Binding
+    listKind: BindingList
+    plural: bindings
+    singular: binding
+    categories:
+      - rabbitmq-topology
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Source
+          type: string
+          jsonPath: .spec.source
+        - name: Destination
+          type: string
+          jsonPath: .spec.destination
+{{ include "rabbitmq.crds.common_printer_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              {{- /*
+              A binding has no name in the management API, so the reconciler
+              identifies it by routing key and arguments among the bindings
+              between the same source and destination.
+              */}}
+              type: object
+              required:
+                - rabbitmqClusterReference
+              properties:
+{{ include "rabbitmq.crds.common_spec_properties" . | indent 16 }}
+                vhost:
+                  type: string
+                  default: /
+                source:
+                  description: The exchange the binding starts from.
+                  type: string
+                destination:
+                  type: string
+                destinationType:
+                  type: string
+                  enum:
+                    - queue
+                    - exchange
+                  default: queue
+                routingKey:
+                  type: string
+                arguments:
+{{ include "rabbitmq.crds.raw_object" . | indent 18 }}
+            status:
+{{ include "rabbitmq.crds.common_status" . | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: policies.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "rabbitmq" "topology-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Policy
+    listKind: PolicyList
+    plural: policies
+    singular: policy
+    categories:
+      - rabbitmq-topology
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Policy
+          type: string
+          jsonPath: .spec.name
+        - name: Vhost
+          type: string
+          jsonPath: .spec.vhost
+{{ include "rabbitmq.crds.common_printer_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - name
+                - pattern
+                - definition
+                - rabbitmqClusterReference
+              properties:
+{{ include "rabbitmq.crds.common_spec_properties" . | indent 16 }}
+                name:
+                  type: string
+                  minLength: 1
+                vhost:
+                  type: string
+                  default: /
+                pattern:
+                  description: |
+                    Regular expression selecting the queues or exchanges this
+                    policy applies to.
+                  type: string
+                applyTo:
+                  type: string
+                  enum:
+                    - queues
+                    - exchanges
+                    - all
+                    - classic_queues
+                    - quorum_queues
+                    - streams
+                  default: all
+                definition:
+{{ include "rabbitmq.crds.raw_object" . | indent 18 }}
+                priority:
+                  type: integer
+                  default: 0
+            status:
+{{ include "rabbitmq.crds.common_status" . | indent 14 }}
+{{- end }}

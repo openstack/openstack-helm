@@ -26,10 +26,17 @@ labels:
   jobs:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  topology_controller:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
 
 images:
   tags:
     rabbitmq_init: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
+    # -- The topology controller needs the kubernetes client for the Kubernetes
+    ## API and requests for the broker's management API. Both are on this image,
+    ## which the chart already pulls for the rabbitmq-password init container.
+    rabbitmq_topology_controller: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
     rabbitmq: docker.io/rabbitmq:4.3.5
     dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_noble
     # -- Image for the cluster-wait job. It needs rabbitmqctl to prune cluster
@@ -54,6 +61,30 @@ forceBoot:
   enabled: false
 
 pod:
+  env:
+    rabbitmq_topology_controller:
+      RABBITMQ_TOPOLOGY_CONTROLLER_DEBUG: 0
+      # -- Delay between reconcile sweeps of the custom resources
+      RABBITMQ_TOPOLOGY_CONTROLLER_RECONCILE_INTERVAL: 10
+      # -- How often to re-declare resources whose desired state has not
+      ## changed, repairing drift caused by changes made outside the controller
+      RABBITMQ_TOPOLOGY_CONTROLLER_FULL_RESYNC_INTERVAL: 1800
+      # -- Retry delay for a resource that failed to reconcile
+      RABBITMQ_TOPOLOGY_CONTROLLER_ERROR_BACKOFF: 10
+      # -- Timeout for the RabbitMQ management API
+      RABBITMQ_TOPOLOGY_CONTROLLER_REQUEST_TIMEOUT: 60
+      # -- Timeout for Kubernetes API requests
+      RABBITMQ_TOPOLOGY_CONTROLLER_KUBERNETES_REQUEST_TIMEOUT: 60
+      # -- Delete the default guest account on every sweep. The chart declares
+      ## it in definitions.json, which management.load_definitions imports on
+      ## every node boot, so deleting it once does not hold. This is what the
+      ## per-chart rabbit-init jobs used to do.
+      RABBITMQ_TOPOLOGY_CONTROLLER_DELETE_GUEST_USER: 1
+      # -- Verify the management API certificate's hostname as well as its
+      ## chain. Off by default, matching what rabbit-init does with
+      ## rabbitmqadmin --ssl-disable-hostname-verification
+      RABBITMQ_TOPOLOGY_CONTROLLER_TLS_VERIFY_HOSTNAME: 0
+      RABBITMQ_TOPOLOGY_CONTROLLER_TLS_CA_FILE: /etc/rabbitmq/certs/ca.crt
   probes:
     rabbitmq:
       rabbitmq:
@@ -108,6 +139,17 @@ pod:
         rabbitmq_test:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+    topology_controller:
+      pod:
+        runAsUser: 65534
+        runAsNonRoot: true
+      container:
+        topology_controller:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
   affinity:
     anti:
       type:
@@ -128,6 +170,8 @@ pod:
         effect: NoSchedule
   replicas:
     server: 2
+    # -- Must stay at 1: the controller does no leader election
+    topology_controller: 1
   lifecycle:
     upgrades:
       deployments:
@@ -148,6 +192,13 @@ pod:
       requests:
         memory: "128Mi"
         cpu: "500m"
+    topology_controller:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
     jobs:
       tests:
         limits:
@@ -251,6 +302,12 @@ dependencies:
       # containing the generated name for the `cluster_wait` job name.
       jobs: cluster_wait
     cluster_wait:
+      services:
+        - endpoint: internal
+          service: oslo_messaging
+    topology_controller:
+      jobs:
+        - rabbitmq-cluster-wait
       services:
         - endpoint: internal
           service: oslo_messaging
@@ -393,6 +450,15 @@ manifests:
   configmap_bin: true
   configmap_etc: true
   config_ipv6: false
+  # -- Deploy the Vhost/User/Permission/Queue/Exchange/Binding/Policy custom
+  ## resource definitions reconciled by the rabbitmq-topology-controller
+  ## deployment. Inert on their own.
+  crds: true
+  # -- Deploy the controller reconciling those custom resources. Off by
+  ## default: enabling it adds a pod, RBAC and a new configmap-bin key, which
+  ## changes the bin configmap hash and therefore rolls the server statefulset
+  ## on upgrade.
+  deployment_topology_controller: false
   job_cluster_wait: true
   job_image_repo_sync: true
   monitoring:

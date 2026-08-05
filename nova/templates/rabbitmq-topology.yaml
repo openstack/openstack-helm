@@ -1,0 +1,188 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- /*
+RabbitMQ custom resources declaring the messaging account this chart uses. They
+are reconciled by the rabbitmq chart's topology controller, which declares the
+vhost, the account and its permissions against the broker, so that the RabbitMQ
+administrative credentials never have to be mounted into this namespace.
+
+The resources are compatible with the upstream messaging-topology-operator.
+Setting rabbitmq_topology.api_group to rabbitmq.com renders them in that
+operator's group instead, for a deployment that runs it in place of this
+chart's controller. Upstream resolves rabbitmqClusterReference.name to a
+RabbitmqCluster, so such a deployment needs one of that name.
+
+Nothing has to be consumed in return. The transport URL is already rendered from
+endpoints.oslo_messaging into the service configuration, so this manifest
+replaces the rabbit-init job and adds nothing to any pod. See
+values_overrides/nova/rabbitmq-crd.yaml.
+*/}}
+{{- if .Values.manifests.rabbitmq_topology }}
+{{- $envAll := . }}
+{{- if .Values.manifests.job_rabbit_init }}
+{{- fail "manifests.rabbitmq_topology and manifests.job_rabbit_init are mutually exclusive, set manifests.job_rabbit_init to false" }}
+{{- end }}
+{{- /*
+The API group is chosen in values, so the same resources can be reconciled
+either by the rabbitmq chart's own topology controller or by the upstream
+messaging-topology-operator. The version differs between the two groups, and
+upstream resolves rabbitmqClusterReference.name to a RabbitmqCluster resource,
+which only the operator deployment creates.
+*/}}
+{{- $apiGroup := .Values.rabbitmq_topology.api_group }}
+{{- $osh := eq $apiGroup "rabbitmq.osh.openstack.org" }}
+{{- if not (or $osh (eq $apiGroup "rabbitmq.com")) }}
+{{- fail (printf "rabbitmq_topology.api_group must be rabbitmq.osh.openstack.org or rabbitmq.com, not %s" $apiGroup) }}
+{{- end }}
+{{- $apiVersion := printf "%s/%s" $apiGroup (ternary "v1alpha1" "v1beta1" $osh) }}
+{{- /* Upstream's v1beta1 declares deletionPolicy only on Vhost, and helm applies
+server-side, which refuses a field the schema does not declare rather than
+dropping it. So the other kinds carry it only for this chart's own group, which
+declares it on all seven. Losing it upstream costs little: what must survive
+helm uninstall is the vhost and its messages. */}}
+{{- $cluster := index .Values.endpoints.oslo_messaging.hosts "default" }}
+{{- $auth := .Values.endpoints.oslo_messaging.auth.nova }}
+{{- /* The default vhost is "/" and always exists, so it is not declared. */}}
+{{- $vhost := .Values.endpoints.oslo_messaging.path | trimPrefix "/" | default "/" }}
+
+{{- /*
+The credentials the User resource imports. A chart already knows this password
+from the endpoints values it renders into the transport URL, so the account is
+declared with it rather than with one the controller generates.
+*/}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nova-rabbitmq-credentials
+  labels:
+{{ tuple $envAll "nova" "rabbitmq-credentials" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+    {{- /* Upstream's User webhook refuses a credentials secret that is not
+    marked for the topology operator, and its schema does not describe that, so
+    only a deployment reveals it. Emitted for both groups: this chart's own
+    controller reads the secret named in importCredentialsSecret regardless,
+    and identical manifests are the point. */}}
+    rabbitmq.com/topology-operator: "true"
+type: Opaque
+data:
+  username: {{ $auth.username | b64enc }}
+  password: {{ $auth.password | b64enc }}
+{{- if ne $vhost "/" }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Vhost
+metadata:
+  name: nova
+  labels:
+{{ tuple $envAll "nova" "rabbitmq-vhost" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  rabbitmqClusterReference:
+    name: {{ $cluster | quote }}
+  {{- /* spec.name carries the vhost name, which need not be a valid Kubernetes
+  object name. */}}
+  name: {{ $vhost | quote }}
+  {{- /* Not upstream's "delete" default: deleting a vhost deletes every message
+  in it, and helm uninstall of a service chart should not do that. */}}
+  deletionPolicy: retain
+{{- end }}
+---
+apiVersion: {{ $apiVersion }}
+kind: User
+metadata:
+  name: nova
+  labels:
+{{ tuple $envAll "nova" "rabbitmq-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  rabbitmqClusterReference:
+    name: {{ $cluster | quote }}
+  {{- /* No tags: the account uses the messaging protocols and has no business
+  reaching the management interface. */}}
+  tags: []
+  {{- /* Required rather than optional. Without it the reconciler generates a
+  password, which would live in a secret carrying no endpoint while transport_url
+  is still rendered from values -- so the service would reach the right broker
+  with the wrong credentials. */}}
+  importCredentialsSecret:
+    name: nova-rabbitmq-credentials
+{{- if $osh }}
+  deletionPolicy: retain
+{{- end }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Permission
+metadata:
+  name: nova
+  labels:
+{{ tuple $envAll "nova" "rabbitmq-permission" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  rabbitmqClusterReference:
+    name: {{ $cluster | quote }}
+  vhost: {{ $vhost | quote }}
+  {{- /* Resolved to the account the User above declares, so the name is not
+  spelled out twice. */}}
+  userReference:
+    name: nova
+  {{- /* The same patterns the rabbit-init script grants today. */}}
+  permissions:
+    configure: ".*"
+    write: ".*"
+    read: ".*"
+{{- if $osh }}
+  deletionPolicy: retain
+{{- end }}
+
+{{- /*
+The policies this chart declares in conf.rabbitmq, which the rabbit-init job
+handed to "rabbitmqadmin import" as one opaque document. One Policy resource
+each instead, so an entry that fails is attributable and carries its own status.
+The values are unchanged, so enabling this path keeps the policies the chart has
+always applied.
+*/}}
+{{- range $policy := (.Values.conf.rabbitmq).policies }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Policy
+metadata:
+  {{- /* spec.name carries the policy name, which may contain an underscore that
+  metadata.name may not. */}}
+  name: {{ $policy.name | replace "_" "-" | quote }}
+  labels:
+{{ tuple $envAll "nova" "rabbitmq-policy" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  rabbitmqClusterReference:
+    name: {{ $cluster | quote }}
+  name: {{ $policy.name | quote }}
+  vhost: {{ $policy.vhost | default $vhost | quote }}
+  pattern: {{ $policy.pattern | quote }}
+  applyTo: {{ index $policy "apply-to" | default "all" | quote }}
+  priority: {{ $policy.priority | default 0 }}
+  definition:
+{{ toYaml $policy.definition | indent 4 }}
+{{- if $osh }}
+  deletionPolicy: retain
+{{- end }}
+{{- end }}
+
+{{- /*
+Anything else conf.rabbitmq carries would be dropped on the floor, because only
+policies are translated. Refuse to render rather than lose it silently: queues,
+exchanges and bindings have kinds of their own to be declared with.
+*/}}
+{{- range $key, $value := (.Values.conf.rabbitmq | default dict) }}
+{{- if ne $key "policies" }}
+{{- fail (printf "conf.rabbitmq.%s is not translated into a custom resource. Declare a Queue, Exchange or Binding resource instead, or drop the key." $key) }}
+{{- end }}
+{{- end }}
+{{- end }}

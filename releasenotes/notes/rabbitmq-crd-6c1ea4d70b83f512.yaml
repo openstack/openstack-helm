@@ -1,0 +1,140 @@
+---
+rabbitmq:
+  - |
+    The chart now ships seven namespaced custom resource definitions in the
+    ``rabbitmq.osh.openstack.org/v1alpha1`` API group -- ``Vhost``, ``User``,
+    ``Permission``, ``Queue``, ``Exchange``, ``Binding`` and ``Policy`` --
+    gated by ``.Values.manifests.crds`` (on by default; they are inert without
+    any resources to reconcile). They carry ``helm.sh/resource-policy: keep``
+    so that uninstalling the release does not cascade-delete the messaging
+    accounts every running OpenStack service depends on.
+
+    The resources are compatible with the upstream
+    messaging-topology-operator: apart from the API group they are its
+    ``rabbitmq.com/v1beta1`` resources, so a resource written against upstream
+    documentation applies unchanged and the same consumer chart templates can be
+    pointed at either implementation -- retargeting them at that operator also
+    means replacing ``rabbitmqClusterReference.name`` with a
+    ``connectionSecret``, because upstream resolves the name to a
+    ``RabbitmqCluster`` resource which this chart does not create. There is
+    deliberately no ``Connection`` kind, because upstream has none: nothing in
+    ``rabbitmq.com/v1beta1`` carries a broker address, and a chart already knows
+    the address from its ``endpoints.oslo_messaging`` values. Every field
+    upstream accepts is declared, so nothing is silently stripped by the API
+    server, the ``rabbitmqClusterReference`` schema carries the exactly-one-of
+    rule upstream enforces with an admission webhook, and the status
+    subresource is structurally identical to upstream's: ``observedGeneration``
+    plus a conditions list, which means ``kubectl wait --for=condition=Ready``
+    works on all seven kinds, and only the two reasons upstream defines are ever
+    written. Every declared field is implemented, so nothing is refused. A
+    ``rabbitmqClusterReference`` that names a broker this reconciler does not
+    serve -- by ``name``, by ``connectionSecret``, or by a ``namespace`` other
+    than its own -- means the resource belongs to something else, so it is left
+    completely untouched: not declared against this broker, and not written to
+    either, because status belongs to whichever controller does serve it and two
+    writers would flap against each other. That is what lets this reconciler and
+    the upstream operator share a namespace; the reconciler log records what it
+    skipped and why.
+
+    A new ``rabbitmq-topology-controller`` deployment, gated by
+    ``.Values.manifests.deployment_topology_controller`` and **off by
+    default**, reconciles those resources over the RabbitMQ HTTP management
+    API. It is a single-file Python reconciler built on the official
+    ``kubernetes`` client and ``requests``, so it needs an image carrying both
+    and defaults to ``openstack-client``, which the chart already pulls for its
+    ``rabbitmq-password`` init container.
+    It runs with ``replicas: 1`` and no leader election, and reads
+    the administrative account from the chart's own ``<release>-admin-user``
+    secret. Every operation is idempotent and a periodic resync repairs drift
+    made outside the controller.
+
+    That resync also fixes a long-standing problem. The chart declares the
+    ``guest`` account in ``definitions.json``, which
+    ``management.load_definitions`` imports on every node boot, while
+    ``loopback_users.guest`` is ``false`` -- so the account can log in from
+    anywhere, and the one-shot deletion each consumer chart's rabbit-init job
+    performs does not survive a node restart. With
+    ``RABBITMQ_TOPOLOGY_CONTROLLER_DELETE_GUEST_USER`` (on by default in
+    ``pod.env.rabbitmq_topology_controller``) the account is removed on every
+    sweep instead.
+
+    Enabling the controller adds a key to the ``rabbitmq-bin`` configmap, whose
+    hash annotates the server statefulset, so it rolls the cluster. Leaving it
+    off keeps the rendered chart identical to before apart from the inert
+    definitions.
+other:
+  - |
+    The keystone, glance, cinder, heat, neutron and nova charts can now declare
+    their messaging vhost, account and permissions as RabbitMQ custom resources
+    instead of running a per-chart rabbit-init job that needs the RabbitMQ
+    administrative connection URI mounted into the OpenStack namespace.
+
+    Each chart declares its own resources in
+    ``templates/rabbitmq-topology.yaml``, gated by
+    ``manifests.rabbitmq_topology`` (off by default), deriving the vhost and
+    credentials from the ``endpoints.oslo_messaging`` values it already
+    declares -- so that boolean is the only value needed to turn it on. The
+    account is declared through ``importCredentialsSecret`` rather than with a
+    password the reconciler generates, because ``transport_url`` is rendered
+    from those same values and the two have to agree.
+
+    ``rabbitmq_topology.api_group`` selects the API group the resources are
+    rendered in, so the same manifests can be reconciled by either
+    implementation:
+
+    * ``rabbitmq.osh.openstack.org`` -- the default, reconciled by the rabbitmq
+      chart's topology controller.
+    * ``rabbitmq.com`` -- the upstream ``messaging-topology-operator``, which
+      must then be deployed separately. Upstream resolves
+      ``rabbitmqClusterReference.name`` to a ``RabbitmqCluster``, so that
+      deployment also needs one named after
+      ``endpoints.oslo_messaging.hosts.default``.
+
+    Only the group and version differ between the two; the resources
+    themselves are identical, with one exception, and any other value fails
+    rendering rather than producing resources nothing serves.
+
+    The credentials secret carries ``rabbitmq.com/topology-operator: "true"``
+    on both paths. Upstream refuses to read a secret that is not marked for it,
+    and this chart's controller does not care, so the manifests stay identical.
+
+    The exception is ``deletionPolicy``, which upstream's ``v1beta1`` declares
+    only on ``Vhost`` while this chart's group declares it on all seven kinds.
+    Helm applies server-side, which refuses a field the schema does not
+    declare, so with ``rabbitmq.com`` the ``User``, ``Permission`` and
+    ``Policy`` resources are rendered without it and take upstream's ``delete``
+    default. What that protects still holds: the ``Vhost``, and so every
+    message in it, is retained on ``helm uninstall`` either way.
+
+    Each chart's ``conf.rabbitmq.policies`` entries -- the ``ha_ttl_<service>``
+    policy every one of them ships, applying a 70 second message TTL to
+    notification queues -- are translated into one ``Policy`` resource each,
+    replacing the ``rabbitmqadmin import`` the rabbit-init job performed. The
+    values are unchanged, so the same policies keep being applied, but a failing
+    entry is now attributable and carries a status of its own instead of being
+    one line in a document that applies or fails whole. ``policies`` is the only
+    ``conf.rabbitmq`` key translated; rendering fails on any other rather than
+    dropping it silently, naming the ``Queue``, ``Exchange`` and ``Binding``
+    kinds to declare instead.
+
+    Rendering also fails if ``manifests.job_rabbit_init`` is enabled alongside
+    it, since both paths would write the same account's password. The resources
+    set ``deletionPolicy: retain`` rather than upstream's ``delete`` default,
+    because deleting a vhost deletes every message in it and ``helm uninstall``
+    of a service chart should not do that.
+
+    To enable it, set ``manifests.rabbitmq_topology: true`` and
+    ``manifests.job_rabbit_init: false``; the per-chart
+    ``values_overrides/<chart>/rabbitmq-crd.yaml`` overrides do both. Nothing
+    has to be consumed in return: the transport URL is already rendered from
+    ``endpoints.oslo_messaging`` into the service configuration, so this
+    removes a job and adds nothing to any pod. ``oslo.messaging`` retries its
+    AMQP connection indefinitely, so no ordering barrier is needed in place of
+    the job.
+
+    Both defaults are unchanged, so existing deployments keep using the
+    rabbit-init job and render identically. The ``<service>-rabbitmq-admin``
+    and ``<service>-rabbitmq`` secrets are still rendered; they become unused
+    once a chart is converted and can be turned off with
+    ``manifests.secret_rabbitmq``.
+...

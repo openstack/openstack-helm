@@ -1,0 +1,200 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{/*
+The controller reconciling the Vhost/User/Permission/Queue/Exchange/Binding/
+Policy custom resources against the broker this chart deploys, over its HTTP
+management API. It replaces the per-chart rabbit-init jobs, so the
+administrative credentials stay in this release instead of being mounted into
+every consumer chart's namespace.
+*/}}
+
+{{- if (.Values.global).subchart_release_name }}
+{{- $_ := set . "deployment_name" .Chart.Name }}
+{{- else }}
+{{- $_ := set . "deployment_name" .Release.Name }}
+{{- end }}
+
+{{- if .Values.manifests.deployment_topology_controller }}
+{{- $envAll := . }}
+
+{{- $protocol := "http" }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- $protocol = "https" }}
+{{- end }}
+
+{{- $serviceAccountName := print .deployment_name "-topology-controller" }}
+{{ tuple $envAll "topology_controller" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+rules:
+  - apiGroups:
+      - rabbitmq.osh.openstack.org
+    resources:
+      - vhosts
+      - users
+      - permissions
+      - queues
+      - exchanges
+      - bindings
+      - policies
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  - apiGroups:
+      - rabbitmq.osh.openstack.org
+    resources:
+      - vhosts/status
+      - users/status
+      - permissions/status
+      - queues/status
+      - exchanges/status
+      - bindings/status
+      - policies/status
+    verbs:
+      - get
+      - update
+      - patch
+  {{- /*
+  Read the credentials secrets a consumer chart renders for its User
+  resources, and create the generated credentials secret for a User that
+  brings none of its own.
+  */}}
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ $envAll.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceAccountName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName }}
+    namespace: {{ $envAll.Release.Namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ printf "%s-%s" $envAll.deployment_name "topology-controller" | quote }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "rabbitmq" "topology-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.topology_controller }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "rabbitmq" "topology-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  {{/*
+  Recreate rather than a rolling update: with a surge two reconcilers would
+  briefly run at once. Everything they do is idempotent so an overlap is
+  survivable, but it produces confusing churn on the resources they both patch.
+  */}}
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: {{ .Values.pod.lifecycle.upgrades.deployments.revision_history }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "rabbitmq" "topology-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "topology_controller" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+      affinity:
+{{ tuple $envAll "rabbitmq" "topology-controller" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ if $envAll.Values.pod.tolerations.rabbitmq.enabled }}
+{{ tuple $envAll "rabbitmq" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ end }}
+      nodeSelector:
+        {{ .Values.labels.topology_controller.node_selector_key }}: {{ .Values.labels.topology_controller.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "topology_controller" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: rabbitmq-topology-controller
+{{ tuple $envAll "rabbitmq_topology_controller" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "topology_controller" "container" "topology_controller" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.topology_controller | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          command:
+            - /tmp/rabbitmq_topology_controller.py
+          env:
+{{ include "helm-toolkit.utils.to_k8s_env_vars" .Values.pod.env.rabbitmq_topology_controller | indent 12 }}
+            - name: RABBITMQ_TOPOLOGY_CONTROLLER_NAMESPACE
+              value: {{ $envAll.Release.Namespace }}
+            - name: RABBITMQ_SCHEME
+              value: {{ $protocol | quote }}
+            - name: RABBITMQ_HOST
+              value: {{ tuple "oslo_messaging" "internal" $envAll | include "helm-toolkit.endpoints.endpoint_host_lookup" }}
+            - name: RABBITMQ_PORT
+              value: {{ tuple "oslo_messaging" "internal" $protocol $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" | quote }}
+            - name: RABBITMQ_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-%s" $envAll.deployment_name "admin-user" | quote }}
+                  key: RABBITMQ_ADMIN_USERNAME
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-%s" $envAll.deployment_name "admin-user" | quote }}
+                  key: RABBITMQ_ADMIN_PASSWORD
+            {{/*
+            The name this controller answers for. A custom resource pointing at
+            a different cluster is left untouched, so this controller and the
+            upstream messaging-topology-operator can coexist in one namespace.
+            */}}
+            - name: RABBITMQ_REF_NAME
+              value: {{ tuple "oslo_messaging" "internal" $envAll | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: rabbitmq-bin
+              mountPath: /tmp/rabbitmq_topology_controller.py
+              subPath: rabbitmq_topology_controller.py
+              readOnly: true
+            {{/*
+            Only the CA is read, to verify the management listener. That
+            listener does not demand a client certificate, so there is nothing
+            else to wire up for mutual TLS.
+            */}}
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_messaging.server.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: rabbitmq-bin
+          configMap:
+            name: {{ printf "%s-%s" $envAll.deployment_name "rabbitmq-bin" | quote }}
+            defaultMode: 0555
+{{ dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.oslo_messaging.server.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
