@@ -55,8 +55,17 @@
     dest: /etc/default/kubelet
   when: inventory_hostname in (groups['k8s_cluster'] | default([]))
 
+# Retried as well as gated on the signature above, because discovery talks to
+# the API server and can fail for a moment for other reasons. A join that fails
+# in the preflight phase changes nothing on the node, so repeating it is safe;
+# one that fails later leaves state that makes every retry fail the same way,
+# which is the behaviour without the retries anyway.
 - name: Join workload nodes to cluster
   command: "{{ (groups['k8s_control_plane'] | map('extract', hostvars, ['join_command', 'stdout_lines', 0]))[0] }}"
+  register: _kubeadm_join
+  until: _kubeadm_join.rc == 0
+  retries: 5
+  delay: 10
   when: inventory_hostname in (groups['k8s_nodes'] | default([]))
 
 - name: Include K8s client tasks

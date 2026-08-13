@@ -31,6 +31,29 @@
   command: kubeadm token create --print-join-command
   register: join_command
 
+# kubeadm token create returns as soon as the bootstrap token Secret exists,
+# but a node joining with that token first verifies a JWS signature for its
+# token ID in the cluster-info ConfigMap, and that signature is added
+# asynchronously by the bootstrap-signer controller. A node that joins inside
+# the window fails preflight with "could not find a JWS signature in the
+# cluster-info ConfigMap for token ID", so wait for the signature to be
+# published rather than letting the workers race it.
+- name: Wait for the bootstrap token signature to be published
+  shell: |
+    kubectl --kubeconfig /etc/kubernetes/admin.conf -n kube-public \
+      get configmap cluster-info -o json \
+      | grep -q "jws-kubeconfig-{{ _token_id }}"
+  vars:
+    _token_id: >-
+      {{ join_command.stdout
+         | regex_search('--token\s+([a-z0-9]+)\.', '\1')
+         | first }}
+  register: _cluster_info_signature
+  until: _cluster_info_signature.rc == 0
+  retries: 30
+  delay: 2
+  changed_when: false
+
 - name: "Copy kube config to localhost"
   synchronize:
     mode: pull
