@@ -37,7 +37,7 @@ images:
     keystone_db_sync: quay.io/airshipit/keystone:2026.1-ubuntu_noble
     db_drop: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
     ks_user: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
-    rabbit_init: docker.io/rabbitmq:3.13-management
+    rabbit_init: docker.io/rabbitmq:4.3.5-management
     keystone_fernet_setup: quay.io/airshipit/keystone:2026.1-ubuntu_noble
     keystone_fernet_rotate: quay.io/airshipit/keystone:2026.1-ubuntu_noble
     keystone_credential_setup: quay.io/airshipit/keystone:2026.1-ubuntu_noble
@@ -564,7 +564,17 @@ conf:
     oslo_messaging_notifications:
       driver: messagingv2
     oslo_messaging_rabbit:
-      rabbit_ha_queues: true
+      rabbit_ha_queues: false
+      # -- Durable queues are required by RabbitMQ 4.x, which denies
+      ## transient non-exclusive queues by default. Also valid on 3.x.
+      amqp_durable_queues: true
+      # -- Quorum queues, which RabbitMQ 4.x requires: it denies transient
+      ## non-exclusive queues, and oslo.messaging declares its reply and fanout
+      ## queues that way unless the transient ones are quorum too.
+      ## amqp_durable_queues alone only covers the RPC and notification queues.
+      rabbit_quorum_queues: true
+      rabbit_transient_quorum_queue: true
+      use_queue_manager: true
     oslo_middleware:
       enable_proxy_headers_parsing: true
     oslo_policy:
@@ -584,14 +594,11 @@ conf:
   policy: {}
   access_rules: {}
   rabbitmq:
-    # NOTE(rk760n): adding rmq policy to mirror messages from notification queues and set expiration time for the ones
+    # NOTE(rk760n): adding rmq policy to set an expiration time on notification queues
     policies:
       - vhost: "keystone"
         name: "ha_ttl_keystone"
         definition:
-          # mirror messges to other nodes in rmq cluster
-          ha-mode: "all"
-          ha-sync-mode: "automatic"
           # 70s
           message-ttl: 70000
         priority: 0

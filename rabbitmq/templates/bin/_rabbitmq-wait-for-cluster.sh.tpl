@@ -30,26 +30,77 @@ RABBITMQ_ADMIN_PASSWORD=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $
 
 set -ex
 
+# rabbitmqadmin v2, shipped by the RabbitMQ 4.x management image, is a different
+# program from the python v1 tool in the 3.x images: node listing moved from
+# "list nodes" to "nodes list" and the TLS flags were renamed. Detect which one
+# is installed, the same way the rabbit-init script does. This job cannot avoid
+# the HTTP API the way it avoids rabbitmqadmin elsewhere: it has to discover
+# node names before it can address a node with rabbitmqctl.
+# Detection looks at what the program *is*, not at what it prints. Probing the
+# grammar with "users --help" does not work: v1 parses options with python's
+# option parser, which handles --help globally and exits 0 even for a
+# subcommand it does not have, so v1 would be taken for v2. v1 is a python
+# script and v2 is a compiled binary, which a shebang distinguishes reliably.
+RABBITMQADMIN_PATH="$(command -v rabbitmqadmin || true)"
+if [ -n "${RABBITMQADMIN_PATH}" ] && \
+   [ "$(head -c 2 "${RABBITMQADMIN_PATH}" 2>/dev/null)" = '#!' ]
+then
+  RABBITMQADMIN_MAJOR=1
+else
+  RABBITMQADMIN_MAJOR=2
+fi
+echo "Detected rabbitmqadmin v${RABBITMQADMIN_MAJOR}"
+
 function rabbitmqadmin_authed () {
   set +x
-  rabbitmqadmin \
+  if [ "${RABBITMQADMIN_MAJOR}" -eq 2 ]
+  then
+    rabbitmqadmin \
 {{- if .Values.manifests.certificates }}
-    --ssl \
-    --ssl-disable-hostname-verification \
-    --ssl-ca-cert-file="/etc/rabbitmq/certs/ca.crt" \
-    --ssl-cert-file="/etc/rabbitmq/certs/tls.crt" \
-    --ssl-key-file="/etc/rabbitmq/certs/tls.key" \
+      --use-tls \
+      --tls-ca-cert-file="/etc/rabbitmq/certs/ca.crt" \
+      --tls-cert-file="/etc/rabbitmq/certs/tls.crt" \
+      --tls-key-file="/etc/rabbitmq/certs/tls.key" \
 {{- end }}
-    --host="${RABBIT_HOSTNAME}" \
-    --port="${RABBIT_PORT}" \
-    --username="${RABBITMQ_ADMIN_USERNAME}" \
-    --password="${RABBITMQ_ADMIN_PASSWORD}" \
-    ${@}
+      --host="${RABBIT_HOSTNAME}" \
+      --port="${RABBIT_PORT}" \
+      --username="${RABBITMQ_ADMIN_USERNAME}" \
+      --password="${RABBITMQ_ADMIN_PASSWORD}" \
+      --non-interactive \
+      "$@"
+  else
+    rabbitmqadmin \
+{{- if .Values.manifests.certificates }}
+      --ssl \
+      --ssl-disable-hostname-verification \
+      --ssl-ca-cert-file="/etc/rabbitmq/certs/ca.crt" \
+      --ssl-cert-file="/etc/rabbitmq/certs/tls.crt" \
+      --ssl-key-file="/etc/rabbitmq/certs/tls.key" \
+{{- end }}
+      --host="${RABBIT_HOSTNAME}" \
+      --port="${RABBIT_PORT}" \
+      --username="${RABBITMQ_ADMIN_USERNAME}" \
+      --password="${RABBITMQ_ADMIN_PASSWORD}" \
+      "$@"
+  fi
   set -x
 }
 
+# Node names are pulled out by looking for the @ that every one contains, rather
+# than by column position: v1 asked for a bash-formatted list of bare names and
+# v2 prints a table whose shape is its own business. No other field either tool
+# reports contains an @.
+function node_list () {
+  if [ "${RABBITMQADMIN_MAJOR}" -eq 2 ]
+  then
+    rabbitmqadmin_authed nodes list
+  else
+    rabbitmqadmin_authed list nodes -f bash
+  fi | tr -s ' \t' '\n' | grep '@' | sort -u
+}
+
 function active_rabbit_nodes () {
-  rabbitmqadmin_authed list nodes -f bash | wc -w
+  node_list | wc -l
 }
 
 until test "$(active_rabbit_nodes)" -ge "$RABBIT_REPLICA_COUNT"; do
@@ -58,7 +109,7 @@ until test "$(active_rabbit_nodes)" -ge "$RABBIT_REPLICA_COUNT"; do
 done
 
 function sorted_node_list () {
-  rabbitmqadmin_authed list nodes -f bash | tr ' ' '\n' | sort | tr '\n' ' '
+  node_list | tr '\n' ' '
 }
 
 if test "$(active_rabbit_nodes)" -gt "$RABBIT_REPLICA_COUNT"; then

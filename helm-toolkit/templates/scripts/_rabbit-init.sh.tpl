@@ -50,66 +50,151 @@ RABBITMQ_VHOST=$(echo "${RABBITMQ_USER_CONNECTION}" | \
 # Resolve vHost to / if no value is set
 RABBITMQ_VHOST="${RABBITMQ_VHOST:-/}"
 
+# rabbitmqadmin v2, shipped by the RabbitMQ 4.x management image, is a different
+# program from the python v1 tool the 3.x images carry. The grammar changed from
+# "declare <noun> key=value" to "<noun> <verb> --flag value", the TLS flags were
+# renamed, and were renamed again for TLS. Neither
+# version is present in the other's image, so which one to speak is decided by
+# which one is installed.
+#
+# Detection looks at what the program *is*, not at what it prints. Probing the
+# grammar with "users --help" does not work: v1 parses options with python's
+# option parser, which handles --help globally and exits 0 even for a
+# subcommand it does not have, so v1 would be taken for v2. v1 is a python
+# script and v2 is a compiled binary, which a shebang distinguishes reliably.
+RABBITMQADMIN_PATH="$(command -v rabbitmqadmin || true)"
+if [ -n "${RABBITMQADMIN_PATH}" ] && \
+   [ "$(head -c 2 "${RABBITMQADMIN_PATH}" 2>/dev/null)" = '#!' ]
+then
+  RABBITMQADMIN_MAJOR=1
+else
+  RABBITMQADMIN_MAJOR=2
+fi
+echo "Detected rabbitmqadmin v${RABBITMQADMIN_MAJOR}"
+
 function rabbitmqadmin_cli () {
-  if [ -n "$RABBITMQ_X509" ]
+  if [ "${RABBITMQADMIN_MAJOR}" -eq 2 ]
   then
-    rabbitmqadmin \
-      --ssl \
-      --ssl-disable-hostname-verification \
-      --ssl-ca-cert-file="${USER_CERT_PATH}/ca.crt" \
-      --ssl-cert-file="${USER_CERT_PATH}/tls.crt" \
-      --ssl-key-file="${USER_CERT_PATH}/tls.key" \
-      --host="${RABBIT_HOSTNAME}" \
-      --port="${RABBIT_PORT}" \
-      --username="${RABBITMQ_ADMIN_USERNAME}" \
-      --password="${RABBITMQ_ADMIN_PASSWORD}" \
-      ${@}
+    if [ -n "$RABBITMQ_X509" ]
+    then
+      rabbitmqadmin \
+        --use-tls \
+        --tls-ca-cert-file="${USER_CERT_PATH}/ca.crt" \
+        --tls-cert-file="${USER_CERT_PATH}/tls.crt" \
+        --tls-key-file="${USER_CERT_PATH}/tls.key" \
+        --host="${RABBIT_HOSTNAME}" \
+        --port="${RABBIT_PORT}" \
+        --username="${RABBITMQ_ADMIN_USERNAME}" \
+        --password="${RABBITMQ_ADMIN_PASSWORD}" \
+        --non-interactive \
+        "$@"
+    else
+      rabbitmqadmin \
+        --host="${RABBIT_HOSTNAME}" \
+        --port="${RABBIT_PORT}" \
+        --username="${RABBITMQ_ADMIN_USERNAME}" \
+        --password="${RABBITMQ_ADMIN_PASSWORD}" \
+        --non-interactive \
+        "$@"
+    fi
   else
-    rabbitmqadmin \
-      --host="${RABBIT_HOSTNAME}" \
-      --port="${RABBIT_PORT}" \
-      --username="${RABBITMQ_ADMIN_USERNAME}" \
-      --password="${RABBITMQ_ADMIN_PASSWORD}" \
-      ${@}
+    if [ -n "$RABBITMQ_X509" ]
+    then
+      rabbitmqadmin \
+        --ssl \
+        --ssl-disable-hostname-verification \
+        --ssl-ca-cert-file="${USER_CERT_PATH}/ca.crt" \
+        --ssl-cert-file="${USER_CERT_PATH}/tls.crt" \
+        --ssl-key-file="${USER_CERT_PATH}/tls.key" \
+        --host="${RABBIT_HOSTNAME}" \
+        --port="${RABBIT_PORT}" \
+        --username="${RABBITMQ_ADMIN_USERNAME}" \
+        --password="${RABBITMQ_ADMIN_PASSWORD}" \
+        "$@"
+    else
+      rabbitmqadmin \
+        --host="${RABBIT_HOSTNAME}" \
+        --port="${RABBIT_PORT}" \
+        --username="${RABBITMQ_ADMIN_USERNAME}" \
+        --password="${RABBITMQ_ADMIN_PASSWORD}" \
+        "$@"
+    fi
+  fi
+}
+
+function declare_user () {
+  if [ "${RABBITMQADMIN_MAJOR}" -eq 2 ]
+  then
+    rabbitmqadmin_cli users declare \
+      --name="${1}" --password="${2}" --tags="user"
+  else
+    rabbitmqadmin_cli declare user \
+      name="${1}" password="${2}" tags="user"
+  fi
+}
+
+function delete_user () {
+  if [ "${RABBITMQADMIN_MAJOR}" -eq 2 ]
+  then
+    rabbitmqadmin_cli users delete --name="${1}"
+  else
+    rabbitmqadmin_cli delete user name="${1}"
+  fi
+}
+
+function declare_vhost () {
+  if [ "${RABBITMQADMIN_MAJOR}" -eq 2 ]
+  then
+    rabbitmqadmin_cli vhosts declare --name="${1}"
+  else
+    rabbitmqadmin_cli declare vhost name="${1}"
+  fi
+}
+
+# In v2 the vhost a permission applies to is the global --vhost flag rather than
+# a key of the command.
+function declare_permission () {
+  if [ "${RABBITMQADMIN_MAJOR}" -eq 2 ]
+  then
+    rabbitmqadmin_cli --vhost="${1}" permissions declare \
+      --user="${2}" --configure=".*" --write=".*" --read=".*"
+  else
+    rabbitmqadmin_cli declare permission \
+      vhost="${1}" user="${2}" configure=".*" write=".*" read=".*"
+  fi
+}
+
+function import_definitions () {
+  if [ "${RABBITMQADMIN_MAJOR}" -eq 2 ]
+  then
+    rabbitmqadmin_cli definitions import --file "${1}"
+  else
+    rabbitmqadmin_cli import "${1}"
   fi
 }
 
 echo "Managing: User: ${RABBITMQ_USERNAME}"
-rabbitmqadmin_cli \
-  declare user \
-  name="${RABBITMQ_USERNAME}" \
-  password="${RABBITMQ_PASSWORD}" \
-  tags="user"
+declare_user "${RABBITMQ_USERNAME}" "${RABBITMQ_PASSWORD}"
 
 echo "Deleting Guest User"
-rabbitmqadmin_cli \
-  delete user \
-  name="guest" || true
+delete_user "guest" || true
 
 if [ "${RABBITMQ_VHOST}" != "/" ]
 then
   echo "Managing: vHost: ${RABBITMQ_VHOST}"
-  rabbitmqadmin_cli \
-    declare vhost \
-    name="${RABBITMQ_VHOST}"
+  declare_vhost "${RABBITMQ_VHOST}"
 else
   echo "Skipping root vHost declaration: vHost: ${RABBITMQ_VHOST}"
 fi
 
 echo "Managing: Permissions: ${RABBITMQ_USERNAME} on ${RABBITMQ_VHOST}"
-rabbitmqadmin_cli \
-  declare permission \
-  vhost="${RABBITMQ_VHOST}" \
-  user="${RABBITMQ_USERNAME}" \
-  configure=".*" \
-  write=".*" \
-  read=".*"
+declare_permission "${RABBITMQ_VHOST}" "${RABBITMQ_USERNAME}"
 
 if [ ! -z "$RABBITMQ_AUXILIARY_CONFIGURATION" ]
 then
   echo "Applying additional configuration"
   echo "${RABBITMQ_AUXILIARY_CONFIGURATION}" > /tmp/rmq_definitions.json
-  rabbitmqadmin_cli import /tmp/rmq_definitions.json
+  import_definitions /tmp/rmq_definitions.json
 fi
 
 {{- end }}
