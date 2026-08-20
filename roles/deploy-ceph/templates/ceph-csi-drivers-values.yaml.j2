@@ -1,0 +1,39 @@
+# Values for the ceph-csi-drivers chart, which creates the Driver custom
+# resource the ceph-csi-operator turns into the RBD node and controller
+# plugins, along with the service accounts and RBAC those plugins run as.
+#
+# Rook 1.20 no longer creates any of this: it dropped operator_driver.go and
+# operator_config.go and now only maintains CephConnection, ClientProfile and
+# the CSI secrets. Without a Driver resource the operator deploys no plugin,
+# and every PVC waits forever for a provisioner that does not exist.
+---
+# Rook already creates and reconciles these two from the CephCluster, so the
+# chart must not render its own (its defaults would emit one empty-named
+# resource each).
+cephConnections: []
+clientProfiles: []
+
+operatorConfig:
+  # Only supplies driver spec defaults, which are set per driver below.
+  create: false
+
+drivers:
+  rbd:
+    # Must equal the provisioner named by the storage classes in
+    # rook-cluster-values.yaml.j2, and satisfy the CRD's own name rule,
+    # '[<prefix>.](rbd|cephfs|nfs|nvmeof).csi.ceph.com'.
+    name: {{ ceph_rook_namespace }}.rbd.csi.ceph.com
+    enabled: true
+    imageSet:
+      # Sidecar and cephcsi images, as rendered by the rook-ceph chart from its
+      # csi.<component>.repository/tag values.
+      name: rook-csi-operator-image-set-configmap
+  # Only RBD is used here, matching the drivers Rook was configured to run
+  # before 1.20 dropped these settings.
+  cephfs:
+    enabled: false
+  nfs:
+    enabled: false
+  nvmeof:
+    enabled: false
+...

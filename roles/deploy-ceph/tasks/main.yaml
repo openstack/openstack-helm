@@ -54,6 +54,43 @@
   retries: 5
   delay: 30
 
+# Rook 1.20 delegates CSI entirely to the ceph-csi-operator subchart and no
+# longer creates the Driver custom resource itself: pkg/operator/ceph/csi lost
+# operator_driver.go and operator_config.go, and templates/configmap.yaml no
+# longer renders any CSI_* setting into rook-ceph-operator-config. Rook still
+# maintains CephConnection, ClientProfile and the CSI secrets, but without a
+# Driver resource the csi operator deploys no plugin at all, so every PVC on the
+# storage class below waits forever for a provisioner that does not exist.
+#
+# The Driver alone is not enough: the operator defaults the plugin pods to
+# service accounts named after the driver, which nothing else creates. The
+# ceph-csi-drivers chart, published alongside the operator, renders the Driver
+# together with those accounts and their RBAC, so use it rather than applying a
+# bare custom resource. It installs into the operator namespace, which is the
+# only one the csi operator watches (it logs "WATCH_NAMESPACE must be set" and
+# falls back to its own).
+- name: Render ceph-csi-drivers values
+  template:
+    src: ceph-csi-drivers-values.yaml.j2
+    dest: /tmp/ceph-csi-drivers-values.yaml
+    mode: "0644"
+
+- name: Add ceph-csi-operator Helm repo
+  command: helm repo add ceph-csi https://ceph.github.io/ceph-csi-operator
+  changed_when: true
+
+- name: Deploy the ceph-csi RBD driver
+  shell: |
+    set -x
+    cat /tmp/ceph-csi-drivers-values.yaml
+    helm upgrade --install --create-namespace --namespace {{ ceph_rook_namespace }} \
+      ceph-csi-drivers ceph-csi/ceph-csi-drivers \
+      --version {{ ceph_csi_drivers_release }} \
+      -f /tmp/ceph-csi-drivers-values.yaml
+  args:
+    executable: /bin/bash
+  changed_when: true
+
 - name: Deploy Rook Ceph cluster
   shell: |
     set -x
@@ -77,6 +114,29 @@
     --for=jsonpath={.status.phase}=Ready
     --timeout={{ ceph_wait_timeout }}s
   changed_when: false
+
+# Only now can the plugins settle: the csi operator builds its ceph-csi-config
+# from the ClientProfile that Rook writes once the mons are up. A green
+# CephCluster says nothing about CSI, which is how a deployment with no
+# provisioner at all reached CI unnoticed, so assert both plugins here. The
+# operator names their workloads after the Driver rather than using Rook's old
+# csi-rbdplugin naming.
+# Short per-attempt timeout with retries rather than one long wait: until the
+# operator has created the workload, rollout status fails immediately with
+# NotFound, and retrying is what covers that window.
+- name: Wait for the ceph-csi RBD plugins to be running
+  command: >
+    kubectl rollout status {{ item }}
+    --namespace={{ ceph_rook_namespace }}
+    --timeout=120s
+  register: _csi_rbd_rollout
+  until: _csi_rbd_rollout.rc == 0
+  retries: 10
+  delay: 15
+  changed_when: false
+  loop:
+    - daemonset/{{ ceph_rook_namespace }}.rbd.csi.ceph.com-nodeplugin
+    - deployment/{{ ceph_rook_namespace }}.rbd.csi.ceph.com-ctrlplugin
 
 - name: Wait for CephObjectStore to reach Ready phase
   command: >
