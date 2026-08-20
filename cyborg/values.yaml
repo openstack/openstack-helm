@@ -22,7 +22,7 @@ images:
     cyborg_api: quay.io/airshipit/cyborg:2026.1-ubuntu_noble
     cyborg_conductor: quay.io/airshipit/cyborg:2026.1-ubuntu_noble
     cyborg_agent: quay.io/airshipit/cyborg:2026.1-ubuntu_noble
-    rabbit_init: docker.io/rabbitmq:3.13-management
+    rabbit_init: docker.io/rabbitmq:4.3.5-management
     dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_noble
   pull_policy: "IfNotPresent"
   local_registry:
@@ -495,8 +495,15 @@ conf:
     service_catalog:
       auth_type: password
     oslo_messaging_rabbit:
-      rabbit_ha_queues: true
+      rabbit_ha_queues: false
       amqp_durable_queues: true
+      # -- Quorum queues, which RabbitMQ 4.x requires: it denies transient
+      ## non-exclusive queues, and oslo.messaging declares its reply and fanout
+      ## queues that way unless the transient ones are quorum too.
+      ## amqp_durable_queues alone only covers the RPC and notification queues.
+      rabbit_quorum_queues: true
+      rabbit_transient_quorum_queue: true
+      use_queue_manager: true
     oslo_concurrency:
       lock_path: /var/lock
     placement:
@@ -520,8 +527,6 @@ conf:
       - vhost: "cyborg"
         name: "ha_ttl_cyborg"
         definition:
-          ha-mode: "all"
-          ha-sync-mode: "automatic"
           message-ttl: 70000
         priority: 0
         apply-to: all

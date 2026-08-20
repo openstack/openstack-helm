@@ -14,84 +14,115 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-set -ex
+{{/*
+This test talks to the HTTP management API directly rather than through
+rabbitmqadmin.
 
-# Extract connection details
-RABBIT_HOSTNAME=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $2}' \
-  | awk -F'[:/]' '{print $1}'`
-RABBIT_PORT=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $2}' \
-  | awk -F'[:/]' '{print $2}'`
+The RabbitMQ 4.x management image ships rabbitmqadmin v2, whose command grammar
+differs from the python v1 tool, which dropped JSON output for arbitrary
+commands, and which is absent altogether on architectures it has no binary for.
+The image also carries no python interpreter. Every one of those broke the
+previous version of this script. The management API is the interface all of
+those tools are clients of, and it is stable across broker versions, so the test
+uses it and needs nothing from the image beyond python3.
+*/}}
 
-set +x
-# Extract Admin User creadential
-RABBITMQ_ADMIN_USERNAME=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $1}' \
-  | awk -F'[//:]' '{print $4}'`
-RABBITMQ_ADMIN_PASSWORD=`echo $RABBITMQ_ADMIN_CONNECTION | awk -F'[@]' '{print $1}' \
-  | awk -F'[//:]' '{print $5}'`
-set -x
+set -e
 
-function rabbitmqadmin_authed () {
-  set +x
-  rabbitmqadmin \
-{{- if .Values.manifests.certificates }}
-    --ssl \
-    --ssl-disable-hostname-verification \
-    --ssl-ca-cert-file="/etc/rabbitmq/certs/ca.crt" \
-    --ssl-cert-file="/etc/rabbitmq/certs/tls.crt" \
-    --ssl-key-file="/etc/rabbitmq/certs/tls.key" \
-{{- end }}
-    --host="${RABBIT_HOSTNAME}" \
-    --port="${RABBIT_PORT}" \
-    --username="${RABBITMQ_ADMIN_USERNAME}" \
-    --password="${RABBITMQ_ADMIN_PASSWORD}" \
-    ${@}
-  set -x
-}
+python3 <<'PYTHON'
+import base64
+import json
+import os
+import ssl
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 
-function rabbit_check_node_count () {
-  echo "Checking node count "
-  NODES_IN_CLUSTER=$(rabbitmqadmin_authed list nodes -f bash | wc -w)
-  if [ "$NODES_IN_CLUSTER" -eq "$RABBIT_REPLICA_COUNT" ]; then
-    echo "Number of nodes in cluster ($NODES_IN_CLUSTER) match number of desired pods ($NODES_IN_CLUSTER)"
-  else
-    echo "Number of nodes in cluster ($NODES_IN_CLUSTER) does not match number of desired pods ($RABBIT_REPLICA_COUNT)"
-    exit 1
-  fi
-}
-# Check node count
-rabbit_check_node_count
+CERT_DIR = "/etc/rabbitmq/certs"
 
-function rabbit_find_partitions () {
-  NODE_INFO=$(mktemp)
-  rabbitmqadmin_authed list nodes -f pretty_json | tee "${NODE_INFO}"
-  cat "${NODE_INFO}" | python3 -c "
-import json, sys, traceback
-print('Checking cluster partitions')
-obj=json.load(sys.stdin)
-for num, node in enumerate(obj):
-  try:
-    partition = node['partitions']
-    if partition:
-      raise Exception('cluster partition found: %s' % partition)
-  except KeyError:
-    print('Error: partition key not found for node %s' % node)
-print('No cluster partitions found')
-  "
-  rm -vf "${NODE_INFO}"
-}
-rabbit_find_partitions
+connection = os.environ["RABBITMQ_ADMIN_CONNECTION"]
+expected_nodes = int(os.environ["RABBIT_REPLICA_COUNT"])
 
-function rabbit_check_users_match () {
-  echo "Checking users match on all nodes"
-  NODES=$(rabbitmqadmin_authed list nodes -f bash)
-  USER_LIST=$(mktemp --directory)
-  echo "Found the following nodes: ${NODES}"
-  for NODE in ${NODES}; do
-    echo "Checking Node: ${NODE#*@}"
-    rabbitmqadmin_authed list users -f bash > ${USER_LIST}/${NODE#*@}
-  done
-  cd ${USER_LIST}; diff -q --from-file $(ls ${USER_LIST})
-  echo "User lists match for all nodes"
-}
-# Check users match on all nodes
-rabbit_check_users_match
+parsed = urllib.parse.urlsplit(connection)
+scheme = "https" if parsed.scheme in ("https", "rabbits") else "http"
+base = f"{scheme}://{parsed.hostname}:{parsed.port}"
+username = urllib.parse.unquote(parsed.username or "")
+password = urllib.parse.unquote(parsed.password or "")
+
+context = None
+if scheme == "https":
+    ca_file = os.path.join(CERT_DIR, "ca.crt")
+    context = ssl.create_default_context(
+        cafile=ca_file if os.path.exists(ca_file) else None
+    )
+    # The server certificate is issued for the service name rather than for
+    # whatever host the endpoint lookup produced, which is why the previous
+    # script passed --ssl-disable-hostname-verification. The chain is still
+    # verified.
+    context.check_hostname = False
+
+header = base64.b64encode(f"{username}:{password}".encode()).decode("ascii")
+
+
+def api(path):
+    request = urllib.request.Request(base + path, method="GET")
+    request.add_header("Authorization", "Basic " + header)
+    request.add_header("Accept", "application/json")
+    try:
+        with urllib.request.urlopen(request, timeout=30, context=context) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        sys.exit(f"GET {path} failed: HTTP {error.code} {error.reason}")
+    except urllib.error.URLError as error:
+        sys.exit(f"GET {path} failed: {error.reason}")
+
+
+failures = []
+
+print(f"Querying the management API at {base}")
+nodes = api("/api/nodes")
+names = sorted(node["name"] for node in nodes)
+print(f"Found {len(names)} nodes: {' '.join(names)}")
+
+print("Checking node count")
+if len(names) != expected_nodes:
+    failures.append(
+        f"number of nodes in cluster ({len(names)}) does not match the number "
+        f"of desired pods ({expected_nodes})"
+    )
+else:
+    print(f"Number of nodes in cluster ({len(names)}) matches the desired pods")
+
+print("Checking cluster partitions")
+for node in nodes:
+    if "partitions" not in node:
+        failures.append(f"partitions key not reported for node {node['name']}")
+        continue
+    if node["partitions"]:
+        failures.append(
+            f"cluster partition found on {node['name']}: {node['partitions']}"
+        )
+if not failures:
+    print("No cluster partitions found")
+
+# One read per node, matching what the previous script did. Note that the
+# endpoint is the load balanced service, so this establishes that every read
+# returns the same set rather than that a named node holds it.
+print("Checking the user list is consistent across reads")
+seen = set()
+for name in names:
+    users = sorted(user["name"] for user in api("/api/users"))
+    print(f"  via {name}: {' '.join(users)}")
+    seen.add(tuple(users))
+if len(seen) > 1:
+    failures.append(f"user lists differ between reads: {seen}")
+else:
+    print("User lists match")
+
+if failures:
+    for failure in failures:
+        print(f"FAILED: {failure}")
+    sys.exit(1)
+print("RabbitMQ cluster checks passed")
+PYTHON

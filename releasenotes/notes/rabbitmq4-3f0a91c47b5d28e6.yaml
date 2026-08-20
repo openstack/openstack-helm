@@ -1,0 +1,37 @@
+---
+upgrade:
+  - |
+    RabbitMQ 4.3.5 is now the default, replacing 3.10.18 for the broker and
+    3.13-management for the rabbit-init jobs. This is **not an in-place
+    upgrade**: 3.10 to 4.x is unsupported. Either step the broker through 3.13
+    with all feature flags enabled, or wipe it and rerun the rabbit-init jobs.
+  - |
+    ``ha-mode`` and ``ha-sync-mode`` are dropped from the ``ha_ttl_<service>``
+    policies and ``rabbit_ha_queues`` becomes ``false``, since 4.x removed
+    classic queue mirroring. Policies left over from 3.x must be deleted by
+    hand. The former ``values_overrides/<chart>/rabbitmq4.yaml`` files are now
+    the default and have been removed.
+  - |
+    Every chart that talks to RabbitMQ now sets ``amqp_durable_queues``,
+    ``rabbit_quorum_queues``, ``rabbit_transient_quorum_queue`` and
+    ``use_queue_manager`` to ``true``, which 4.x requires. Twelve charts gain
+    an ``oslo_messaging_rabbit`` section. Use quorum queues for high
+    availability in place of mirroring.
+rabbitmq:
+  - |
+    ``conf.rabbitmq.queue_master_locator`` becomes
+    ``queue_leader_locator: balanced``.
+  - |
+    The helm test pod queries the HTTP management API instead of
+    ``rabbitmqadmin`` and moves to a new ``images.tags.rabbitmq_test``.
+    ``scripted_test`` keeps a rabbitmq image for the cluster-wait job.
+other:
+  - |
+    ``helm-toolkit.scripts.rabbit_init`` and the cluster-wait script support
+    both rabbitmqadmin v1 and v2 and pick one at runtime, so pinning
+    ``images.tags.rabbit_init`` back to a 3.x image keeps working. The 2025.1
+    job overrides pin 3.13 to cover v1.
+  - |
+    The broker image now comes from ``docker.io``, as the rabbit-init job
+    already did; ``quay.io/airshipit`` publishes no 4.x tag.
+...

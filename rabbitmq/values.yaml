@@ -30,9 +30,15 @@ labels:
 images:
   tags:
     rabbitmq_init: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
-    rabbitmq: quay.io/airshipit/rabbitmq:3.10.18
+    rabbitmq: docker.io/rabbitmq:4.3.5
     dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_noble
-    scripted_test: quay.io/airshipit/rabbitmq:3.10.18-management
+    # -- Image for the cluster-wait job. It needs rabbitmqctl to prune cluster
+    ## members and an HTTP client to discover them, so it must be a rabbitmq
+    ## management image.
+    scripted_test: docker.io/rabbitmq:4.3.5-management
+    # -- Image for the helm test pod. It queries the management HTTP API and
+    ## needs only python3, which the 4.x rabbitmq images do not ship.
+    rabbitmq_test: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
     image_repo_sync: quay.io/airshipit/docker:27.5.0
   pull_policy: "IfNotPresent"
   local_registry:
@@ -178,7 +184,7 @@ conf:
         interval: "10"
         only_log_warning: "true"
     cluster_partition_handling: autoheal
-    queue_master_locator: min-masters
+    queue_leader_locator: balanced
     loopback_users.guest: "false"
     management.load_definitions: "/var/lib/rabbitmq/definitions.json"
   rabbit_additonal_conf:
@@ -215,16 +221,15 @@ conf:
   #  aux_conf:
   #    policies:
   #      - vhost: "keystone"
-  #        name: "ha_ttl_keystone"
+  #        name: "ttl_keystone"
   #        definition:
-  #          #mirror messges to other nodes in rmq cluster
-  #          ha-mode: "all"
-  #          ha-sync-mode: "automatic"
   #          #70s
   #          message-ttl: 70000
   #        priority: 0
   #        apply-to: all
   #        pattern: '^(?!amq\.).*'
+  # Note: ha-mode and ha-sync-mode are not valid with RabbitMQ 4.x. Classic
+  # queue mirroring is gone; use quorum queues for high availability instead.
 dependencies:
   dynamic:
     common:
