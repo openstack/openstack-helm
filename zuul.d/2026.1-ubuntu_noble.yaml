@@ -355,13 +355,24 @@
       job would pass whether or not any of this worked, because oslo.messaging
       retries forever.
 
-      Keystone resources are expected to join this job once the keystone CRDs
-      land: the point of one job rather than one per resource kind is that a
-      real deployment turns all of them on at once, and only a job that does
-      the same can catch them interfering.
+      Identity: every chart that owns a catalog entry -- glance, cinder,
+      placement, nova, neutron and heat -- renders Domain/Project/Role/User/
+      RoleAssignment/Service/Endpoint custom resources
+      (manifests.identity_entities) for the keystone chart's identity
+      controller, instead of running the per-chart ks_user, ks_service and
+      ks_endpoints jobs. This exercises the single-user case (glance,
+      placement), the many-users-one-project case (nova declares five service
+      users, cinder four, all sharing one domain, project and set of roles) and
+      the several-service-types case (heat publishes both orchestration and
+      cloudformation). Heat also keeps its ks_user_domain job, which this path
+      does not replace, so the two provisioning styles coexist in one chart.
+
+      The point of one job rather than one per resource kind is that a real
+      deployment turns all of them on at once, and only a job that does the
+      same can catch them interfering.
 
       The 5-node rook nodeset is needed because cinder is deployed with a Ceph
-      backend; cinder is deployed because it carries both sets of overrides.
+      backend; cinder is deployed because it carries every set of overrides.
     parent: openstack-helm-deploy
     nodeset: openstack-helm-5nodes-ubuntu_noble
     run:
@@ -372,6 +383,7 @@
       osh_values_overrides:
         - "2026.1-ubuntu_noble.yaml"
         - "gateway.yaml"
+        - "identity-entities.yaml"
         - "mariadb-crd.yaml"
         - "rabbitmq-crd.yaml"
 

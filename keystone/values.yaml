@@ -20,6 +20,9 @@ labels:
   api:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  identity_controller:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
@@ -45,6 +48,7 @@ images:
     keystone_credential_cleanup: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
     keystone_api: quay.io/airshipit/keystone:2026.1-ubuntu_noble
     keystone_domain_manage: quay.io/airshipit/keystone:2026.1-ubuntu_noble
+    identity_controller: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
     dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_noble
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
@@ -136,6 +140,10 @@ dependencies:
       services:
         - endpoint: internal
           service: identity
+    identity_controller:
+      services:
+        - endpoint: internal
+          service: identity
     fernet_rotate:
       jobs:
         - keystone-fernet-setup
@@ -150,6 +158,17 @@ dependencies:
           service: local_image_registry
 
 pod:
+  env:
+    identity_controller:
+      IDENTITY_CONTROLLER_DEBUG: 0
+      # -- Delay between reconcile sweeps of the custom resources
+      IDENTITY_CONTROLLER_RECONCILE_INTERVAL: 10
+      # -- How often to re-apply resources whose desired state has not changed,
+      ## repairing drift caused by changes made outside the controller
+      IDENTITY_CONTROLLER_FULL_RESYNC_INTERVAL: 1800
+      # -- Retry delay for a resource that does not set spec.retryInterval
+      IDENTITY_CONTROLLER_ERROR_BACKOFF: 10
+      IDENTITY_CONTROLLER_REQUEST_TIMEOUT: 60
   extraContainers:
     keystone_api: []
   extraVolumes:
@@ -191,6 +210,13 @@ pod:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
         keystone_domain_manage:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+    identity_controller:
+      pod:
+        runAsUser: 42424
+      container:
+        identity_controller:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
     test:
@@ -291,6 +317,8 @@ pod:
     keystone_domain_manage: []
   replicas:
     api: 1
+    # -- Must stay at 1: the controller does no leader election
+    identity_controller: 1
   lifecycle:
     upgrades:
       deployments:
@@ -308,6 +336,13 @@ pod:
   resources:
     enabled: false
     api:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+    identity_controller:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -943,6 +978,13 @@ secrets:
     # from the MariaDB and RabbitMQ server certificates.
     client:
       keystone: keystone-client
+    # CA bundle this chart trusts for OUTBOUND TLS calls. Null by default -> no
+    # CA is mounted. A deployment override points this at a cert-manager CA-only
+    # secret carrying just ca.crt (no private key); it is mounted at
+    # /etc/ssl/certs/openstack-helm.crt. The identity controller reads it to
+    # verify the Keystone API it reconciles against, the same key the ks jobs in
+    # the consumer charts mount.
+    ca: null
   oci_image_registry:
     keystone: keystone-oci-image-registry
 
@@ -1159,6 +1201,14 @@ mariadb_db:
 manifests:
   configmap_bin: true
   configmap_etc: true
+  # -- Deploy the Domain/Project/Role/Group/User/RoleAssignment/Service/
+  ## Endpoint
+  ## custom resource definitions reconciled by the identity-controller
+  ## deployment. Inert on their own.
+  crds: true
+  # -- Deploy the controller reconciling those custom resources. Off by
+  ## default: enabling it adds a pod, RBAC and a new configmap-bin key.
+  deployment_identity_controller: false
   cron_credential_rotate: true
   cron_fernet_rotate: true
   deployment_api: true

@@ -1,0 +1,213 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- /*
+Keystone custom resources declaring the identity objects this chart owns: the
+service users it authenticates as, the domain, project and roles they need, and
+the catalog entries for the service types it publishes. They are reconciled by
+the keystone chart's identity controller, which replaces the ks-service,
+ks-user and ks-endpoints jobs and keeps the administrative credentials in the
+chart that owns keystone.
+
+Enable this instead of those three jobs. See
+values_overrides/glance/identity-entities.yaml.
+
+Every name and credential is read from the values the chart already declares,
+so nothing is duplicated: endpoints.identity.auth.<userClass> carries the
+username, domains, project and roles, and secrets.identity.<userClass> names
+the secret holding the password.
+*/}}
+{{- if .Values.manifests.identity_entities }}
+{{- $envAll := . }}
+{{- if or .Values.manifests.job_ks_user .Values.manifests.job_ks_service .Values.manifests.job_ks_endpoints }}
+{{- fail "manifests.identity_entities is mutually exclusive with the ks_user, ks_service and ks_endpoints jobs, set manifests.job_ks_user, manifests.job_ks_service and manifests.job_ks_endpoints to false" }}
+{{- end }}
+
+{{- $apiVersion := "keystone.osh.openstack.org/v1alpha1" }}
+{{- $keystoneRef := index .Values.endpoints.identity.hosts "default" }}
+{{- $region := .Values.endpoints.identity.auth.admin.region_name }}
+
+{{- /* The same service user the ks-user job declares. */}}
+{{- $serviceUsers := (tuple "glance") -}}
+
+{{- /*
+Collect the domains, projects and roles the users need. Several users share
+them, and a chart may not render two resources with the same name, so they are
+deduplicated into maps first. Across charts they are not deduplicated at all:
+each chart declares its own resource for the objects it needs, because a single
+owner would be a cross-chart dependency Helm cannot express, and reconciliation
+is find-or-create.
+*/}}
+{{- $domains := dict }}
+{{- $projects := dict }}
+{{- $roles := dict "member" true }}
+{{- range $userClass := $serviceUsers }}
+{{- $auth := index $envAll.Values.endpoints.identity.auth $userClass }}
+{{- if ne (lower $auth.user_domain_name) "default" }}
+{{- $_ := set $domains $auth.user_domain_name true }}
+{{- end }}
+{{- if ne (lower $auth.project_domain_name) "default" }}
+{{- $_ := set $domains $auth.project_domain_name true }}
+{{- end }}
+{{- $_ := set $projects $auth.project_name $auth.project_domain_name }}
+{{- $roleList := $auth.role }}
+{{- if not (kindIs "slice" $roleList) }}
+{{- $roleList = splitList "," $auth.role }}
+{{- end }}
+{{- range $role := $roleList }}
+{{- $_ := set $roles (trim $role) true }}
+{{- end }}
+{{- end }}
+
+{{- range $domain, $_ := $domains }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Domain
+metadata:
+  name: {{ printf "glance-%s" $domain | lower | replace "_" "-" | quote }}
+  labels:
+{{ tuple $envAll "glance" "identity-domain" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  keystoneRef:
+    name: {{ $keystoneRef | quote }}
+  name: {{ $domain | quote }}
+  description: {{ printf "Domain for %s" $domain | quote }}
+{{- end }}
+
+{{- range $project, $projectDomain := $projects }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Project
+metadata:
+  name: {{ printf "glance-%s" $project | lower | replace "_" "-" | quote }}
+  labels:
+{{ tuple $envAll "glance" "identity-project" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  keystoneRef:
+    name: {{ $keystoneRef | quote }}
+  name: {{ $project | quote }}
+  domain: {{ $projectDomain | quote }}
+  description: {{ printf "Service Project for %s" $projectDomain | quote }}
+{{- end }}
+
+{{- range $role, $_ := $roles }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Role
+metadata:
+  name: {{ printf "glance-%s" $role | lower | replace "_" "-" | quote }}
+  labels:
+{{ tuple $envAll "glance" "identity-role" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  keystoneRef:
+    name: {{ $keystoneRef | quote }}
+  name: {{ $role | quote }}
+{{- end }}
+
+{{- range $userClass := $serviceUsers }}
+{{- $auth := index $envAll.Values.endpoints.identity.auth $userClass }}
+{{- $userName := printf "glance-%s" $userClass | lower | replace "_" "-" }}
+---
+apiVersion: {{ $apiVersion }}
+kind: User
+metadata:
+  name: {{ $userName | quote }}
+  labels:
+{{ tuple $envAll "glance" "identity-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  keystoneRef:
+    name: {{ $keystoneRef | quote }}
+  name: {{ $auth.username | quote }}
+  domain: {{ $auth.user_domain_name | quote }}
+  description: {{ printf "Service User for %s/%s/glance" $auth.region_name $auth.user_domain_name | quote }}
+  {{- /* The project a token is scoped to, as the ks-user job's --project. */}}
+  defaultProject:
+    name: {{ $auth.project_name | quote }}
+    domain: {{ $auth.project_domain_name | quote }}
+  {{- /*
+  The openrc secret the chart already renders for this user, so adopting this
+  path adds no secret and the two halves cannot disagree.
+  */}}
+  passwordSecret:
+    name: {{ index $envAll.Values.secrets.identity $userClass | quote }}
+    key: OS_PASSWORD
+{{- $roleList := $auth.role }}
+{{- if not (kindIs "slice" $roleList) }}
+{{- $roleList = splitList "," $auth.role }}
+{{- end }}
+{{- /* The service roles, plus the member role the ks-user job always adds. */}}
+{{- range $role := append $roleList "member" | uniq }}
+{{- $role = trim $role }}
+---
+apiVersion: {{ $apiVersion }}
+kind: RoleAssignment
+metadata:
+  name: {{ printf "%s-%s" $userName $role | lower | replace "_" "-" | quote }}
+  labels:
+{{ tuple $envAll "glance" "identity-role-assignment" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  keystoneRef:
+    name: {{ $keystoneRef | quote }}
+  role:
+    name: {{ $role | quote }}
+  user:
+    name: {{ $auth.username | quote }}
+    domain: {{ $auth.user_domain_name | quote }}
+  project:
+    name: {{ $auth.project_name | quote }}
+    domain: {{ $auth.project_domain_name | quote }}
+{{- end }}
+{{- end }}
+
+{{- /* The service type this chart publishes, as the ks-service job does. */}}
+{{- $serviceTypes := tuple "image" -}}
+{{- range $serviceType := $serviceTypes }}
+{{- $serviceName := index $envAll.Values.endpoints $serviceType "name" }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Service
+metadata:
+  name: {{ printf "glance-%s" $serviceType | lower | replace "_" "-" | quote }}
+  labels:
+{{ tuple $envAll "glance" "identity-service" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  keystoneRef:
+    name: {{ $keystoneRef | quote }}
+  name: {{ $serviceName | quote }}
+  type: {{ $serviceType | quote }}
+  description: {{ printf "%s: %s (%s) service" $region $serviceName $serviceType | quote }}
+{{- end }}
+
+{{- range $serviceType := $serviceTypes }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Endpoint
+metadata:
+  name: {{ printf "glance-%s" $serviceType | lower | replace "_" "-" | quote }}
+  labels:
+{{ tuple $envAll "glance" "identity-endpoint" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  keystoneRef:
+    name: {{ $keystoneRef | quote }}
+  service:
+    name: {{ index $envAll.Values.endpoints $serviceType "name" | quote }}
+    type: {{ $serviceType | quote }}
+  region: {{ $region | quote }}
+  {{- /* The same helper the ks-endpoints job computes its URLs with. */}}
+  urls:
+{{- range $interface := tuple "admin" "internal" "public" }}
+    {{ $interface }}: {{ tuple $serviceType $interface "api" $envAll | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup" | quote }}
+{{- end }}
+{{- end }}
+{{- end }}

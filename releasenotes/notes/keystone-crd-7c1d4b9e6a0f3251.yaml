@@ -1,0 +1,124 @@
+---
+keystone:
+  - |
+    Added eight custom resource definitions in the
+    ``keystone.osh.openstack.org/v1alpha1`` API group -- ``Domain``,
+    ``Project``, ``Role``, ``Group``, ``User``, ``RoleAssignment``,
+    ``Service`` and ``Endpoint`` -- rendered by ``templates/crds.yaml``
+    and gated on
+    ``manifests.crds``, together with the ``keystone-identity-controller``
+    deployment that reconciles them, gated on
+    ``manifests.deployment_identity_controller`` and off by default.
+  - |
+    ``RoleAssignment`` grants a role to either a user or a group, and ``Group``
+    describes a Keystone group. Neither is used by the charts converted here,
+    which grant roles to service users directly; they exist because a
+    federated deployment has no user to name -- identities arrive from the
+    identity provider as shadow users and are mapped into groups, which carry
+    the role assignments.
+  - |
+    The controller is a single-file Python reconciler polling the Kubernetes
+    API and applying each resource to Keystone: find it, patch it if a field
+    drifted, create it if absent. Readiness is reported as a
+    ``metav1.Condition`` of type ``Ready``, so ``kubectl wait
+    --for=condition=Ready`` works, and every kind joins the ``keystone``
+    category, so ``kubectl get keystone`` lists a namespace's identity
+    resources. It runs on the ``openstack-client`` image the chart already
+    pulls and needs nothing added to it, reaching Kubernetes with the official
+    ``kubernetes`` client and Keystone with ``openstacksdk``. Because
+    ``openstacksdk`` loads its auth plugin from the environment, an alternative
+    keystoneauth plugin configured through ``identity.openrc`` is honoured.
+
+cinder:
+  - |
+    Added ``manifests.identity_entities``, off by default, which renders this
+    chart's keystone user, roles and catalog entries as custom resources in
+    ``templates/identity-entities.yaml`` instead of running the ``ks_user``,
+    ``ks_service`` and ``ks_endpoints`` jobs. Enable it with
+    ``values_overrides/cinder/identity-entities.yaml``.
+
+glance:
+  - |
+    Added ``manifests.identity_entities``, off by default, which renders this
+    chart's keystone user, roles and catalog entry as custom resources in
+    ``templates/identity-entities.yaml`` instead of running the ``ks_user``,
+    ``ks_service`` and ``ks_endpoints`` jobs. Enable it with
+    ``values_overrides/glance/identity-entities.yaml``.
+
+nova:
+  - |
+    Added ``manifests.identity_entities``, off by default, which renders this
+    chart's keystone users, roles and catalog entry as custom resources in
+    ``templates/identity-entities.yaml`` instead of running the ``ks_user``,
+    ``ks_service`` and ``ks_endpoints`` jobs. Enable it with
+    ``values_overrides/nova/identity-entities.yaml``.
+
+neutron:
+  - |
+    Added ``manifests.identity_entities``, off by default, which renders this
+    chart's keystone users, roles and catalog entry as custom resources in
+    ``templates/identity-entities.yaml`` instead of running the ``ks_user``,
+    ``ks_service`` and ``ks_endpoints`` jobs. Enable it with
+    ``values_overrides/neutron/identity-entities.yaml``.
+
+placement:
+  - |
+    Added ``manifests.identity_entities``, off by default, which renders this
+    chart's keystone user, roles and catalog entry as custom resources in
+    ``templates/identity-entities.yaml`` instead of running the ``ks_user``,
+    ``ks_service`` and ``ks_endpoints`` jobs. Enable it with
+    ``values_overrides/placement/identity-entities.yaml``.
+
+heat:
+  - |
+    Added ``manifests.identity_entities``, off by default, which renders this
+    chart's keystone users, roles and catalog entries as custom resources in
+    ``templates/identity-entities.yaml`` instead of running the ``ks_user``,
+    ``ks_service`` and ``ks_endpoints`` jobs. Enable it with
+    ``values_overrides/heat/identity-entities.yaml``. The ``ks_user_domain``
+    job is unaffected: the domain-scoped ``heat_stack_user`` account it creates
+    is not part of this path, so this chart keeps one reader of the keystone
+    administrative credentials.
+
+features:
+  - |
+    Keystone identity objects can be provisioned declaratively. Every chart
+    that owns a catalog entry provisions it today with three one-shot jobs,
+    each mounting a copy of the keystone administrative openrc secret into a
+    pod in the OpenStack namespace and driving the ``openstack`` CLI with it.
+    A converted chart renders custom resources describing what it needs
+    instead, derived entirely from the values it already declares, and the
+    administrative credentials stay in the chart that owns keystone.
+  - |
+    The new path reconciles rather than running once. A resource whose
+    Keystone object is deleted or changed out of band is repaired on a later
+    sweep, where the jobs notice nothing until the next ``helm upgrade``.
+    Password rotation keeps the probe the ``ks-user`` script introduced --
+    Keystone invalidates every token a user holds on any password write, so
+    the password is only written when authenticating with it fails.
+
+upgrade:
+  - |
+    ``manifests.identity_entities`` defaults to ``false`` in every consumer
+    chart and ``manifests.deployment_identity_controller`` to ``false`` in the
+    keystone chart, so consumer charts render byte for byte as they did before
+    and no existing deployment gains a pod, an RBAC rule or a restart. The
+    keystone chart gains the eight definitions, which are inert without any
+    resources to reconcile.
+  - |
+    The two provisioning paths are mutually exclusive: rendering fails if
+    ``manifests.identity_entities`` is enabled together with any of
+    ``manifests.job_ks_user``, ``manifests.job_ks_service`` or
+    ``manifests.job_ks_endpoints``, because both paths write the same user's
+    password and race on the same catalog entry.
+  - |
+    The ks_user and ks_endpoints jobs were also ``kubernetes-entrypoint``
+    dependencies of the components that reach the Keystone catalog, and
+    ``helm-toolkit.utils.dependency_jobs_filter`` drops a disabled job from
+    those lists. Each override therefore adds a ``custom_resources``
+    dependency for the same components, on the readiness of the ``User`` and
+    ``Endpoint`` the chart declares, so those components wait for the work
+    itself instead of for a job that did the work. The RBAC an init container
+    needs for that is emitted automatically by
+    ``helm-toolkit.snippets.kubernetes_pod_rbac_roles``.
+...
