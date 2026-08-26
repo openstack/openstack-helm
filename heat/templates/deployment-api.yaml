@@ -12,6 +12,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "heatLivenessProbeTemplate" }}
+httpGet:
+  scheme: {{ tuple "orchestration" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  path: /
+  {{- if .Values.pod.probes.api.heat_api.liveness.port }}
+  port: {{ .Values.pod.probes.api.heat_api.liveness.port }}
+  {{- else }}
+  port: {{ tuple "orchestration" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  {{- end }}
+{{- end }}
+
+{{- define "heatReadinessProbeTemplate" }}
+httpGet:
+  scheme: {{ tuple "orchestration" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  path: {{ tuple "orchestration" "healthcheck" "internal" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+  port: {{ tuple "orchestration" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if .Values.manifests.deployment_api }}
 {{- $envAll := . }}
 
@@ -79,22 +97,8 @@ spec:
           ports:
             - name: h-api
               containerPort: {{ tuple "orchestration" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            httpGet:
-              scheme: {{ tuple "orchestration" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-              path: /
-              port: {{ tuple "orchestration" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 30
-          livenessProbe:
-            httpGet:
-              scheme: {{ tuple "orchestration" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-              path: /
-              {{- if .Values.pod.probes.api.heat_api.liveness.port }}
-              port: {{ .Values.pod.probes.api.heat_api.liveness.port }}
-              {{- else }}
-              port: {{ tuple "orchestration" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-              {{- end }}
-            initialDelaySeconds: 10
+{{ dict "envAll" $envAll "component" "api" "container" "heat_api" "type" "readiness" "probeTemplate" (include "heatReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api" "container" "heat_api" "type" "liveness" "probeTemplate" (include "heatLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp

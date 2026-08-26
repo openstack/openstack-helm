@@ -277,22 +277,31 @@ conf:
               properties:
                 length: 40
   paste:
-    pipeline:heat-api:
-      pipeline: cors request_id faultwrap http_proxy_to_wsgi versionnegotiation osprofiler authurl authtoken audit context apiv1app
-    pipeline:heat-api-standalone:
-      pipeline: cors request_id faultwrap http_proxy_to_wsgi versionnegotiation authurl authpassword context apiv1app
-    pipeline:heat-api-custombackend:
-      pipeline: cors request_id faultwrap versionnegotiation context custombackendauth apiv1app
-    pipeline:heat-api-cfn:
-      pipeline: cors http_proxy_to_wsgi cfnversionnegotiation osprofiler ec2authtoken authtoken audit context apicfnv1app
-    pipeline:heat-api-cfn-standalone:
-      pipeline: cors http_proxy_to_wsgi cfnversionnegotiation ec2authtoken context apicfnv1app
+    composite:heat-api:
+      use: "egg:Paste#urlmap"
+      /: api
+      /healthcheck: healthcheck
+    composite:heat-api-cfn:
+      use: "egg:Paste#urlmap"
+      /: api-cfn
+      /healthcheck: healthcheck
+    composite:api:
+      paste.composite_factory: heat.api:pipeline_factory
+      default: cors request_id faultwrap http_proxy_to_wsgi versionnegotiation authurl authtoken audit context osprofiler apiv1app
+      standalone: cors request_id faultwrap http_proxy_to_wsgi versionnegotiation authurl authpassword context apiv1app
+      custombackend: cors request_id context faultwrap versionnegotiation custombackendauth apiv1app
+    composite:api-cfn:
+      paste.composite_factory: heat.api:pipeline_factory
+      default: cors request_id http_proxy_to_wsgi cfnversionnegotiation ec2authtoken authtoken audit context osprofiler apicfnv1app
+      standalone: cors request_id http_proxy_to_wsgi cfnversionnegotiation ec2authtoken context apicfnv1app
     app:apiv1app:
       paste.app_factory: heat.common.wsgi:app_factory
       heat.app_factory: heat.api.openstack.v1:API
     app:apicfnv1app:
       paste.app_factory: heat.common.wsgi:app_factory
       heat.app_factory: heat.api.cfn.v1:API
+    app:healthcheck:
+      paste.app_factory: oslo_middleware:Healthcheck.app_factory
     filter:versionnegotiation:
       paste.filter_factory: heat.common.wsgi:filter_factory
       heat.filter_factory: heat.api.openstack:version_negotiation_filter
@@ -305,6 +314,8 @@ conf:
     filter:cfnversionnegotiation:
       paste.filter_factory: heat.common.wsgi:filter_factory
       heat.filter_factory: heat.api.cfn:version_negotiation_filter
+    filter:cwversionnegotiation:
+      paste.filter_factory: heat.common.wsgi:filter_factory
     filter:context:
       paste.filter_factory: heat.common.context:ContextMiddleware_filter_factory
     filter:ec2authtoken:
@@ -819,6 +830,7 @@ endpoints:
       #     key: null
     path:
       default: '/v1/%(project_id)s'
+      healthcheck: /healthcheck
     scheme:
       default: 'http'
       service: 'http'
@@ -843,6 +855,7 @@ endpoints:
       #     key: null
     path:
       default: /v1
+      healthcheck: /healthcheck
     scheme:
       default: 'http'
       service: 'http'
@@ -1198,11 +1211,23 @@ pod:
     api:
       heat_api:
         liveness:
+          enabled: true
           port: 1717
+          params:
+            initialDelaySeconds: 10
+        readiness:
+          enabled: true
+          params:
+            initialDelaySeconds: 30
     cfn:
       heat_cfn:
         liveness:
+          enabled: true
           port: 1717
+          params:
+            initialDelaySeconds: 10
+        readiness:
+          enabled: true
 
 network_policy:
   heat:
