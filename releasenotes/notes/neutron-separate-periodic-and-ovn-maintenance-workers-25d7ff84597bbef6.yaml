@@ -1,0 +1,26 @@
+---
+neutron:
+  - |
+    Added Deployments for the neutron-periodic-workers and
+    neutron-ovn-maintenance-worker processes. When the Neutron API is served
+    by a web server, as this chart does with uWSGI, upstream Neutron requires
+    these as separate processes: neither the API process nor
+    neutron-rpc-server runs the ML2 plugin periodic tasks or the ML2/OVN
+    database maintenance task. Without them, those tasks were not running at
+    all.
+
+    The periodic worker is deployed when manifests.deployment_periodic_worker
+    is enabled and conf.neutron.DEFAULT.core_plugin is ml2. The OVN
+    maintenance worker is deployed when
+    manifests.deployment_ovn_maintenance_worker is enabled and ovn is present
+    in network.backend. Both default to true, so upgrading an existing ml2 or
+    OVN deployment starts these pods.
+
+    Each worker has its own images.tags, labels, dependencies, pod.replicas,
+    pod.resources, pod.mounts, pod.etcSources, pod.security_context and
+    pod.lifecycle.termination_grace_period entries under the periodic_worker /
+    neutron_periodic_worker and ovn_maintenance_worker /
+    neutron_ovn_maintenance_worker keys. The OVN maintenance worker is a
+    single-process worker upstream and should not be scaled beyond one
+    replica.
+...

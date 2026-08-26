@@ -1,0 +1,211 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- define "neutron.server_worker.deployment" }}
+{{- $envAll := .envAll }}
+{{- $component := .component }}
+{{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" $component }}
+{{- $_ := include "helm-toolkit.utils.dependency_resolver" $dependencyOpts | toString | fromYaml }}
+{{- $application := .application }}
+{{- $container := .container }}
+{{- $securityContainer := .securityContainer }}
+{{- $script := .script }}
+{{- $mounts := index $envAll.Values.pod.mounts $application $application }}
+{{- $mountsInit := index $envAll.Values.pod.mounts $application "init_container" }}
+{{- $etcSources := index $envAll.Values.pod.etcSources $application }}
+{{- if $envAll.Values.manifests.secret_ks_etc }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "neutron-ks-etc")) }}
+{{- end }}
+{{- $labels := index $envAll.Values.labels $component }}
+{{- $resources := index $envAll.Values.pod.resources $component }}
+{{- $replicas := index $envAll.Values.pod.replicas $component }}
+{{- $terminationGracePeriod := index $envAll.Values.pod.lifecycle.termination_grace_period $component "timeout" }}
+{{- $serviceAccountName := printf "neutron-%s" (replace "_" "-" $component) }}
+{{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $serviceAccountName }}
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "neutron" $component | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "neutron" $component | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "neutron" $component | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" $envAll | include "helm-toolkit.utils.hash" }}
+        configmap-etc-hash: {{ tuple "configmap-etc.yaml" $envAll | include "helm-toolkit.utils.hash" }}
+{{ dict "envAll" $envAll "podName" $serviceAccountName "containerNames" (list $container "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+    spec:
+{{ dict "envAll" $envAll "application" $application | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
+{{ tuple $application $envAll | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
+{{ tuple $application $envAll | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 6 }}
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "neutron" $component | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ $labels.node_selector_key }}: {{ $labels.node_selector_value }}
+{{ if $envAll.Values.pod.tolerations.neutron.enabled }}
+{{ tuple $envAll "neutron" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ end }}
+      terminationGracePeriodSeconds: {{ $terminationGracePeriod | default "30" }}
+      initContainers:
+{{ tuple $envAll "pod_dependency" $mountsInit | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if has "ovn" $envAll.Values.network.backend }}
+        - name: ovn-neutron-init
+{{ tuple $envAll $application | include "helm-toolkit.snippets.image" | indent 10 }}
+          command:
+            - /tmp/neutron-ovn-init.sh
+          volumeMounts:
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
+            - name: neutron-bin
+              mountPath: /tmp/neutron-ovn-init.sh
+              subPath: neutron-ovn-init.sh
+              readOnly: true
+{{- end }}
+      containers:
+        - name: {{ $container }}
+{{ tuple $envAll $application | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $resources | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" $application "container" $securityContainer | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/{{ $script }}.sh
+            - start
+{{- if $envAll.Values.secrets.tls.ca }}
+          env:
+            - name: REQUESTS_CA_BUNDLE
+              value: "/etc/ssl/certs/openstack-helm.crt"
+{{- end }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/{{ $script }}.sh
+                  - stop
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: oslo-lock-path
+              mountPath: {{ $envAll.Values.conf.neutron.oslo_concurrency.lock_path }}
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
+            - name: pod-var-neutron
+              mountPath: {{ $envAll.Values.conf.neutron.DEFAULT.state_path }}
+            - name: neutron-bin
+              mountPath: /tmp/{{ $script }}.sh
+              subPath: {{ $script }}.sh
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/neutron.conf
+              subPath: neutron.conf
+              readOnly: true
+            - name: neutron-etc-snippets
+              mountPath: /etc/neutron/neutron.conf.d/
+              readOnly: true
+            - name: neutron-etc
+              mountPath: /etc/neutron/plugins/ml2/ml2_conf.ini
+              subPath: ml2_conf.ini
+              readOnly: true
+{{- if has "sriov" $envAll.Values.network.backend }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/plugins/ml2/sriov_agent.ini
+              subPath: sriov_agent.ini
+              readOnly: true
+{{- end }}
+{{- if $envAll.Values.conf.plugins.taas.taas.enabled }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/taas_plugin.ini
+              subPath: taas_plugin.ini
+              readOnly: true
+{{- end }}
+{{- if $envAll.Values.conf.plugins.l2gateway }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/l2gw_plugin.ini
+              subPath: l2gw_plugin.ini
+              readOnly: true
+{{- end }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/policy.yaml
+              subPath: policy.yaml
+              readOnly: true
+{{- if contains "vpnaas" $envAll.Values.conf.neutron.DEFAULT.service_plugins }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/neutron_vpnaas.conf
+              subPath: neutron_vpnaas.conf
+              readOnly: true
+{{- end }}
+{{- if contains "ovn-vpnaas" $envAll.Values.conf.neutron.DEFAULT.service_plugins }}
+            - name: neutron-etc
+              mountPath: /etc/neutron/neutron_ovn_vpn_agent.ini
+              subPath: neutron_ovn_vpn_agent.ini
+              readOnly: true
+{{- end }}
+{{- if $envAll.Values.conf.neutron.DEFAULT.log_config_append }}
+            - name: neutron-etc
+              mountPath: {{ $envAll.Values.conf.neutron.DEFAULT.log_config_append }}
+              subPath: {{ base $envAll.Values.conf.neutron.DEFAULT.log_config_append }}
+              readOnly: true
+{{- end }}
+{{- dict "enabled" $envAll.Values.tls.oslo_db "name" "client-certs" "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" (not (empty $envAll.Values.secrets.tls.ca)) "name" $envAll.Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- dict "enabled" $envAll.Values.tls.oslo_messaging "name" "client-certs" "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{ if $mounts.volumeMounts }}{{ toYaml $mounts.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: oslo-lock-path
+          emptyDir: {}
+        - name: pod-shared
+          emptyDir: {}
+        - name: pod-var-neutron
+          emptyDir: {}
+        - name: neutron-bin
+          configMap:
+            name: neutron-bin
+            defaultMode: 0555
+        - name: neutron-etc
+          secret:
+            secretName: neutron-etc
+            defaultMode: 0444
+        - name: neutron-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{- end }}
+{{- dict "enabled" (or $envAll.Values.tls.oslo_db $envAll.Values.tls.oslo_messaging) "name" "client-certs" "secretName" $envAll.Values.secrets.tls.client.neutron | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- dict "enabled" (not (empty $envAll.Values.secrets.tls.ca)) "name" $envAll.Values.secrets.tls.ca | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{ if $mounts.volumes }}{{ toYaml $mounts.volumes | indent 8 }}{{ end }}
+{{- end }}
+
+{{- if and .Values.manifests.deployment_periodic_worker (eq .Values.conf.neutron.DEFAULT.core_plugin "ml2") }}
+{{- include "neutron.server_worker.deployment" (dict "envAll" . "component" "periodic_worker" "application" "neutron_periodic_worker" "container" "neutron-periodic-worker" "securityContainer" "neutron_periodic_worker" "script" "neutron-periodic-worker") }}
+{{- end }}
+
+{{- if and .Values.manifests.deployment_ovn_maintenance_worker (has "ovn" .Values.network.backend) }}
+{{- include "neutron.server_worker.deployment" (dict "envAll" . "component" "ovn_maintenance_worker" "application" "neutron_ovn_maintenance_worker" "container" "neutron-ovn-maintenance-worker" "securityContainer" "neutron_ovn_maintenance_worker" "script" "neutron-ovn-maintenance-worker") }}
+{{- end }}
