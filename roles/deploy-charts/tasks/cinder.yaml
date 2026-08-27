@@ -61,3 +61,16 @@
     osh_chart: cinder
     osh_values_overrides_cinder:
       - /tmp/cinder.yaml
+
+# Waiting for the pods is not enough: a cinder-volume pod stays Running with a
+# driver that never connected to Ceph, so a deployment with no working storage
+# backend at all still looks healthy. Assert the backends are usable here, in
+# the shared task, so every job that deploys cinder gets the check.
+- name: Verify cinder storage backends are usable
+  shell: |
+    set -e
+    ./tools/deployment/common/verify-cinder-backends.sh {{ osh_namespace | default('osh') }}
+  args:
+    chdir: "{{ osh_git_repo }}"
+    executable: /bin/bash
+  changed_when: false
