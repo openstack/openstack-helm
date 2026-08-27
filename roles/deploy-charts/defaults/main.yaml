@@ -48,6 +48,28 @@ osh_mariadb_operator_storage_path: /var/lib/osh-mariadb
 osh_mariadb_operator_root_secret: mariadb-root-password
 osh_mariadb_operator_root_password: password
 
+# RabbitMQ operator defaults. Used only by the job that provisions messaging
+# declaratively through custom resources reconciled by the upstream
+# messaging-topology-operator rather than by the rabbitmq chart's own topology
+# controller. That operator refuses to start without the cluster operator, so
+# both are installed, and it needs cert-manager for its webhook certificates,
+# which deploy-env installs when cert_manager_setup is true.
+osh_rabbitmq_cluster_operator_version: "v2.22.5"
+osh_rabbitmq_topology_operator_version: "v1.20.2"
+osh_rabbitmq_operator_namespace: rabbitmq-system
+# Named to match endpoints.oslo_messaging.hosts.default in every chart: the
+# cluster operator names its client service after the custom resource, and the
+# same name is what rabbitmqClusterReference resolves to, so no endpoint
+# overrides are needed beyond dropping the chart's statefulset addressing.
+osh_rabbitmq_operator_instance: rabbitmq
+osh_rabbitmq_operator_replicas: 1
+# "0" deactivates persistence and is what upstream recommends for test
+# deployments: the deploy-env cluster has no storage class, so a
+# PersistentVolumeClaim would stay Pending forever.
+osh_rabbitmq_operator_storage: "0"
+osh_rabbitmq_operator_cpu: "1000m"
+osh_rabbitmq_operator_memory: "2Gi"
+
 # Octavia defaults
 osh_octavia_lb_subnet: "172.31.0.0/24"
 osh_octavia_lb_subnet_start: "172.31.0.2"

@@ -1,0 +1,133 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Install the two upstream RabbitMQ operators, which reconcile the Vhost, User,
+# Permission and Policy custom resources the charts render when their
+# rabbitmq-operator.yaml override sets rabbitmq_topology.api_group to
+# rabbitmq.com.
+#
+# Both are needed. The messaging-topology-operator serves the topology kinds,
+# but it fails to start without the cluster operator, and it resolves
+# rabbitmqClusterReference.name to a RabbitmqCluster, which only the cluster
+# operator serves. The versions are pinned rather than tracking latest, so a
+# breaking change upstream shows up as a deliberate bump here.
+#
+# Both manifests carry cert-manager Certificate and Issuer objects, and both
+# register admission webhooks whose CA bundle cert-manager's cainjector patches
+# in. So cert-manager has to be serving before either is applied, and each
+# operator is then waited for in three steps rather than one: a Deployment that
+# reports rolled out says nothing about whether its webhook is reachable, and
+# the API server rejects the first resource with "failed calling webhook ...
+# context deadline exceeded" if it is not.
+---
+- name: Wait for cert-manager to be ready
+  command: >-
+    kubectl -n cert-manager rollout status deployment/{{ item }}
+    --timeout={{ osh_helm_timeout }}s
+  loop:
+    - cert-manager
+    - cert-manager-webhook
+    - cert-manager-cainjector
+  changed_when: false
+
+- name: Install the RabbitMQ cluster operator
+  command: >-
+    kubectl apply -f
+    https://github.com/rabbitmq/cluster-operator/releases/download/{{ osh_rabbitmq_cluster_operator_version }}/cluster-operator.yml
+  register: _osh_rabbitmq_cluster_apply
+  until: _osh_rabbitmq_cluster_apply.rc == 0
+  retries: 12
+  delay: 10
+  changed_when: true
+
+- name: Install the RabbitMQ messaging topology operator
+  command: >-
+    kubectl apply -f
+    https://github.com/rabbitmq/messaging-topology-operator/releases/download/{{ osh_rabbitmq_topology_operator_version }}/messaging-topology-operator-with-certmanager.yaml
+  register: _osh_rabbitmq_topology_apply
+  until: _osh_rabbitmq_topology_apply.rc == 0
+  retries: 12
+  delay: 10
+  changed_when: true
+
+- name: Wait for the operators to roll out
+  command: >-
+    kubectl -n {{ osh_rabbitmq_operator_namespace }}
+    rollout status deployment/{{ item }} --timeout={{ osh_helm_timeout }}s
+  loop:
+    - rabbitmq-cluster-operator
+    - messaging-topology-operator
+  changed_when: false
+
+- name: Wait for the webhook serving certificates to be issued
+  command: >-
+    kubectl -n {{ osh_rabbitmq_operator_namespace }}
+    wait certificate/{{ item }} --for=condition=Ready
+    --timeout={{ osh_helm_timeout }}s
+  loop:
+    - cluster-operator-serving-cert
+    - messaging-topology-serving-cert
+  changed_when: false
+
+# cainjector patches the CA bundle in after the certificate is issued. Until it
+# does, the API server has no way to trust the webhook and every create fails.
+- name: Wait for the webhook CA bundles to be injected
+  shell: |
+    kubectl get {{ item.kind }} {{ item.name }} \
+      -o jsonpath='{.webhooks[*].clientConfig.caBundle}' | grep -q .
+  register: _osh_rabbitmq_ca_bundle
+  until: _osh_rabbitmq_ca_bundle.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false
+  loop:
+    - kind: mutatingwebhookconfiguration
+      name: cluster-operator-mutating-webhook-configuration
+    - kind: validatingwebhookconfiguration
+      name: cluster-operator-validating-webhook-configuration
+    - kind: mutatingwebhookconfiguration
+      name: messaging-topology-mutating-webhook-configuration
+    - kind: validatingwebhookconfiguration
+      name: messaging-topology-validating-webhook-configuration
+
+# A rolled-out Deployment can still have no ready endpoints behind its Service,
+# and the API server's call then times out rather than failing fast.
+# EndpointSlices rather than Endpoints: the latter is deprecated, and the
+# deploy-env cluster is new enough for that to matter.
+- name: Wait for the webhook services to have ready endpoints
+  shell: |
+    kubectl -n {{ osh_rabbitmq_operator_namespace }} get endpointslices \
+      -l kubernetes.io/service-name={{ item }} \
+      -o jsonpath='{.items[*].endpoints[*].conditions.ready}' | grep -q true
+  register: _osh_rabbitmq_webhook_endpoints
+  until: _osh_rabbitmq_webhook_endpoints.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false
+  loop:
+    - cluster-operator-webhook-service
+    - messaging-topology-webhook-service
+
+- name: Show the custom resource definitions the operators installed
+  shell: kubectl get crd -o name | grep rabbitmq.com
+  changed_when: false
+  failed_when: false
+
+# The charts render these four kinds. Failing here rather than at the first
+# resource makes a version bump that drops or renames a kind obvious.
+- name: Confirm the operators serve the API group the overrides target
+  command: >-
+    kubectl get crd
+    rabbitmqclusters.rabbitmq.com
+    vhosts.rabbitmq.com users.rabbitmq.com
+    permissions.rabbitmq.com policies.rabbitmq.com
+  changed_when: false
