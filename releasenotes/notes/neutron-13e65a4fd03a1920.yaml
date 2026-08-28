@@ -1,0 +1,14 @@
+---
+neutron:
+  - |
+    Enabled the uWSGI ``need-app`` option for ``neutron-server``. Without it
+    uWSGI keeps running when it cannot import the WSGI application, logging
+    ``no app loaded. going in full dynamic mode`` and answering every request
+    with a plain-text HTTP 500 while still looking healthy to the container
+    runtime, so the pod is never restarted. With ``lazy-apps`` enabled this
+    can also affect only a subset of the workers, in which case the pod stays
+    Ready and fails a fraction of the requests. The instance now exits
+    instead, and Kubernetes restarts it with the usual backoff. Operators who
+    prefer the previous behaviour can set ``need-app`` to ``false`` in their
+    values overrides.
+...
