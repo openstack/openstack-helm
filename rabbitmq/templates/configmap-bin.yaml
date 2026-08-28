@@ -44,4 +44,14 @@ data:
 {{ tuple "bin/_rabbitmq-password-hash.py.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
   rabbitmq-wait-for-cluster.sh: |
 {{ tuple "bin/_rabbitmq-wait-for-cluster.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+{{- /*
+Gated so that a deployment which leaves the topology controller disabled keeps
+a byte-identical bin configmap. This configmap's hash annotates the server
+statefulset pod template, so an unconditional key here would roll every
+existing rabbitmq cluster on upgrade.
+*/}}
+{{- if .Values.manifests.deployment_topology_controller }}
+  rabbitmq_topology_controller.py: |
+{{ tuple "bin/_rabbitmq_topology_controller.py.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
 {{ end }}

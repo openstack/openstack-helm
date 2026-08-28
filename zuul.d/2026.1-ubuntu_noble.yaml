@@ -370,4 +370,32 @@
         - "2026.1-ubuntu_noble.yaml"
         - "gateway.yaml"
         - "mariadb-crd.yaml"
+
+- job:
+    name: openstack-helm-rabbitmq-crd-2026-1-ubuntu_noble
+    description: |
+      Deploy the compute kit with declarative RabbitMQ topology management.
+      Every chart in this deployment that uses messaging -- keystone, glance,
+      heat, nova and neutron -- renders Vhost/User/Permission/Policy custom
+      resources (manifests.rabbitmq_topology) instead of running the per-chart
+      rabbit-init jobs (manifests.job_rabbit_init=false), and the rabbitmq chart
+      deploys the reconciler that acts on them
+      (manifests.deployment_topology_controller). The
+      verify-rabbitmq-topology.sh step at the end of the playbook waits for
+      every resource to report Ready, reads the vhosts and accounts back out of
+      the broker, and asserts the guest account is gone and no rabbit-init job
+      remains -- without it the job would pass whether or not any of this
+      worked, because oslo.messaging retries forever. Cinder carries the same
+      override for the cinder job, which is not this one.
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-compute-kit.yaml
+    vars:
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+        - "rabbitmq-crd.yaml"
 ...
