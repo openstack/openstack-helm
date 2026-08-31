@@ -21,6 +21,22 @@ exec:
     - ovn-controller
 {{- end }}
 
+{{- define "controllerLivenessProbeTemplate" }}
+exec:
+  command:
+    - /bin/bash
+    - -c
+    - |
+      # ovn-controller process must be responsive to appctl
+      ovs-appctl -t ovn-controller version >/dev/null 2>&1 || exit 1
+      # the OpenFlow management channel to the integration bridge must be
+      # reachable. This catches the case where ovn-controller is alive but
+      # wedged in an rconn reconnect loop against br-int.mgmt (e.g. after a
+      # node reboot leaves the socket unreachable), which the readiness
+      # probe above does not detect.
+      ovs-ofctl --timeout=5 show br-int >/dev/null 2>&1 || exit 1
+{{- end }}
+
 {{- define "ovn.daemonset" }}
 {{- $daemonset := index . 0 }}
 {{- $configMapName := index . 1 }}
@@ -111,6 +127,7 @@ spec:
             - /root/ovnkube.sh
             - ovn-controller
 {{ dict "envAll" . "component" "ovn_controller" "container" "controller" "type" "readiness" "probeTemplate" (include "controllerReadinessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" . "component" "ovn_controller" "container" "controller" "type" "liveness" "probeTemplate" (include "controllerLivenessProbeTemplate" . | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           env:
             - name: OVS_USER_ID
               value: {{ .Values.conf.ovs_user_name }}
