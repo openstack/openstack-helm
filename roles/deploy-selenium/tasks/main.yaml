@@ -64,12 +64,20 @@
 # We need to install ChromeDriver compatible with Google Chrome version
 - name: Get selenium chromedriver archive
   shell: |-
-    set -ex
+    set -exo pipefail
     CHROME_VERSION=$(dpkg -s google-chrome-stable | grep -Po '(?<=^Version: ).*' | awk -F'.' '{print $1"."$2"."$3}')
-    DRIVER_URL=$(wget -qO- https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json | jq -r --arg chrome_version "$CHROME_VERSION" '.versions[] | select(.version | test($chrome_version)) | .downloads.chromedriver[] | select(.platform=="linux64").url' | tail -1)
+    DRIVER_URL=$(wget --no-verbose -O- https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json | jq -r --arg chrome_version "$CHROME_VERSION" '.versions[] | select(.version | test($chrome_version)) | .downloads.chromedriver[] | select(.platform=="linux64").url' | tail -1)
+    if [ -z "${DRIVER_URL}" ]; then
+      echo "No chromedriver published for Chrome ${CHROME_VERSION}" >&2
+      exit 1
+    fi
     wget -O /tmp/chromedriver.zip ${DRIVER_URL}
   args:
     executable: /bin/bash
+  register: selenium_chromedriver
+  until: selenium_chromedriver is succeeded
+  retries: 5
+  delay: 10
 
 - name: Unarchive selenium chromedriver
   unarchive:
