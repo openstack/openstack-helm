@@ -12,6 +12,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "heatcfnLivenessProbeTemplate" }}
+httpGet:
+  scheme: {{ tuple "cloudformation" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  path: /
+  {{- if .Values.pod.probes.cfn.heat_cfn.liveness.port }}
+  port: {{ .Values.pod.probes.cfn.heat_cfn.liveness.port }}
+  {{- else }}
+  port: {{ tuple "cloudformation" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  {{- end }}
+{{- end }}
+
+{{- define "heatcfnReadinessProbeTemplate" }}
+httpGet:
+  scheme: {{ tuple "cloudformation" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  path: {{ tuple "cloudformation" "healthcheck" "internal" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+  port: {{ tuple "cloudformation" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if .Values.manifests.deployment_cfn }}
 {{- $envAll := . }}
 
@@ -79,21 +97,8 @@ spec:
           ports:
             - name: h-cfn
               containerPort: {{ tuple "cloudformation" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            httpGet:
-              scheme: {{ tuple "cloudformation" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-              path: /
-              port: {{ tuple "cloudformation" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          livenessProbe:
-            httpGet:
-              scheme: {{ tuple "cloudformation" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-              path: /
-              {{- if .Values.pod.probes.cfn.heat_cfn.liveness.port }}
-              port: {{ .Values.pod.probes.cfn.heat_cfn.liveness.port }}
-              {{- else }}
-              port: {{ tuple "cloudformation" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-              {{- end }}
-            initialDelaySeconds: 10
+{{ dict "envAll" $envAll "component" "cfn" "container" "heat_cfn" "type" "readiness" "probeTemplate" (include "heatcfnReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "cfn" "container" "heat_cfn" "type" "liveness" "probeTemplate" (include "heatcfnLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
