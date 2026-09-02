@@ -1,0 +1,109 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Create the broker the cluster operator manages, in place of the rabbitmq
+# chart. One node, no persistence: this replaces a chart deployment that is
+# itself disposable in CI.
+#
+# The name is deliberately "rabbitmq". The cluster operator names its client
+# service after the custom resource, which is what every chart's
+# endpoints.oslo_messaging.hosts.default already says, and it is also the name
+# rabbitmqClusterReference in the rendered topology resources resolves to. So
+# the charts need no endpoint override beyond dropping the statefulset stanza
+# that addresses the rabbitmq chart's pods individually.
+#
+# No administrative credentials are created here. The cluster operator
+# generates them into a <name>-default-user secret, which the topology operator
+# reads on its own; the charts never see them, which is the same property the
+# rabbitmq chart's own controller provides.
+---
+- name: Create the namespace for the RabbitMQ cluster
+  shell: |
+    set -xe
+    kubectl create namespace {{ osh_namespace | default('osh') }} \
+      --dry-run=client -o yaml | kubectl apply -f -
+  changed_when: true
+
+- name: Write the RabbitmqCluster manifest
+  copy:
+    dest: /tmp/rabbitmq-cluster.yaml
+    content: |
+      ---
+      apiVersion: rabbitmq.com/v1beta1
+      kind: RabbitmqCluster
+      metadata:
+        name: {{ osh_rabbitmq_operator_instance }}
+        namespace: {{ osh_namespace | default('osh') }}
+      spec:
+        replicas: {{ osh_rabbitmq_operator_replicas }}
+        persistence:
+          storage: "{{ osh_rabbitmq_operator_storage }}"
+        resources:
+          requests:
+            cpu: {{ osh_rabbitmq_operator_cpu }}
+            memory: {{ osh_rabbitmq_operator_memory }}
+          limits:
+            cpu: {{ osh_rabbitmq_operator_cpu }}
+            memory: {{ osh_rabbitmq_operator_memory }}
+        rabbitmq:
+          additionalConfig: |
+            # The charts declare their own vhosts, users and permissions as
+            # custom resources, so nothing is imported at boot -- which is also
+            # why the guest account the rabbitmq chart has to keep deleting
+            # never appears here.
+            log.console.level = info
+  changed_when: true
+
+# Retried rather than attempted once: the cluster operator mutates and
+# validates this resource through admission webhooks, and a webhook that has
+# just become reachable can still refuse a call while the API server's
+# connection to it settles.
+- name: Create the RabbitmqCluster
+  command: kubectl apply -f /tmp/rabbitmq-cluster.yaml
+  register: _osh_rabbitmq_cluster_create
+  until: _osh_rabbitmq_cluster_create.rc == 0
+  retries: 12
+  delay: 10
+  changed_when: true
+
+# The cluster operator reports AllReplicasReady once the StatefulSet is up. The
+# topology operator refuses to reconcile anything referencing a cluster that is
+# not ready, so the charts must not be deployed before this passes.
+- name: Wait for the RabbitmqCluster to be ready
+  command: >-
+    kubectl -n {{ osh_namespace | default('osh') }}
+    wait rabbitmqcluster/{{ osh_rabbitmq_operator_instance }}
+    --for=condition=AllReplicasReady --timeout={{ osh_helm_timeout }}s
+  changed_when: false
+
+- name: Show the cluster, its service and its default user secret
+  shell: |
+    set -x
+    kubectl -n {{ osh_namespace | default('osh') }} get rabbitmqcluster,statefulset,svc,secret \
+      -l app.kubernetes.io/name={{ osh_rabbitmq_operator_instance }}
+  changed_when: false
+  failed_when: false
+
+# The charts render transport_url against this service name and port. If the
+# operator ever stops naming the client service after the cluster, every
+# service would silently retry its AMQP connection forever instead.
+# shell rather than command: the jsonpath filter needs its inner quotes, and
+# the command module's argument splitting strips them, leaving kubectl to
+# reject "amqp" as an unrecognized identifier.
+- name: Confirm the client service the charts address exists
+  shell: |
+    kubectl -n {{ osh_namespace | default('osh') }} \
+      get service {{ osh_rabbitmq_operator_instance }} \
+      -o jsonpath='{.spec.ports[?(@.name=="amqp")].port}'
+  register: _osh_rabbitmq_amqp_port
+  failed_when: _osh_rabbitmq_amqp_port.stdout | trim != "5672"
+  changed_when: false

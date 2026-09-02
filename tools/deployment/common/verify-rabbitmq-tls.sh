@@ -55,16 +55,6 @@ hdr "Target"
 echo "  service=$SERVICE namespace=$NAMESPACE"
 echo "  client-cert-secret=$CLIENT_SECRET  server-cert-secret=$SERVER_SECRET"
 
-RABBIT_POD="$(kubectl -n "$NAMESPACE" get pods -l "$RABBIT_SELECTOR" \
-  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
-if [[ -z "$RABBIT_POD" ]]; then
-  echo "Could not find a RabbitMQ pod (selector: $RABBIT_SELECTOR). Set RABBIT_SELECTOR." >&2
-  exit 2
-fi
-RABBIT_HOST="$(kubectl -n "$NAMESPACE" get svc rabbitmq -o jsonpath='{.metadata.name}.{.metadata.namespace}.svc' 2>/dev/null)"
-RABBIT_HOST="${RABBIT_HOST:-rabbitmq.$NAMESPACE.svc}"
-echo "  rabbitmq-pod=$RABBIT_POD  amqp-endpoint=$RABBIT_HOST:$RABBIT_AMQP_PORT"
-
 # Is messaging TLS (tls.oslo_messaging) enabled for this release?
 tls_oslo_messaging_enabled() {
   local v="" json
@@ -88,6 +78,16 @@ else
   echo "  tls.oslo_messaging is NOT enabled for $SERVICE -> nothing to verify, skipping"
   exit 0
 fi
+
+RABBIT_POD="$(kubectl -n "$NAMESPACE" get pods -l "$RABBIT_SELECTOR" \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
+if [[ -z "$RABBIT_POD" ]]; then
+  echo "Could not find a RabbitMQ pod (selector: $RABBIT_SELECTOR). Set RABBIT_SELECTOR." >&2
+  exit 2
+fi
+RABBIT_HOST="$(kubectl -n "$NAMESPACE" get svc rabbitmq -o jsonpath='{.metadata.name}.{.metadata.namespace}.svc' 2>/dev/null)"
+RABBIT_HOST="${RABBIT_HOST:-rabbitmq.$NAMESPACE.svc}"
+echo "  rabbitmq-pod=$RABBIT_POD  amqp-endpoint=$RABBIT_HOST:$RABBIT_AMQP_PORT"
 
 ###############################################################################
 hdr "1. A dedicated client certificate exists (not the server certificate)"

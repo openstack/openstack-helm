@@ -398,4 +398,37 @@
         - "2026.1-ubuntu_noble.yaml"
         - "gateway.yaml"
         - "rabbitmq-crd.yaml"
+
+- job:
+    name: openstack-helm-rabbitmq-operator-2026-1-ubuntu_noble
+    description: |
+      The rabbitmq-crd job with the other reconciler. The charts render exactly
+      the same Vhost/User/Permission/Policy resources from exactly the same
+      overrides; rabbitmq-operator.yaml changes rabbitmq_topology.api_group to
+      rabbitmq.com, so the upstream messaging-topology-operator reconciles them
+      instead of the rabbitmq chart's topology controller. That makes any
+      difference between the two jobs attributable to the reconciler, which is
+      the compatibility claim these resources exist to support.
+      The rabbitmq chart is not deployed at all here. The broker is a
+      RabbitmqCluster managed by the upstream cluster operator, which the
+      topology operator also needs in order to resolve
+      rabbitmqClusterReference.name, and whose client service is what the
+      charts address once the chart's per-pod statefulset addressing is
+      dropped. cert-manager is deployed because the topology operator's
+      webhooks take their certificates from it.
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_noble
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-rabbitmq-operator.yaml
+      - playbooks/deploy-compute-kit.yaml
+    vars:
+      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      cert_manager_setup: true
+      rabbitmq_operator_enabled: true
+      osh_values_overrides:
+        - "2026.1-ubuntu_noble.yaml"
+        - "gateway.yaml"
+        - "rabbitmq-crd.yaml"
+        - "rabbitmq-operator.yaml"
 ...
