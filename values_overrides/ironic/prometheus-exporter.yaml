@@ -1,0 +1,82 @@
+---
+# The conductor image must include ironic-prometheus-exporter and uWSGI.
+# Using the same image for both containers keeps the notification driver and
+# HTTP application on one package set.
+conf:
+  ironic:
+    metrics:
+      backend: collector
+    oslo_messaging_notifications:
+      driver:
+        type: multistring
+        values:
+          - prometheus_exporter
+      location: /var/lib/ironic/metrics
+      transport_url: fake://
+    sensor_data:
+      enable_for_undeployed_nodes: false
+      interval: 600
+      send_sensor_data: true
+
+conductor:
+  extraContainers:
+    - name: ironic-prometheus-exporter
+      image: "{{ .Values.images.tags.ironic_conductor }}"
+      imagePullPolicy: "{{ .Values.images.pull_policy }}"
+      command:
+        - uwsgi
+      args:
+        - --http-socket
+        - 0.0.0.0:9608
+        - --processes
+        - "1"
+        - --master
+        - --die-on-term
+        - --need-app
+        - --module
+        - ironic_prometheus_exporter.app.wsgi:application
+      env:
+        - name: IRONIC_CONFIG
+          value: /etc/ironic/ironic.conf
+      ports:
+        - name: metrics
+          containerPort: 9608
+          protocol: TCP
+      livenessProbe:
+        httpGet:
+          path: /metrics
+          port: metrics
+        initialDelaySeconds: 10
+        periodSeconds: 30
+      readinessProbe:
+        httpGet:
+          path: /metrics
+          port: metrics
+        initialDelaySeconds: 5
+        periodSeconds: 10
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+      volumeMounts:
+        - name: ironic-etc
+          mountPath: /etc/ironic/ironic.conf
+          subPath: ironic.conf
+          readOnly: true
+        - name: ironic-prometheus-metrics
+          mountPath: /var/lib/ironic/metrics
+
+pod:
+  mounts:
+    ironic_conductor:
+      ironic_conductor:
+        volumeMounts:
+          - name: ironic-prometheus-metrics
+            mountPath: /var/lib/ironic/metrics
+        volumes:
+          - name: ironic-prometheus-metrics
+            emptyDir: {}
+...
