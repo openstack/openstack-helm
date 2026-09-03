@@ -29,12 +29,14 @@ exec:
     - |
       # ovn-controller process must be responsive to appctl
       ovs-appctl -t ovn-controller version >/dev/null 2>&1 || exit 1
-      # the OpenFlow management channel to the integration bridge must be
-      # reachable. This catches the case where ovn-controller is alive but
-      # wedged in an rconn reconnect loop against br-int.mgmt (e.g. after a
-      # node reboot leaves the socket unreachable), which the readiness
-      # probe above does not detect.
-      ovs-ofctl --timeout=5 show br-int >/dev/null 2>&1 || exit 1
+      # ovn-controller's OpenFlow session to br-int can wedge into a
+      # permanent EACCES reconnect loop against br-int.mgmt (e.g. after the
+      # socket gets recreated with different ownership than the
+      # unprivileged OVS_USER_ID ovn-controller actually runs as). Run the
+      # check as that same user rather than root: as root, "ovs-ofctl show
+      # br-int" bypasses the unix-socket permission check entirely and
+      # stays green even while ovn-controller is wedged.
+      su -s /bin/sh {{ .Values.conf.ovs_user_name }} -c "ovs-ofctl --timeout=5 show br-int" >/dev/null 2>&1 || exit 1
 {{- end }}
 
 {{- define "ovn.daemonset" }}
