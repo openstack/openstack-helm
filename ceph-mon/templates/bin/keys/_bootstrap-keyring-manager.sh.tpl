@@ -20,7 +20,10 @@ set -ex
 {{- $envAll := . }}
 
 function ceph_gen_key () {
-  python3 ${CEPH_GEN_DIR}/keys-bootstrap-keyring-generator.py
+  # Generate aes256k (CEPH_CRYPTO_AES256KRB5) keys as required by the
+  # CephX auth fixes in Ceph 20.2.4; legacy 'aes' keys are no longer
+  # considered secure keys.
+  ceph-authtool --gen-print-key --key-type aes256k
 }
 
 function kube_ceph_keyring_gen () {

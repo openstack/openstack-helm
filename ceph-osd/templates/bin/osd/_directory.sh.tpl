@@ -31,7 +31,7 @@ fi
 if [[ -n "$(find /var/lib/ceph/osd -type d  -empty ! -name "lost+found")" ]]; then
   echo "Creating osd"
   UUID=$(uuidgen)
-  OSD_SECRET=$(ceph-authtool --gen-print-key)
+  OSD_SECRET=$(ceph-authtool --gen-print-key --key-type aes256k)
   OSD_ID=$(echo "{\"cephx_secret\": \"${OSD_SECRET}\"}" | ceph osd new ${UUID} -i - -n client.bootstrap-osd -k "$OSD_BOOTSTRAP_KEYRING")
 
   # test that the OSD_ID is an integer
