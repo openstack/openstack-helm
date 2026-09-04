@@ -18,6 +18,7 @@ import argparse
 import base64
 import errno
 import grp
+import json
 import logging
 import os
 import pwd
@@ -52,6 +53,37 @@ def read_kube_config():
     with open('/var/run/secrets/kubernetes.io/serviceaccount/token', 'r') as f:
         KUBE_TOKEN = f.read()
 
+def create_secret(name, annotations=None):
+    url = '%s/api/v1/namespaces/%s/secrets' % (KUBE_HOST, NAMESPACE)
+    metadata = {
+        "name": name,
+        "namespace": NAMESPACE
+    }
+    if annotations and isinstance(annotations, dict):
+        metadata["annotations"] = annotations
+
+    payload = {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": metadata,
+        "type": "Opaque",
+        "data": {}
+    }
+    resp = requests.post(url,
+                         json=payload,
+                         headers={'Authorization': 'Bearer %s' % KUBE_TOKEN},
+                         verify=KUBE_CERT)
+    if resp.status_code not in (200, 201):
+        LOG.error('Cannot create secret %s. Status: %s', name, resp.status_code)
+        LOG.error(resp.text)
+        return False
+    LOG.info('Secret %s successfully created.', name)
+    return True
+
+def ensure_secret_exist(name, annotations=None):
+    if not get_secret_definition(name):
+        return create_secret(name, annotations)
+    return True
 
 def get_secret_definition(name):
     url = '%s/api/v1/namespaces/%s/secrets/%s' % (KUBE_HOST, NAMESPACE, name)
@@ -138,6 +170,14 @@ def main():
                    'keystone-fernet-keys')
 
     read_kube_config()
+
+    if args.command.endswith('setup'):
+        annotations_raw = os.getenv("CUSTOM_SECRET_ANNOTATIONS")
+        annotations = json.loads(annotations_raw) if annotations_raw else {}
+        if not ensure_secret_exist(SECRET_NAME, annotations=annotations):
+            LOG.error("Wasn't able to create secret %s", SECRET_NAME)
+            sys.exit(1)
+
     secret = get_secret_definition(SECRET_NAME)
     if not secret:
         LOG.error("Secret '%s' does not exist.", SECRET_NAME)
