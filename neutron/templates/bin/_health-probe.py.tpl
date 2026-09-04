@@ -33,6 +33,10 @@ Usage example for Neutron L3 agent:
 Usage example for Neutron metadata agent:
 # python health-probe.py --config-file /etc/neutron/neutron.conf \
 #  --config-file /etc/neutron/metadata_agent.ini
+
+Usage example for the OVN agent with the metadata extension:
+# python health-probe.py --config-file /etc/neutron/neutron.conf \
+#  --config-file /etc/neutron/ovn_agent.ini
 """
 
 import httplib2
@@ -328,11 +332,12 @@ if __name__ == "__main__":
     with open(pidfile, 'w') as f:
         json.dump(data, f)
 
-    if "sriov_agent.ini" in ','.join(sys.argv):
+    argv = ','.join(sys.argv)
+    if "sriov_agent.ini" in argv:
         sriov_readiness_check()
-    elif "metadata_agent.ini" not in ','.join(sys.argv):
-        test_rpc_liveness()
-    else:
+    elif "metadata_agent.ini" in argv or "ovn_agent.ini" in argv:
         test_socket_liveness()
+    else:
+        test_rpc_liveness()
 
     sys.exit(0)  # return success
