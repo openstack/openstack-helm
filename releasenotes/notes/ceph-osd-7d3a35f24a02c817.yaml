@@ -1,0 +1,20 @@
+---
+ceph-osd:
+  - |
+    Make the ``ceph-authtool --gen-print-key`` key type used by the OSD
+    directory creation script configurable. The desired key type is supplied
+    via the ``conf.keyring.osd.key_type`` value, which is passed as the
+    ``--key-type`` argument (added in Ceph 20.2.4). It is provided by default
+    (``aes256k``, required by the CephX auth fixes in Ceph 20.2.4) and can be
+    omitted for backward compatibility with older Ceph releases by setting the
+    value to ``null``.
+
+    The same ``key_type`` value drives a start-up check on every OSD
+    (directory and ceph-volume paths): existing OSD keys whose length does
+    not match the configured key type are rotated with ``ceph auth rotate``
+    using the admin keyring and the local OSD keyring is refreshed, so OSDs
+    created with legacy ``aes`` keys converge on the configured key type.
+    The check is best effort and never blocks OSD startup; it is skipped
+    when the admin keyring is unavailable or the configured key type is
+    empty.
+...

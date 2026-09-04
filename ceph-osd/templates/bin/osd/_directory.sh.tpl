@@ -31,7 +31,11 @@ fi
 if [[ -n "$(find /var/lib/ceph/osd -type d  -empty ! -name "lost+found")" ]]; then
   echo "Creating osd"
   UUID=$(uuidgen)
-  OSD_SECRET=$(ceph-authtool --gen-print-key --key-type aes256k)
+  OSD_SECRET=$(ceph-authtool \
+{{- with .Values.conf.keyring.osd.key_type }}
+    --key-type="{{ . }}" \
+{{- end }}
+    --gen-print-key)
   OSD_ID=$(echo "{\"cephx_secret\": \"${OSD_SECRET}\"}" | ceph osd new ${UUID} -i - -n client.bootstrap-osd -k "$OSD_BOOTSTRAP_KEYRING")
 
   # test that the OSD_ID is an integer
@@ -91,6 +95,20 @@ for OSD_ID in $(ls /var/lib/ceph/osd | sed 's/.*-//'); do
   # NOTE(supamatt): Just in case permissions do not align up, we recursively set them correctly.
   if [ $(stat -c%U ${OSD_PATH}) != ceph ]; then
     chown -R ceph. ${OSD_PATH};
+  fi
+
+  # NOTE(stevetaylor): The key check/repair must run before any command that
+  # authenticates as osd.${OSD_ID}, the first of which is the CRUSH update in
+  # crush_location() below. Rotate the OSD key to match the desired key type
+  # when it does not already match (best effort), then validate the local
+  # keyring against the monitor auth DB, repairing it from the cluster when it
+  # has drifted. A keyring that cannot be repaired aborts startup with a
+  # specific error instead of crash-looping on the first CRUSH update.
+  check_osd_key_type "${OSD_ID}" "${OSD_KEYRING}" || \
+    echo "WARNING- osd.${OSD_ID} key type check failed, continuing"
+  if ! ensure_osd_keyring "${OSD_ID}" "${OSD_KEYRING}"; then
+    echo "ERROR- osd.${OSD_ID} keyring ${OSD_KEYRING} could not be verified against the monitor auth DB"
+    exit 1
   fi
 
   crush_location

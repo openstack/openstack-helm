@@ -138,10 +138,14 @@ function create_crushrule () {
   fi
 }
 
+# NOTE (stevetaylor): Enabling the msgr v2 protocol is only necessary for
+# upgrades from pre-Nautilus releases, so this hardly seems necessary anymore.
+# If it is required for a specific deployment, it may be added as a custom
+# command to Values.conf.cluster_commands.
 # Set mons to use the msgr2 protocol on nautilus
-if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
-  ceph --cluster "${CLUSTER}" mon enable-msgr2
-fi
+# if [[ $(ceph mon versions | awk '/version/{print $3}' | cut -d. -f1) -ge 14 ]]; then
+#   ceph --cluster "${CLUSTER}" mon enable-msgr2
+# fi
 
 check_osd_count
 {{- range $crush_rule := .Values.conf.pool.crush_rules -}}
@@ -205,9 +209,17 @@ function unset_cluster_flags () {
   fi
 }
 
+# The cluster_commands are user-supplied and are run on a best-effort basis: a
+# command that fails (for example, muting a health warning that is not
+# currently active) must not fail the pool job. Failures are logged and the
+# remaining commands and the rest of the pool configuration still run.
 function run_cluster_commands () {
+  # A no-op here keeps the function body valid if cluster_commands is empty.
+  :
   {{- range .Values.conf.features.cluster_commands }}
-    ceph --cluster "${CLUSTER}" {{ . }}
+    if ! ceph --cluster "${CLUSTER}" {{ . }}; then
+      echo "WARNING- cluster command failed and was ignored: {{ . }}"
+    fi
   {{- end }}
 }
 

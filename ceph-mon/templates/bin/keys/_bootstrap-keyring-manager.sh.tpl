@@ -20,10 +20,8 @@ set -ex
 {{- $envAll := . }}
 
 function ceph_gen_key () {
-  # Generate aes256k (CEPH_CRYPTO_AES256KRB5) keys as required by the
-  # CephX auth fixes in Ceph 20.2.4; legacy 'aes' keys are no longer
-  # considered secure keys.
-  ceph-authtool --gen-print-key --key-type aes256k
+  ceph-authtool \
+    --gen-print-key
 }
 
 function kube_ceph_keyring_gen () {
@@ -37,9 +35,24 @@ function create_kube_key () {
   CEPH_KEYRING_NAME=$2
   CEPH_KEYRING_TEMPLATE=$3
   KUBE_SECRET_NAME=$4
-  if ! kubectl get --namespace ${DEPLOYMENT_NAMESPACE} secrets ${KUBE_SECRET_NAME}; then
-    {
-      cat <<EOF
+  local desired_value="$( kube_ceph_keyring_gen ${CEPH_KEYRING} ${CEPH_KEYRING_TEMPLATE} )"
+  local secret_data_key="${CEPH_KEYRING_NAME//./\\.}"
+  local current_value=""
+
+  if kubectl get --namespace ${DEPLOYMENT_NAMESPACE} secret ${KUBE_SECRET_NAME} >/dev/null 2>&1; then
+    current_value=$(kubectl --namespace ${DEPLOYMENT_NAMESPACE} get secret ${KUBE_SECRET_NAME} \
+      -o "jsonpath={.data.${secret_data_key}}" 2>/dev/null || true)
+    if [[ -n "${current_value}" && "${current_value}" == "${desired_value}" ]]; then
+      return 0
+    fi
+    kubectl --namespace ${DEPLOYMENT_NAMESPACE} patch secret ${KUBE_SECRET_NAME} \
+      --type merge \
+      -p "{\"data\":{\"${CEPH_KEYRING_NAME}\":\"${desired_value}\"}}"
+    return 0
+  fi
+
+  {
+    cat <<EOF
 ---
 apiVersion: v1
 kind: Secret
@@ -49,11 +62,41 @@ metadata:
 {{ tuple $envAll "ceph" "bootstrap" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 type: Opaque
 data:
-  ${CEPH_KEYRING_NAME}: $( kube_ceph_keyring_gen ${CEPH_KEYRING} ${CEPH_KEYRING_TEMPLATE} )
+  ${CEPH_KEYRING_NAME}: ${desired_value}
 EOF
-    } | kubectl apply --namespace ${DEPLOYMENT_NAMESPACE} -f -
-  fi
+  } | kubectl apply --namespace ${DEPLOYMENT_NAMESPACE} -f -
 }
+
+# Retained monitor/bootstrap credentials must survive a Helm reinstall too.
+# The post-apply job reconciles their key types against the running cluster.
+# Only NotFound permits generation; API errors or invalid keyrings fail closed.
+existing_secret=$(kubectl --namespace "${DEPLOYMENT_NAMESPACE}" get secret \
+  "${KUBE_SECRET_NAME}" --ignore-not-found -o name)
+if [[ -n "${existing_secret}" ]]; then
+  secret_data_key="${CEPH_KEYRING_NAME//./\\.}"
+  existing_value=$(kubectl --namespace "${DEPLOYMENT_NAMESPACE}" get secret \
+    "${KUBE_SECRET_NAME}" -o "jsonpath={.data.${secret_data_key}}")
+  if [[ -z "${existing_value}" ]]; then
+    echo "ERROR- existing Secret has no ${CEPH_KEYRING_NAME}; refusing to replace it" >&2
+    exit 1
+  fi
+  existing_keyring=$(mktemp)
+  if ! printf '%s' "${existing_value}" | base64 -d > "${existing_keyring}"; then
+    rm -f "${existing_keyring}"
+    echo "ERROR- unable to decode the existing keyring; refusing to replace it" >&2
+    exit 1
+  fi
+  if [[ -n "$(tail -c 1 "${existing_keyring}")" ]]; then
+    printf '\n' >> "${existing_keyring}"
+  fi
+  if ! ceph-authtool "${existing_keyring}" --list >/dev/null; then
+    rm -f "${existing_keyring}"
+    echo "ERROR- existing keyring is invalid; refusing to replace it" >&2
+    exit 1
+  fi
+  rm -f "${existing_keyring}"
+  exit 0
+fi
 
 #create_kube_key <ceph_key> <ceph_keyring_name> <ceph_keyring_template> <kube_secret_name>
 create_kube_key $(ceph_gen_key) ${CEPH_KEYRING_NAME} ${CEPH_KEYRING_TEMPLATE} ${KUBE_SECRET_NAME}

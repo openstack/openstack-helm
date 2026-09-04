@@ -141,6 +141,24 @@ spec:
         {{ .Values.labels.rgw.node_selector_key }}: {{ .Values.labels.rgw.node_selector_value }}
       initContainers:
 {{ tuple $envAll "pod_dependency" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        - name: ceph-keyring-placement
+{{ tuple $envAll "ceph_config_helper" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ dict "envAll" $envAll "application" "rgw" "container" "init_dirs" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          command:
+            - /tmp/ceph-admin-keyring.sh
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: pod-etc-ceph
+              mountPath: /etc/ceph
+            - name: ceph-rgw-bin
+              mountPath: /tmp/ceph-admin-keyring.sh
+              subPath: ceph-admin-keyring.sh
+              readOnly: true
+            - name: ceph-rgw-admin-keyring
+              mountPath: /tmp/client-keyring
+              subPath: key
+              readOnly: true
         - name: ceph-init-dirs
 {{ tuple $envAll "ceph_rgw" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ dict "envAll" $envAll "application" "rgw" "container" "init_dirs" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
@@ -268,6 +286,9 @@ spec:
         - name: ceph-bootstrap-rgw-keyring
           secret:
             secretName: {{ .Values.secrets.keyrings.rgw }}
+        - name: ceph-rgw-admin-keyring
+          secret:
+            secretName: {{ .Values.secrets.keyrings.admin }}
 {{- dict "enabled" .Values.manifests.certificates "name" $tls_secret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- if .Values.conf.rgw_ks.enabled }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.object_store.api.keystone | include "helm-toolkit.snippets.tls_volume" | indent 8 }}

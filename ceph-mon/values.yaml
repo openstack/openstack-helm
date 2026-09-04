@@ -118,6 +118,13 @@ pod:
         ceph_mon_post_apply:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+    aes_storage_keys:
+      pod:
+        runAsUser: 65534
+      container:
+        ceph_mon_aes_storage_keys:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
   dns_policy: "ClusterFirstWithHostNet"
   replicas:
     mgr: 2
@@ -272,6 +279,48 @@ conf:
           [client.bootstrap-osd]
             key = {{ key }}
             caps mon = "allow rw"
+  auth_ciphers:
+    # Desired Ceph auth ciphers. Each key is the name of a `monmaptool` auth
+    # cipher option without the leading dashes (underscores are accepted in
+    # place of the hyphens), and any, all or none of them may be set: an
+    # omitted entry, an entry set to `null` or the whole `auth_ciphers` map
+    # set to `null` leaves the corresponding monmap field at the default of
+    # the local Ceph release.
+    # The mon start script passes the options to `monmaptool --create` when it
+    # bootstraps the monmap, and the aes-storage-keys job reconciles the running
+    # cluster with the matching `ceph mon set <field> <value>` calls (option
+    # names with hyphens, monmap fields with underscores) before any key is
+    # rotated.
+    # The options are passed unguarded, so this map must be nulled out (e.g.
+    # with `--set conf.auth_ciphers=null`) on the Ceph releases predating the
+    # monmap auth cipher fields, whose monmaptool rejects the unknown options
+    # and fails the monitor startup: Squid before 19.2.6, Tentacle before
+    # 20.2.4, 20.2.x and older.
+    # Ceph Tentacle (20.2.x) requires the aes256k cipher for monitor
+    # authentication; allowing both aes and aes256k keeps the existing aes
+    # keys authenticating during the transition, while the preferred and
+    # service ciphers let the key rotations produce aes256k keys.
+    auth-allowed-ciphers: "aes,aes256k"
+    auth-preferred-cipher: "aes256k"
+    auth-service-cipher: "aes256k"
+  keyring:
+    # Key type reconciled by the post-apply job (mon and bootstrap keys) and the
+    # aes-storage-keys job (storage key), which rotate keys whose type does not
+    # match. The mon start script only keeps the mon key in the mon store in
+    # step with the mon keyring Secret and never rotates it, since the mon key
+    # may only be rotated while every mon is up and in quorum. The keyring
+    # manager jobs generate keys with the `ceph-authtool` default type and are
+    # intentionally not affected. Set a value to null to skip the check, e.g.
+    # for Ceph releases predating the `--key-type` option (added in 20.2.4).
+    bootstrap:
+      # aes256k required by the CephX auth fixes in Ceph 20.2.4
+      key_type: "aes256k"
+    storage:
+      # Kept at aes: Ceph CSI fails to map RBDs on pre-7.0 kernels with aes256k.
+      # The aes-storage-keys job replaces an existing storage key whose type does
+      # not match this value, but only after conf.auth_ciphers has been applied
+      # to the running cluster and verified to allow this cipher.
+      key_type: "aes"
   ceph:
     global:
       # auth
@@ -334,6 +383,13 @@ conf:
     # Set this to "true" to disrupt mon quorum and restart them all at once
     # (Can be useful for stubborn upgrades that won't let upgraded mons re-join)
     disruptive_mon_restart: "false"
+    # Number of seconds the post-apply job waits for every mon in the monmap
+    # to be up and in quorum before it begins restarting any mon or mgr pods.
+    # If the quorum does not become healthy within this window the job fails
+    # without restarting anything. Note that a mon which was removed from the
+    # deployment but never decommissioned with "ceph mon remove" remains in the
+    # monmap, so the gate keeps waiting on it.
+    mon_quorum_wait_timeout: 1800
 
 daemonset:
   prefix_name: "mon"
@@ -507,6 +563,11 @@ monitoring:
       scrape: true
       port: 9283
 
+# -- Whether this release owns the ceph-mon DaemonSet. When false, neither
+#    the DaemonSet nor its RBAC is rendered, allowing a single release to
+#    own the mon DaemonSet.
+mon_release_owner: true
+
 manifests:
   configmap_bin: true
   configmap_etc: true
@@ -519,6 +580,12 @@ manifests:
   job_bootstrap: true
   job_keyring: true
   job_post_apply: true
+  # Reconciles the monmap auth ciphers (conf.auth_ciphers) and the storage
+  # (client.admin) key (conf.keyring.storage.key_type) with the running cluster.
+  # It shares the post-apply job's gating on
+  # pod.lifecycle.upgrades.daemonsets.pod_replacement_strategy and is only
+  # rendered when that strategy is OnDelete.
+  aes_storage_keys: false
   service_mon: true
   service_mgr: true
   service_mon_discovery: true
