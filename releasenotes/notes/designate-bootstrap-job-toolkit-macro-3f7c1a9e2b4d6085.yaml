@@ -1,0 +1,24 @@
+---
+fixes:
+  - |
+    The ``designate`` chart's bootstrap Job now uses the
+    ``helm-toolkit.manifests.job_bootstrap`` macro, like the other OpenStack
+    service charts. Rendering the chart with ``bootstrap.enabled=true``
+    previously failed with a nil pointer error because
+    ``pod.mounts.designate_bootstrap`` was not defined in ``values.yaml``, and
+    the hand-written Job ran under the namespace default ServiceAccount with no
+    RBAC, so its ``kubernetes-entrypoint`` init container could not read
+    Services and Endpoints and the Job hung in ``Init`` state.
+upgrade:
+  - |
+    The ``designate`` bootstrap Job is now rendered by
+    ``helm-toolkit.manifests.job_bootstrap``. It gets its own
+    ``designate-bootstrap`` ServiceAccount with a Role and RoleBinding, honours
+    ``pod.image_pull_secrets``, and mounts ``designate.conf`` and
+    ``logging.conf`` from the ``designate-etc`` Secret. The Keystone
+    credentials used by the Job are selected by the new ``bootstrap.ks_user``
+    value, which defaults to ``admin`` to preserve the previous behaviour. New
+    ``dependencies.static.bootstrap`` and ``pod.mounts.designate_bootstrap``
+    defaults have been added. The Job is disabled by default, so deployments
+    that do not set ``bootstrap.enabled=true`` are unaffected.
+...
