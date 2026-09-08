@@ -1,0 +1,114 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Wait for every workload in a namespace to settle, using only kubectl: every
+# deployment, statefulset and daemonset must reach its desired ready replica
+# count, and every Job must be Complete.
+#
+# The wait is namespace-wide rather than release-scoped, and that is load
+# bearing: libvirt, placement and nova are installed with osh_wait: false
+# because their pods stay unready until the neutron agents are up, so it is
+# neutron's wait that settles them.
+#
+# Optional variables:
+#   osh_namespace     - namespace (default: osh)
+#   osh_wait_timeout  - seconds to wait for each resource (default: 900,
+#                       matching the plugin's default)
+#
+# Both tasks pass their script through the module's `cmd` parameter rather
+# than as free-form `shell: |`. Free-form arguments go through Ansible's
+# split_args(), which rejects a quote that opens on one line and closes on
+# another ("failed at splitting arguments, either an unbalanced jinja2 block
+# or quotes"); `cmd` is an ordinary parameter and is passed through untouched.
+---
+- name: "Wait for workloads in {{ osh_namespace | default('osh') }} to be ready"
+  shell:
+    cmd: |
+      set -eo pipefail
+      ns="{{ osh_namespace | default('osh') }}"
+      timeout={{ osh_wait_timeout | default(900) }}
+
+      # Wait until a workload's ready replica count reaches the desired one.
+      # `kubectl rollout status` is not usable here: it refuses any workload
+      # whose strategy is not RollingUpdate ("error: rollout status is only
+      # available for RollingUpdate strategy type"), and OSH has both
+      # Recreate deployments (mariadb-controller, nfs-provisioner,
+      # rabbitmq-topology-controller) and statefulsets whose update strategy
+      # is values-configurable through pod.lifecycle.upgrades.statefulsets.
+      # Comparing the status counts works for every strategy and asserts what
+      # we actually care about: every pod ready.
+      #
+      # Waiting on the controller rather than on `pod --all` is deliberate:
+      # kubectl wait snapshots the matching resources when it starts, so pods
+      # a controller has not created yet would be skipped and the wait would
+      # succeed vacuously.
+      wait_ready() {
+        local resource="$1" want_path="$2" got_path="$3" want
+        want=$(kubectl get "${resource}" --namespace="${ns}" -o jsonpath="${want_path}")
+        # No replicas desired (scaled to zero, or a daemonset whose node
+        # selector matches nothing) - nothing to wait for.
+        if [ -z "${want}" ] || [ "${want}" -eq 0 ]; then
+          echo "${resource}: 0 desired, skipping"
+          return 0
+        fi
+        kubectl wait --for=jsonpath="${got_path}=${want}" "${resource}" \
+          --namespace="${ns}" --timeout="${timeout}s"
+      }
+
+      # Assign first: a failing command substitution in a for-loop word list
+      # does not trip set -e.
+      workloads=$(kubectl get deployment,statefulset --namespace="${ns}" -o name)
+      for resource in ${workloads}; do
+        wait_ready "${resource}" '{.spec.replicas}' '{.status.readyReplicas}'
+      done
+
+      daemonsets=$(kubectl get daemonset --namespace="${ns}" -o name)
+      for resource in ${daemonsets}; do
+        wait_ready "${resource}" '{.status.desiredNumberScheduled}' \
+          '{.status.numberReady}'
+      done
+    executable: /bin/bash
+  changed_when: false
+
+- name: "Wait for jobs in {{ osh_namespace | default('osh') }} to complete"
+  shell:
+    cmd: |
+      set -eo pipefail
+      ns="{{ osh_namespace | default('osh') }}"
+      timeout={{ osh_wait_timeout | default(900) }}
+
+      # kubectl wait --all errors out when nothing matches, so the job names
+      # are listed first and waited on one at a time.
+      #
+      # A Job named by that listing can legitimately be gone by the time we
+      # wait for it: the namespace has CronJobs (heat-engine-cleaner,
+      # keystone-fernet-rotate, nova-cell-setup, ...) whose Jobs the
+      # controller prunes per successfulJobsHistoryLimit, and finished Jobs
+      # may carry ttlSecondsAfterFinished. Walking a large namespace takes
+      # long enough for that to happen mid-loop, so treat a Job that has
+      # disappeared as nothing left to wait for. Anything else - notably a
+      # real timeout - still fails the task.
+      jobs=$(kubectl get job --namespace="${ns}" -o name)
+      for job in ${jobs}; do
+        if out=$(kubectl wait --for=condition=Complete "${job}" \
+                   --namespace="${ns}" --timeout="${timeout}s" 2>&1); then
+          echo "${out}"
+        elif [ "${out}" != "${out#*NotFound}" ]; then
+          echo "${job}: no longer exists, skipping"
+        else
+          echo "${out}" >&2
+          exit 1
+        fi
+      done
+    executable: /bin/bash
+  changed_when: false
+...

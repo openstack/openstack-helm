@@ -23,9 +23,19 @@
 #   osh_set_values       - dict of --set key=value pairs
 #   osh_helm_timeout     - helm --timeout value (e.g. 600)
 #   osh_create_namespace - add --create-namespace flag (default: false)
-#   osh_wait             - wait for pods after deploy (default: true)
-#   osh_wait_timeout     - timeout for waiting for pods (seconds)
+#   osh_wait             - wait for the namespace to settle after deploy via
+#                          _wait.yaml (default: true)
+#   osh_wait_timeout     - timeout for that wait (seconds)
 #   osh_extra_helm_args  - additional helm arguments string
+#
+# Note that helm is deliberately NOT given --wait. OSH charts bootstrap
+# themselves with post-install hook Jobs (db-init, db-sync, fernet-setup, ...)
+# that the service Deployments wait for via their kubernetes-entrypoint init
+# container. Helm only runs post-install hooks *after* --wait is satisfied, so
+# --wait deadlocks: it waits for a Deployment that is itself waiting for hook
+# Jobs helm has not created yet. Leaving the flag off keeps helm's default
+# hookOnly strategy, which still runs and waits for the hooks, and the
+# namespace is settled afterwards by _wait.yaml.
 ---
 - name: "Check override files for {{ osh_chart }}"
   stat:
@@ -76,12 +86,6 @@
   until: _osh_helm_result.rc == 0
   changed_when: true
 
-- name: "Wait for {{ osh_chart }} pods in {{ osh_namespace | default('osh') }}"
-  command: >-
-    helm osh wait-for-pods
-    {{ osh_namespace | default('osh') }}
-    {{ osh_wait_timeout | default('') }}
-  args:
-    chdir: "{{ osh_git_repo }}"
-  changed_when: false
+- name: "Wait for {{ osh_chart }} in {{ osh_namespace | default('osh') }}"
+  include_tasks: _wait.yaml
   when: osh_wait | default(true)

@@ -23,8 +23,12 @@
     mariadb-backup-manual-001 -n {{ osh_namespace | default('openstack') }}
   changed_when: true
 
-- name: Wait for mariadb-backup pods
-  command: helm osh wait-for-pods {{ osh_namespace | default('openstack') }}
+- name: Wait for the manual mariadb backup job to complete
+  command: >-
+    kubectl wait --for=condition=Complete
+    job/mariadb-backup-manual-001
+    --namespace={{ osh_namespace | default('openstack') }}
+    --timeout={{ osh_helm_timeout }}s
   changed_when: false
 
 - name: Check mariadb backup logs
