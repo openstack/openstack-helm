@@ -1,0 +1,20 @@
+---
+fixes:
+  - |
+    The ``neutron-periodic-worker`` and ``neutron-ovn-maintenance-worker``
+    deployments now get the database connection when the neutron chart is
+    deployed with the ``mariadb-crd`` overrides. That override stops
+    generating the connection string into ``neutron.conf`` and instead
+    projects the ``neutron-db-conn`` secret into the config directory of
+    every workload that reads the database, but it listed only the server,
+    the RPC server and the two db-sync jobs. The workers were added after
+    the override and were never added to the list, so they started with no
+    ``[database] connection`` at all and crash looped on
+    ``CantStartEngineError: No sql_connection parameter is established``.
+
+    Because neither worker declares a readiness probe, a crash looping pod
+    reports its container ready during the brief window between a restart
+    and the next crash, so ``helm osh wait-for-pods`` sampled it as healthy
+    often enough that the mariadb-crd and mariadb-operator gates failed only
+    intermittently.
+...
