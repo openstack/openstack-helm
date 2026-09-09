@@ -44,6 +44,9 @@ labels:
   monitors:
     node_selector_key: openstack-compute-node
     node_selector_value: enabled
+  host_monitors:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   test:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
@@ -301,9 +304,9 @@ pod:
           runAsUser: 42424
         masakari_host_monitor:
           readOnlyRootFilesystem: false
-          allowPrivilegeEscalation: true
+          allowPrivilegeEscalation: false
           runAsUser: 42424
-        masakari_process_monitir:
+        masakari_process_monitor:
           readOnlyRootFilesystem: false
           allowPrivilegeEscalation: false
           runAsUser: 42424
@@ -610,12 +613,9 @@ conf:
       guest_monitor_interval: 10
       guest_monitor_timeout: 5
     host:
-      monitoring_driver: default
-      monitoring_interval: 120
-      monitoring_samples: 1
-      disable_ipmi_checks: true
-      corosync_multicast_ports: 5405
-      pacemaker_node_type: remote
+      monitoring_driver: kubernetes
+    kubernetes:
+      monitoring_node_labels: 'openstack-compute-node=enabled'
   masakari_sudoers: |
     Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/var/lib/openstack/bin"
     masakari-monitors ALL=(ALL:ALL) NOPASSWD: /var/lib/openstack/bin/privsep-helper
@@ -645,7 +645,7 @@ manifests:
   job_rabbit_init: true
   service_api: true
   pdb_api: true
-  # Host Monitors in containers needs pacemaker remote.
+  # Host Monitors default driver is kubernetes
   host_monitor: false
   instance_monitor: false
   process_monitor: false
