@@ -12,7 +12,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- define "probeTemplate" }}
+{{/*
+Liveness and readiness answer different questions and must not share an
+endpoint. /healthcheck is served by the uwsgi request workers, so it can
+only be answered while a worker is free; a saturated pool is a readiness
+condition (take the replica out of rotation), not a liveness one (kill
+it). Liveness therefore asks the uwsgi master via its stats socket, which
+is served by the master process and answers regardless of worker load.
+*/}}
+{{- define "barbicanApiLivenessProbeTemplate" }}
+httpGet:
+  scheme: {{ tuple "key_manager" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  path: /
+  {{- if index .Values.pod.probes.api "barbican-api" "liveness" "port" }}
+  port: {{ index .Values.pod.probes.api "barbican-api" "liveness" "port" }}
+  {{- else }}
+  port: {{ tuple "key_manager" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  {{- end }}
+{{- end }}
+
+{{- define "barbicanApiReadinessProbeTemplate" }}
 {{- $health_path := tuple "key_manager" "healthcheck" "internal" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
 httpGet:
   scheme: {{ tuple "key_manager" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
@@ -73,8 +92,8 @@ spec:
 {{ tuple $envAll "barbican_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "barbican" "container" "barbican_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-{{ dict "envAll" $envAll "component" "api" "container" "barbican-api" "type" "readiness" "probeTemplate" (include "probeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
-{{ dict "envAll" $envAll "component" "api" "container" "barbican-api" "type" "liveness" "probeTemplate" (include "probeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api" "container" "barbican-api" "type" "readiness" "probeTemplate" (include "barbicanApiReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api" "container" "barbican-api" "type" "liveness" "probeTemplate" (include "barbicanApiLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - uwsgi
             - --ini
