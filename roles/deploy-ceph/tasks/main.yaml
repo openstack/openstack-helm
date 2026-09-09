@@ -175,6 +175,69 @@
     executable: /bin/bash
   changed_when: false
 
+# Ceph 20.2.4 (the CVE-2025-30156 fix) adds the aes256k CephX cipher and makes
+# it the default for keys created on a fresh cluster, so every client.<user>
+# credential the OpenStack charts create below is born as a type 2 key.
+#
+# QEMU in the libvirt image cannot read those. It links the librados that the
+# Ubuntu Cloud Archive ships, which predates the aes256k backport (Ceph 19.2.6
+# / 20.2.4), and KeyRing::from_ceph_context() fails to decode a type 2 key and
+# returns -EINVAL. Attaching an RBD volume therefore dies in blockdev-add with
+# "error connecting: Invalid argument" while the volume itself is created
+# fine, because cinder's own librbd is new enough. Every job that deploys both
+# cinder/Ceph and nova fails the heat-vm-volume-attach stack in use-it.sh that
+# way, and only those jobs: cinder without nova and nova without cinder never
+# hand an RBD volume to QEMU.
+#
+# Pin the cipher for newly created keys back to aes, which the Ceph upgrade
+# guide explicitly allows for exactly this case ("You may choose not to do
+# this if you want new keys, by default, to use the older cipher type until
+# your client applications can be upgraded"). The mon, mgr, osd, CSI and
+# client.admin keys Rook created while bootstrapping the cluster above keep
+# aes256k, so only the OpenStack client keys fall back. Rook permits both
+# ciphers by default, so those keys still authenticate.
+#
+# Drop this once the libvirt image carries a Ceph 19.2.6+/20.2.4+ client; the
+# ceph-common in it is built from the cloud archive unless CEPH_REPO is set at
+# image build time.
+- name: Prefer the aes CephX cipher for the OpenStack client keys
+  shell: |
+    set -xe
+    CEPH="kubectl -n {{ ceph_cluster_namespace }} exec deploy/rook-ceph-tools -- ceph"
+
+    ${CEPH} --format=json mon dump > /tmp/ceph-mon-dump.json
+
+    PREFERRED=$(python3 -c "import json; \
+      print(json.load(open('/tmp/ceph-mon-dump.json')).get('auth_preferred_cipher', {}).get('name', ''))")
+    echo "auth_preferred_cipher is '${PREFERRED}'"
+
+    # Empty on releases that predate the aes256k cipher: nothing to pin.
+    if [ -z "${PREFERRED}" ] || [ "${PREFERRED}" == "aes" ]; then
+      echo "nothing to do"
+      exit 0
+    fi
+
+    # New aes keys are only usable while the mons still accept that cipher.
+    # Rook allows every type by default, so this normally just confirms it.
+    ALLOWED=$(python3 -c "import json; \
+      print(','.join(c['name'] for c in json.load(open('/tmp/ceph-mon-dump.json')).get('auth_allowed_ciphers', [])))")
+    echo "auth_allowed_ciphers is '${ALLOWED}'"
+    case ",${ALLOWED}," in
+      *,aes,*) ;;
+      *) ${CEPH} mon set auth_allowed_ciphers "aes,aes256k" ;;
+    esac
+
+    # Ceph may want the override acknowledged when moving back to the weaker
+    # cipher; the plain form is what the upgrade guide documents.
+    ${CEPH} mon set auth_preferred_cipher aes \
+      || ${CEPH} mon set auth_preferred_cipher aes --yes-i-really-mean-it
+
+    ${CEPH} --format=json mon dump \
+      | python3 -c "import json,sys; n=json.load(sys.stdin)['auth_preferred_cipher']['name']; print('now', n); sys.exit(0 if n=='aes' else 1)"
+  args:
+    executable: /bin/bash
+  changed_when: true
+
 # --- Optional CephFS + NFS-Ganesha bring-up ---
 # The CephFilesystem itself is provisioned by the rook-ceph-cluster chart
 # via the cephFileSystems values key (rendered conditionally above).
