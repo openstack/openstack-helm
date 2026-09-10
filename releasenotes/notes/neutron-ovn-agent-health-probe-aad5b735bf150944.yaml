@@ -1,0 +1,19 @@
+---
+fixes:
+  - |
+    The readiness and liveness probes of the ``neutron-ovn-agent`` daemonset
+    now check the agent instead of always succeeding. ``health-probe.py``
+    selects its check from the configuration file name, and ``ovn_agent.ini``
+    matched neither of the names it knew, so the OVN agent took the RPC branch.
+    That branch does not apply to this agent, which serves no RPC and reports
+    its liveness through the OVN southbound database, and it returned success
+    without checking anything because the daemonset passes no
+    ``--agent-queue-name``. A hung agent kept its pod Ready and was never
+    restarted. ``ovn_agent.ini`` now takes the same unix domain socket check as
+    ``ovn_metadata_agent.ini``.
+
+    The check queries the metadata proxy socket, so it assumes the ``metadata``
+    extension is enabled, as it is by default. Deployments that run the OVN
+    agent with other extensions only should disable the probes under
+    ``pod.probes.ovn_agent``.
+...
