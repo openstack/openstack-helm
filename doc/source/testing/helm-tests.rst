@@ -42,9 +42,9 @@ created by the Helm tests.  These logs can be viewed with:
 
 Additional information on Helm tests for OpenStack-Helm and how to execute
 these tests locally via the scripts used in the gate can be found in the
-gates_ directory.
+deploy-charts_ role, which runs them.
 
-.. _gates: https://github.com/openstack/openstack-helm/blob/master/tools/gate/
+.. _deploy-charts: https://opendev.org/openstack/openstack-helm/src/branch/master/roles/deploy-charts
 
 
 Adding Tests

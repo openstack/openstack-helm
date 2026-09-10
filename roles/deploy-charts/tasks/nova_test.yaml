@@ -10,32 +10,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# End-to-end test for the Manila chart.
-#
-# Uses Heat to create an NFS share (via the cephfsnfs backend) and two
-# Nova VMs that mount it. Then SSHes in: VM1 writes a file to the share,
-# VM2 reads it back and verifies the content matches.
+# Exercise a deployed compute kit end to end with Heat: public network,
+# subnet pool and keypair, then a VM which is checked for outbound
+# connectivity and for reaching the metadata and keystone endpoints. When
+# cinder is deployed it also attaches a volume and confirms the guest sees
+# the new block device.
 ---
-- name: Wait for Manila API to be ready
-  shell: |
-    set -xe
-    openstack share service list
-  args:
-    chdir: "{{ osh_git_repo }}"
-    executable: /bin/bash
-  environment:
-    OS_CLOUD: openstack_helm
-  retries: 30
-  delay: 10
-  register: manila_api_check
-  until: manila_api_check.rc == 0
-
-- name: Run Manila end-to-end share test
+- name: Exercise the compute kit
   include_tasks: _script.yaml
   vars:
-    osh_script: manila_test_share.sh
+    osh_script: nova_test.sh
     osh_script_assets:
       - heat
     osh_script_env:
       HEAT_DIR: "{{ osh_scripts_dir }}/heat"
+      # The dpdk override changes how the VM's port is attached, so the
+      # Heat template needs to know which of the two it is rendering for.
+      DPDK_ENABLED: "{{ 'enabled' if 'dpdk.yaml' in (osh_values_overrides | default([])) else 'disabled' }}"
 ...

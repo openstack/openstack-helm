@@ -1,1 +1,0 @@
-../component/common/rabbitmq.sh

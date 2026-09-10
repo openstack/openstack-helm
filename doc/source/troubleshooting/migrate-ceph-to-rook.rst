@@ -70,30 +70,16 @@ are based on the Rook `Troubleshooting`_ documentation and are outlined below.
    FSID and all of its data intact, with the same number of monitors and managers
    that existed in the previous deployment.
 
-There is a rudimentary `script`_ provided that automates this process. It
-isn't meant to be a complete solution and isn't supported as such. It is simply
-an example that is known to work for some test implementations.
-
-The script makes use of environment variables to tell it which Rook release and
-Ceph release to deploy, in which Kubernetes namespaces to deploy the Rook
-operator and Ceph cluster, and paths to YAML files that contain the necessary
-definitions for the Rook operator and Rook Ceph cluster. All of these have
-default values and are not required to be set, but it will likely be necessary
-at least to define paths to the YAML files required to deploy the Rook operator
-and Ceph cluster. Please refer to the comments near the top of the script for
-more information about utilizing these environment variables.
-
 The Ceph cluster definition provided to Rook should match the existing Ceph
 cluster as closely as possible. Otherwise, the migration may not migrate Ceph
 cluster resources as expected. The migration of deployed Ceph resources is
 unique to each deployment, so sample definitions are not provided here.
 
-Migrations using this procedure and/or script are very delicate and will
-require a lot of testing prior to being implemented in production. This is a
-risky operation even with testing and should be performed very carefully.
+Migrations using this procedure are very delicate and will require a lot of
+testing prior to being implemented in production. This is a risky operation
+even with testing and should be performed very carefully.
 
 .. _Ceph: https://ceph.io
 .. _openstack-helm: https://opendev.org/openstack/openstack-helm
 .. _Rook: https://rook.io
 .. _Troubleshooting: https://rook.io/docs/rook/latest-release/Troubleshooting/disaster-recovery/#adopt-an-existing-rook-ceph-cluster-into-a-new-kubernetes-cluster
-.. _script: https://opendev.org/openstack/openstack-helm/src/tools/deployment/ceph/migrate-to-rook-ceph.sh

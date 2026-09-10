@@ -10,19 +10,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Log in to the Grafana dashboard through a headless Chrome.
+# Make every CronJob in the cluster run once, now, and assert it succeeds.
 #
-# The test carries its own credentials and endpoint as defaults and creates
-# the artifacts directory it screenshots into, so there is nothing to pass
-# in here. Override any of it through osh_script_env if a job needs to.
+# The charts ship two dozen CronJobs -- fernet and credential rotation, db
+# purges, backups, row archival -- and none of them schedule anything inside
+# the lifetime of a job, so without this their pod specs are never exercised
+# at all and a bad mount or image only surfaces in a real deployment.
+#
+# Cluster-wide and self-contained: no arguments, no environment, nothing but
+# kubectl.
 ---
-- name: Run the Grafana Selenium test
+- name: Force a run of every CronJob
   include_tasks: _script.yaml
   vars:
-    osh_script: selenium_tests/grafana_selenium.py
-    osh_script_assets:
-      - selenium_tests
-    # A Selenium failure is a dashboard problem, not a deployment problem:
-    # log it and let the job carry on, as this test always has.
-    osh_script_ignore_errors: true
+    osh_script: force-cronjob-run.sh
 ...

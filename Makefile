@@ -90,13 +90,10 @@ clean:
 	rm -rf */charts */tmpcharts
 
 pull-all-images:
-	@./tools/deployment/common/pull-images.sh
+	@./tools/pull-images.sh
 
 pull-images:
-	@./tools/deployment/common/pull-images.sh $(filter-out $@,$(MAKECMDGOALS))
-
-dev-deploy:
-	@./tools/gate/devel/start.sh $(filter-out $@,$(MAKECMDGOALS))
+	@./tools/pull-images.sh $(filter-out $@,$(MAKECMDGOALS))
 
 %:
 	@:

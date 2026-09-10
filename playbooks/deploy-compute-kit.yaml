@@ -157,20 +157,20 @@
         - keystone
 
     - name: Verify MariaDB TLS is used by services that enable it
-      shell: |
-        set -e
-        ./tools/deployment/common/verify-mariadb-tls.sh {{ item }} {{ osh_namespace | default('osh') }}
-      args:
-        chdir: "{{ osh_git_repo }}"
-        executable: /bin/bash
-      # nova no longer exposes a <svc>-db-user secret: its api and cell1 DB
-      # connections live in nova.conf (the [api_database] and [database]
-      # sections) and only cell0 keeps a user/admin secret pair.
-      # Point nova's check at the cell0 secrets; the empty string lets every
-      # other service fall back to the default <svc>-db-user / <svc>-db-admin.
-      environment:
-        USER_SECRET: "{{ 'nova-db-cell0-user' if item == 'nova' else '' }}"
-        ADMIN_SECRET: "{{ 'nova-db-cell0-admin' if item == 'nova' else '' }}"
+      include_role:
+        name: deploy-charts
+        tasks_from: _script
+      vars:
+        osh_script: verify-mariadb-tls.sh
+        osh_script_args: "{{ item }} {{ osh_namespace | default('osh') }}"
+        # nova no longer exposes a <svc>-db-user secret: its api and cell1 DB
+        # connections live in nova.conf (the [api_database] and [database]
+        # sections) and only cell0 keeps a user/admin secret pair.
+        # Point nova's check at the cell0 secrets; the empty string lets every
+        # other service fall back to the default <svc>-db-user / <svc>-db-admin.
+        osh_script_env:
+          USER_SECRET: "{{ 'nova-db-cell0-user' if item == 'nova' else '' }}"
+          ADMIN_SECRET: "{{ 'nova-db-cell0-admin' if item == 'nova' else '' }}"
       loop:
         - keystone
         - glance
@@ -180,12 +180,12 @@
         - heat
 
     - name: Verify RabbitMQ mTLS is used by services that enable it
-      shell: |
-        set -e
-        ./tools/deployment/common/verify-rabbitmq-tls.sh {{ item }} {{ osh_namespace | default('osh') }}
-      args:
-        chdir: "{{ osh_git_repo }}"
-        executable: /bin/bash
+      include_role:
+        name: deploy-charts
+        tasks_from: _script
+      vars:
+        osh_script: verify-rabbitmq-tls.sh
+        osh_script_args: "{{ item }} {{ osh_namespace | default('osh') }}"
       loop:
         - keystone
         - glance
@@ -193,27 +193,24 @@
         - neutron
         - heat
 
-    - name: Run functional tests
-      shell: |
-        set -xe
-        {{ item }}
-      args:
-        chdir: "{{ osh_git_repo }}"
-        executable: /bin/bash
-      environment:
-        DPDK_ENABLED: "{{ 'enabled' if 'dpdk.yaml' in (osh_values_overrides | default([])) else 'disabled' }}"
-      loop:
-        - ./tools/deployment/common/use-it.sh
-        - ./tools/deployment/common/force-cronjob-run.sh
+    - name: Exercise the compute kit
+      include_role:
+        name: deploy-charts
+        tasks_from: nova_test
+
+    - name: Force a run of every CronJob
+      include_role:
+        name: deploy-charts
+        tasks_from: force-cronjob-run
 
     # Self-skipping: exits 0 when no rabbitmq.osh.openstack.org resources exist,
     # which is every job that still provisions messaging with the per-chart
     # rabbit-init jobs. The definitions themselves are installed either way, so
     # they do not distinguish the two paths.
     - name: Verify the RabbitMQ topology custom resources reconciled
-      shell: |
-        set -e
-        ./tools/deployment/common/verify-rabbitmq-topology.sh {{ osh_namespace | default('osh') }}
-      args:
-        chdir: "{{ osh_git_repo }}"
-        executable: /bin/bash
+      include_role:
+        name: deploy-charts
+        tasks_from: _script
+      vars:
+        osh_script: verify-rabbitmq-topology.sh
+        osh_script_args: "{{ osh_namespace | default('osh') }}"
