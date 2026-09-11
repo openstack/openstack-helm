@@ -136,3 +136,32 @@
   args:
     executable: /bin/bash
   changed_when: false
+
+# The image for the web server VMs the Heat test stack boots. It is downloaded
+# here and pushed to Glance instead of being created by the stack with
+# OS::Glance::WebImage: web-download makes glance-api fetch the image itself,
+# and glance-api runs in a pod that has no route to the Internet other than
+# through the node. It pins the connection to a single address returned by
+# getaddrinfo(), so whenever that happens to be an AAAA record the import dies
+# instantly with ENETUNREACH. Heat does not notice the failed import and keeps
+# polling the queued image, so the stack only fails 20 minutes later on the
+# server wait conditions.
+- name: Download and create test server image
+  shell: |
+    set -xe
+    if [ ! -f "/tmp/{{ osh_octavia_test_image_file }}" ]; then
+      curl --fail -sSL {{ osh_octavia_test_image_url }} -o /tmp/{{ osh_octavia_test_image_file }}
+    fi
+    export OS_CLOUD=openstack_helm
+    export OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS="-v /tmp:/tmp"
+    openstack image show "{{ osh_octavia_test_image_name }}" 2>/dev/null || \
+        openstack image create -f value -c id \
+          --public \
+          --container-format=bare \
+          --disk-format qcow2 \
+          --min-disk 3 \
+          --file /tmp/{{ osh_octavia_test_image_file }} \
+          "{{ osh_octavia_test_image_name }}"
+  args:
+    executable: /bin/bash
+  changed_when: false

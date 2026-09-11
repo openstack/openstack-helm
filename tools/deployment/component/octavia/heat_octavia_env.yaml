@@ -38,13 +38,12 @@ parameters:
     type: string
     default: 172.24.4.1
 
+  # The image must already exist in Glance. It is uploaded from the node by
+  # the octavia_resources role rather than created here with
+  # OS::Glance::WebImage, which would make glance-api download it itself.
   image_name:
     type: string
-    default: Ubuntu Jammy
-
-  image_url:
-    type: string
-    default: "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+    default: Ubuntu Jammy Minimal
 
   ssh_key:
     type: string
@@ -101,18 +100,6 @@ resources:
       dns_nameservers:
         - get_param: dns_nameserver
 
-  image:
-    type: OS::Glance::WebImage
-    properties:
-      name:
-        get_param: image_name
-      location:
-        get_param: image_url
-      container_format: bare
-      disk_format: qcow2
-      min_disk: 3
-      visibility: public
-
   flavor_vm:
     type: OS::Nova::Flavor
     properties:
@@ -131,7 +118,7 @@ resources:
     type: OS::Nova::Server
     properties:
       image:
-        get_resource: image
+        get_param: image_name
       flavor:
         get_resource: flavor_vm
       key_name:
@@ -167,7 +154,7 @@ resources:
     type: OS::Nova::Server
     properties:
       image:
-        get_resource: image
+        get_param: image_name
       flavor:
         get_resource: flavor_vm
       key_name:
