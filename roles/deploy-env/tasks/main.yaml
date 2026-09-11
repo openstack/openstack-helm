@@ -55,11 +55,50 @@
     dest: /etc/default/kubelet
   when: inventory_hostname in (groups['k8s_cluster'] | default([]))
 
-# Deliberately not retried: kubeadm join retries discovery itself until
-# --discovery-token-timeout (five minutes by default), so an outer retry only
-# repeats a command that has already exhausted its own attempts.
+# kubeadm does retry discovery internally, but only by re-reading cluster-info
+# over the connection it already has, so it cannot recover from a node whose
+# view of the cluster is wrong.
+#
+# Retrying the whole command gives the node a fresh process, which reaches the
+# API server over a new connection rather than the one it was stuck on. Reset
+# before each attempt so that one which got past discovery and then failed does
+# not leave state behind, and skip the task entirely once kubelet.conf exists
+# so it stays idempotent.
+#
+# When an attempt fails, print the token IDs that the cluster-info this node
+# reads is signed for. kubeadm's discovery client sets InsecureSkipTLSVerify,
+# so an API server belonging to another cluster answers without complaint, and
+# its cluster-info is signed for that cluster's tokens instead of ours. Token
+# IDs that are not ours are therefore evidence that the node was reading
+# somebody else's API server.
 - name: Join workload nodes to cluster
-  command: "{{ (groups['k8s_control_plane'] | map('extract', hostvars, ['join_command', 'stdout_lines', 0]))[0] }}"
+  shell: |
+    if [ -f /etc/kubernetes/kubelet.conf ]; then
+      exit 0
+    fi
+    kubeadm reset -f > /dev/null 2>&1 || true
+    rc=0
+    {{ _join_command }} || rc=$?
+    if [ "${rc}" -eq 0 ]; then
+      exit 0
+    fi
+    echo "kubeadm join failed, cluster-info read from {{ _api_endpoint }} is signed for:"
+    curl -sk --max-time 10 \
+      "https://{{ _api_endpoint }}/api/v1/namespaces/kube-public/configmaps/cluster-info" \
+      | grep -o 'jws-kubeconfig-[a-z0-9]*' \
+      || echo "  (no cluster-info could be read)"
+    exit "${rc}"
+  args:
+    executable: /bin/bash
+  vars:
+    _join_command: "{{ (groups['k8s_control_plane'] | map('extract', hostvars, ['join_command', 'stdout_lines', 0]))[0] }}"
+    # `kubeadm token create --print-join-command` prints
+    # `kubeadm join <endpoint> --token ...`, so the endpoint is the third word.
+    _api_endpoint: "{{ _join_command.split()[2] }}"
+  register: _kubeadm_join
+  until: _kubeadm_join.rc == 0
+  retries: "{{ kubeadm_join_retries | int }}"
+  delay: 30
   when: inventory_hostname in (groups['k8s_nodes'] | default([]))
 
 - name: Include K8s client tasks
