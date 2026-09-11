@@ -45,18 +45,11 @@
     chdir: "{{ osh_git_repo }}"
   changed_when: true
 
-- name: Wait for mariadb-operator pods
-  command: >-
-    helm osh wait-for-pods {{ osh_mariadb_operator_namespace }}
-  args:
-    chdir: "{{ osh_git_repo }}"
-  changed_when: false
-
-# helm --wait and wait-for-pods are both satisfied as soon as the deployments
-# report available replicas, which happens before the cert-controller has
-# issued the webhook's serving certificate and patched the CA bundle into the
-# webhook configurations. Creating a MariaDB in that window fails with
-# 'failed calling webhook "mmariadb.kb.io": context deadline exceeded'.
+# helm --wait is satisfied as soon as the deployments report available
+# replicas, which happens before the cert-controller has issued the webhook's
+# serving certificate and patched the CA bundle into the webhook
+# configurations. Creating a MariaDB in that window fails with 'failed calling
+# webhook "mmariadb.kb.io": context deadline exceeded'.
 - name: Wait for the operator deployments to roll out
   command: >-
     kubectl -n {{ osh_mariadb_operator_namespace }}
