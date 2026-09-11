@@ -18,6 +18,7 @@
     - name: Add cert-manager chart repo
       become_user: "{{ kubectl.user }}"
       shell: |
+        set -e
         helm repo add jetstack https://charts.jetstack.io
         helm repo update
 
@@ -103,14 +104,18 @@
         - name: Ensure envoy-gateway-system namespace exists
           become_user: "{{ kubectl.user }}"
           shell: |
-            set -ex
+            set -exo pipefail
             kubectl create namespace envoy-gateway-system --dry-run=client -o yaml | kubectl apply -f -
+          args:
+            executable: /bin/bash
 
         - name: Create openstack-ca-bundle ConfigMap in envoy-gateway-system
           become_user: "{{ kubectl.user }}"
           shell: |
-            set -ex
+            set -exo pipefail
             kubectl create configmap openstack-ca-bundle \
               -n envoy-gateway-system \
               --from-literal=ca.crt="$(echo {{ openstack_ca_b64.stdout | quote }} | base64 -d)" \
               --dry-run=client -o yaml | kubectl apply -f -
+          args:
+            executable: /bin/bash

@@ -23,7 +23,9 @@
 
 - name: Download Calico images on K8s nodes beforehand
   when: inventory_hostname in (groups['k8s_cluster'] | default([]))
-  shell: awk '/image:/ { print $2 }' {{ calico_config.dest }} | xargs -I{} crictl pull {}
+  shell: |
+    set -eo pipefail
+    awk '/image:/ { print $2 }' {{ calico_config.dest }} | xargs -I{} crictl pull {}
   environment:
     CONTAINER_RUNTIME_ENDPOINT: "unix:///run/containerd/containerd.sock"
     IMAGE_SERVICE_ENDPOINT: "unix:///run/containerd/containerd.sock"

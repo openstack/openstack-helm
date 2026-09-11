@@ -14,6 +14,7 @@
 - name: Enable recursive queries for coredns
   become: false
   shell: |
+    set -eo pipefail
     tee > /tmp/coredns_configmap.yaml <<EOF
     apiVersion: v1
     kind: ConfigMap
@@ -50,6 +51,8 @@
     kubectl apply -f /tmp/coredns_configmap.yaml
     kubectl rollout restart -n kube-system deployment/coredns
     kubectl rollout status -n kube-system deployment/coredns
+  args:
+    executable: /bin/bash
   when: inventory_hostname in (groups['primary'] | default([]))
 
 - name: Give coredns time to restart

@@ -71,13 +71,32 @@
 - name: Reset ssh connection to apply user changes.
   meta: reset_connection
 
+# This used to be a `wget && tar` shell block, which reported success even
+# when the download failed: the block had no `set -e` and ended in `rm -f`,
+# so a transient HTTP error left the node with no crictl and no failed task.
+# The missing binary then surfaced minutes later, in an unrelated task, as a
+# bare "crictl: No such file or directory". Use get_url so an HTTP error fails
+# the task, and retry it the way the other downloads in this role do.
+- name: Download Crictl
+  get_url:
+    url: "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-amd64.tar.gz"
+    dest: "/tmp/crictl-{{ crictl_version }}-linux-amd64.tar.gz"
+    mode: "0644"
+  register: crictl_archive
+  until: crictl_archive is succeeded
+  retries: 5
+  delay: 10
+
 - name: Install Crictl
-  shell: |
-    wget https://github.com/kubernetes-sigs/cri-tools/releases/download/{{crictl_version}}/crictl-{{crictl_version}}-linux-amd64.tar.gz
-    sudo tar zxvf crictl-{{crictl_version}}-linux-amd64.tar.gz -C /usr/local/bin
-    rm -f crictl-{{crictl_version}}-linux-amd64.tar.gz
-  args:
-    executable: /bin/bash
+  unarchive:
+    src: "{{ crictl_archive.dest }}"
+    dest: /usr/local/bin
+    remote_src: true
+
+- name: Remove Crictl archive
+  file:
+    path: "{{ crictl_archive.dest }}"
+    state: absent
 
 - name: Set registry_mirror fact
   when:

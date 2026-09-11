@@ -24,8 +24,11 @@
   block:
     - name: Generate wireguard key pair
       shell: |
+        set -eo pipefail
         wg genkey | tee /root/wg-private-key | wg pubkey > /root/wg-public-key
         chmod 600 /root/wg-private-key
+      args:
+        executable: /bin/bash
       when: (inventory_hostname in (groups['primary'] | default([]))) or (inventory_hostname in (groups['k8s_control_plane'] | default([])))
 
     - name: Register public wireguard key variable
@@ -48,7 +51,9 @@
 
     - name: Set up wireguard tunnel on cluster control-plane node
       shell: |
+        set -e
         cat > /tmp/configure_cluster_tunnel.sh <<EOF
+        set -e
         ip link add client-wg type wireguard
         ip addr add {{ tunnel_cluster_cidr }} dev client-wg
         wg set client-wg listen-port 51820 private-key /root/wg-private-key peer {{ client_wg_public_key }} allowed-ips {{ tunnel_network_cidr }} endpoint {{ client_default_ip }}:51820
@@ -58,11 +63,15 @@
         EOF
         chmod +x /tmp/configure_cluster_tunnel.sh
         /tmp/configure_cluster_tunnel.sh
+      args:
+        creates: /sys/class/net/client-wg
       when: inventory_hostname in (groups['k8s_control_plane'] | default([]))
 
     - name: Set up wireguard tunnel on primary node
       shell: |
+        set -e
         cat > /tmp/configure_client_tunnel.sh <<EOF
+        set -e
         ip link add client-wg type wireguard
         ip addr add {{ tunnel_client_cidr }} dev client-wg
         wg set client-wg listen-port 51820 private-key /root/wg-private-key peer {{ cluster_wg_public_key }} allowed-ips {{ tunnel_network_cidr }},{{ openstack_provider_network_cidr }},{{ metallb_pool_cidr }} endpoint {{ cluster_default_ip }}:51820
@@ -72,5 +81,7 @@
         EOF
         chmod +x /tmp/configure_client_tunnel.sh
         /tmp/configure_client_tunnel.sh
+      args:
+        creates: /sys/class/net/client-wg
       when: inventory_hostname in (groups['primary'] | default([]))
 ...

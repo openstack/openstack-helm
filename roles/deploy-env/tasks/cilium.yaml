@@ -1,7 +1,12 @@
 ---
+# Without `set -e` this block ends in `rm`, which succeeds even when the
+# download or the checksum check before it did not, so a failed install would
+# be reported as ok. Retry the whole block because both URLs are fetched over
+# the internet and fail intermittently.
 - name: Download Cilium
   shell: |
-    CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
+    set -eo pipefail
+    CILIUM_CLI_VERSION=$(curl -s --fail https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
     CLI_ARCH=amd64
     curl -L --fail --remote-name-all https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
     sha256sum --check cilium-linux-${CLI_ARCH}.tar.gz.sha256sum
@@ -10,6 +15,10 @@
   args:
     executable: /bin/bash
     chdir: /tmp
+  register: cilium_download
+  until: cilium_download is succeeded
+  retries: 5
+  delay: 10
   when: inventory_hostname in (groups['primary'] | default([]))
 
 - name: Deploy Cilium

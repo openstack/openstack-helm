@@ -48,10 +48,27 @@
 
 - name: Setup passwordless ssh from primary and cluster nodes
   become_user: "{{ cluster_ssh_user }}"
+  vars:
+    _primary: "{{ (groups['primary'] | default([]))[0] | default('') }}"
   block:
+    # Reaching into another host's facts fails with a bare "object has no
+    # attribute 'ssh_public_key'" that points at this file, which says nothing
+    # about the host that actually went wrong. Name it instead.
+    - name: Check the primary node registered its ssh public key
+      assert:
+        that:
+          - _primary in hostvars
+          - hostvars[_primary].ssh_public_key is defined
+          - hostvars[_primary].ssh_public_key.stdout | default('') | length > 0
+        fail_msg: >-
+          The primary node ({{ _primary }}) did not register ssh_public_key,
+          so the `Read ssh public key` task above never ran there. The failure
+          is on {{ _primary }} earlier in this play, not in this task.
+      when: inventory_hostname in (groups['k8s_cluster'] | default([]))
+
     - name: Set primary ssh public key
       set_fact:
-        client_ssh_public_key: "{{ (groups['primary'] | map('extract', hostvars, ['ssh_public_key', 'stdout']))[0] }}"
+        client_ssh_public_key: "{{ hostvars[_primary].ssh_public_key.stdout }}"
       when: inventory_hostname in (groups['k8s_cluster'] | default([]))
 
     - name: Put keys to .ssh/authorized_keys

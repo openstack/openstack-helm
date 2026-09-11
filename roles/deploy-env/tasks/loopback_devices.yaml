@@ -13,12 +13,16 @@
 ---
 - name: Create loop device image
   shell: |
+    set -e
     mkdir -p {{ loopback_image | dirname }}
     truncate -s {{ loopback_image_size }} {{ loopback_image }}
 
 - name: Create loop device
   shell: |
+    set -eo pipefail
     mknod {{ loopback_device }} b $(grep loop /proc/devices | cut -c3) {{ loopback_device | regex_search('[0-9]+') }}
+  args:
+    executable: /bin/bash
 
 - name: Create loop-setup systemd unit
   template:
@@ -41,5 +45,8 @@
 
 - name: Check {{ loopback_device }} is attached
   shell: |
+    set -o pipefail
     losetup | grep -i {{ loopback_device }}
+  args:
+    executable: /bin/bash
 ...
