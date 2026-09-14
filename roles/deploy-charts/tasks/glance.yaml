@@ -14,7 +14,18 @@
   copy:
     dest: /tmp/glance.yaml
     content: |
-      storage: {{ osh_glance_backend | default('local') }}
+      # With Ceph the image store and the staging area are
+      # PersistentVolumeClaims on the Rook StorageClass; without it there is no
+      # StorageClass at all, so images land on a host path. See
+      # osh_ceph_storage. A playbook that wants a specific backend regardless
+      # (the ones that deploy no Ceph all pin "local") sets osh_glance_backend.
+      # Both claims are gated on storage being "pvc", so the class names below
+      # are inert for every other backend.
+      storage: {{ osh_glance_backend | default(osh_ceph_storage | bool | ternary('pvc', 'local')) }}
+      volume:
+        class_name: {{ osh_ceph_storage_class }}
+      volume_staging:
+        class_name: {{ osh_ceph_storage_class }}
 
 - name: Deploy glance
   include_tasks: _install.yaml
