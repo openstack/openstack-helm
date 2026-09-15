@@ -37,6 +37,11 @@ Usage example for Neutron metadata agent:
 Usage example for the OVN agent with the metadata extension:
 # python health-probe.py --config-file /etc/neutron/neutron.conf \
 #  --config-file /etc/neutron/ovn_agent.ini
+
+Usage example for agents that only cast their state, such as the ironic
+agent, where the state report topic is probed instead of the agent:
+# python health-probe.py --config-file /etc/neutron/neutron.conf \
+#  --check-neutron-server
 """
 
 import httplib2
@@ -48,6 +53,8 @@ import signal
 import socket
 import sys
 
+from neutron_lib.agent import topics
+from neutron_lib import constants as n_const
 from oslo_config import cfg
 from oslo_context import context
 from oslo_log import log
@@ -106,6 +113,54 @@ def check_agent_status(transport):
     except:
         sys.stderr.write("Health probe caught exception sending message to"
                          " agent")
+        sys.exit(0)
+
+
+def check_neutron_server_status(transport):
+    """Verify a neutron server RPC worker consumes agent state reports.
+
+    Agents that only cast their state, such as the ironic agent, get no
+    feedback from report_state and cannot tell that their reports are being
+    discarded. Call the state report topic directly so that a missing or
+    wedged server RPC worker is detected instead of the agent appearing
+    healthy while never being registered.
+    """
+    try:
+        target = oslo_messaging.Target(
+            topic=topics.REPORTS,
+            version='1.4',
+            namespace=n_const.RPC_NAMESPACE_STATE)
+        if hasattr(oslo_messaging, 'get_rpc_client'):
+            client = oslo_messaging.get_rpc_client(transport, target,
+                                                   timeout=rpc_timeout,
+                                                   retry=rpc_retries)
+        else:
+            client = oslo_messaging.RPCClient(transport, target,
+                                              timeout=rpc_timeout,
+                                              retry=rpc_retries)
+        if not client.call(context.RequestContext(),
+                           'has_alive_neutron_server'):
+            sys.stderr.write("Neutron server reported itself unhealthy")
+            sys.exit(1)  # return failure
+    except oslo_messaging.exceptions.MessageDeliveryFailure:
+        # Log to pod events
+        sys.stderr.write("Health probe unable to reach message bus")
+        sys.exit(0)  # return success
+    except oslo_messaging.rpc.client.RemoteError as re:
+        message = getattr(re, "message", str(re))
+        if ("Endpoint does not support RPC method" in message) or \
+                ("Endpoint does not support RPC version" in message):
+            sys.exit(0)  # Call reached the neutron server
+        sys.stderr.write("Health probe unable to reach neutron server")
+        sys.exit(1)  # return failure
+    except oslo_messaging.exceptions.MessagingTimeout:
+        sys.stderr.write("Health probe timed out. No neutron server is "
+                         "consuming agent state reports")
+        sys.exit(1)  # return failure
+    except Exception as ex:
+        message = getattr(ex, "message", str(ex))
+        sys.stderr.write("Health probe caught exception sending message to "
+                         "neutron server: %s" % message)
         sys.exit(0)
 
     finally:
@@ -298,6 +353,41 @@ def test_rpc_liveness():
 
     check_agent_status(transport)
 
+def test_neutron_server_liveness():
+    """Test if a neutron server RPC worker answers on the reports topic"""
+    oslo_messaging.set_transport_defaults(control_exchange='neutron')
+
+    rabbit_group = cfg.OptGroup(name='oslo_messaging_rabbit',
+                                title='RabbitMQ options')
+    cfg.CONF.register_group(rabbit_group)
+    cfg.CONF.register_cli_opt(cfg.BoolOpt('check-neutron-server',
+                                          default=False, required=False))
+    cfg.CONF.register_cli_opt(cfg.BoolOpt('liveness-probe', default=False,
+                                          required=False))
+
+    cfg.CONF(sys.argv[1:])
+
+    try:
+        transport = oslo_messaging.get_rpc_transport(cfg.CONF)
+    except Exception as ex:
+        message = getattr(ex, "message", str(ex))
+        sys.stderr.write("Message bus driver load error: %s" % message)
+        sys.exit(0)  # return success
+
+    if not cfg.CONF.transport_url:
+        sys.stderr.write("Message bus URL is required for Health probe to "
+                         "work")
+        sys.exit(0)  # return success
+
+    try:
+        cfg.CONF.set_override('rabbit_max_retries', 2,
+                              group=rabbit_group)  # 3 attempts
+    except cfg.NoSuchOptError as ex:
+        cfg.CONF.register_opt(cfg.IntOpt('rabbit_max_retries', default=2),
+                              group=rabbit_group)
+
+    check_neutron_server_status(transport)
+
 def check_pid_running(pid):
     if psutil.pid_exists(int(pid)):
        return True
@@ -333,7 +423,9 @@ if __name__ == "__main__":
         json.dump(data, f)
 
     argv = ','.join(sys.argv)
-    if "sriov_agent.ini" in argv:
+    if "check-neutron-server" in argv:
+        test_neutron_server_liveness()
+    elif "sriov_agent.ini" in argv:
         sriov_readiness_check()
     elif "metadata_agent.ini" in argv or "ovn_agent.ini" in argv:
         test_socket_liveness()

@@ -12,6 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "ironicAgentReadinessProbeTemplate" }}
+exec:
+  command:
+    - python
+    - /tmp/health-probe.py
+    - --config-file
+    - /etc/neutron/neutron.conf
+    - --check-neutron-server
+{{- end }}
+
 {{- if .Values.manifests.deployment_ironic_agent }}
 {{- $envAll := . }}
 
@@ -97,6 +107,12 @@ spec:
 {{ tuple $envAll "neutron_ironic_agent" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.ironic_agent | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "neutron_ironic_agent" "container" "neutron_ironic_agent" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+          env:
+            - name: RPC_PROBE_TIMEOUT
+              value: "{{ .Values.pod.probes.rpc_timeout }}"
+            - name: RPC_PROBE_RETRIES
+              value: "{{ .Values.pod.probes.rpc_retries }}"
+{{ dict "envAll" $envAll "component" "ironic_agent" "container" "ironic_agent" "type" "readiness" "probeTemplate" (include "ironicAgentReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           command:
             - /tmp/neutron-ironic-agent.sh
             - start
@@ -118,6 +134,10 @@ spec:
             - name: neutron-bin
               mountPath: /tmp/neutron-ironic-agent.sh
               subPath: neutron-ironic-agent.sh
+              readOnly: true
+            - name: neutron-bin
+              mountPath: /tmp/health-probe.py
+              subPath: health-probe.py
               readOnly: true
             - name: neutron-etc
               mountPath: /etc/neutron/neutron.conf
