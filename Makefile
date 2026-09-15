@@ -18,11 +18,21 @@ TASK  := build
 HELM_DOCS := tools/helm-docs
 UNAME_OS := $(shell uname -s)
 UNAME_ARCH := $(shell uname -m)
-# We generate CHANGELOG.md files by default which
-# requires reno>=4.1.0 installed.
+# Release notes are collected from the git history and written into the
+# artifacthub.io/changes annotation of Chart.yaml, which requires PyYAML
+# installed. The annotation is written only for as long as it takes to
+# package the chart, and the file is restored afterwards.
 # To skip generating it use the following:
-# make all SKIP_CHANGELOG=1
-SKIP_CHANGELOG ?= 0
+# make all SKIP_ANNOTATIONS=1
+SKIP_ANNOTATIONS ?= 0
+
+# A build normally carries only the release notes of the version it builds.
+# At a series bump the earlier versions were published without annotations,
+# so that history has no version left to ride on and the charts are rebuilt
+# once carrying all of it:
+# make all FULL_ANNOTATIONS=1
+FULL_ANNOTATIONS ?= 0
+ANNOTATE_ARGS = $(if $(filter 1,$(FULL_ANNOTATIONS)),--full)
 
 PKG_ARGS =
 ifdef VERSION
@@ -70,12 +80,15 @@ init-%:
 lint-%: init-%
 	if [ -d $* ]; then $(HELM) lint $*; fi
 
-# reno required for changelog generation
-%/CHANGELOG.md:
-	if [ -d $* ]; then $(PYTHON) tools/changelog.py --charts $*; fi
-
-build-%: lint-% $(if $(filter-out 1,$(SKIP_CHANGELOG)),%/CHANGELOG.md)
+build-%: lint-%
 	if [ -d $* ]; then \
+		set -e; \
+		BACKUP=$$(mktemp); \
+		cp $*/Chart.yaml "$$BACKUP"; \
+		trap 'cp "$$BACKUP" $*/Chart.yaml; rm -f "$$BACKUP"' EXIT; \
+		[ "$(SKIP_ANNOTATIONS)" = "1" ] || \
+			$(PYTHON) tools/chart_annotations.py --charts $* \
+				--base-version $(BASE_VERSION) $(ANNOTATE_ARGS); \
 		$(HELM) package $* --version $$(tools/chart_version.sh $* $(BASE_VERSION)) $(PKG_ARGS); \
 	fi
 

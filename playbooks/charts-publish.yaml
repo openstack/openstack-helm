@@ -43,9 +43,12 @@
     chart_index_bootstrap: false
 
   tasks:
-    - name: Install reno
+    # Needed by tools/chart_annotations.py, which make runs through the
+    # PYTHON parameter below to generate the artifacthub.io/changes
+    # annotation.
+    - name: Install PyYAML
       pip:
-        name: reno>=4.1.0
+        name: PyYAML
         virtualenv: "{{ virtualenv }}"
         virtualenv_command: python3 -m venv
 
@@ -74,6 +77,10 @@
     # Packaged straight into a per-chart staging directory so that the index is
     # built from exactly the tarballs which are about to be uploaded, and not
     # from whatever else is lying around in the checkout.
+    # chart_full_annotations is set to 1 by the commit that bumps the series,
+    # so that the first version of the new series carries every release note
+    # the chart has ever had. Every other run leaves it at 0 and each version
+    # carries only its own notes. See doc/source/devref/release-notes.rst.
     - name: Build each chart the index is missing
       make:
         chdir: "{{ zuul.project.src_dir }}"
@@ -82,6 +89,7 @@
           PYTHON: "{{ virtualenv }}/bin/python"
           BASE_VERSION: "{{ base_version }}"
           PACKAGE_DIR: "{{ package_dir }}/{{ item.split() | first }}"
+          FULL_ANNOTATIONS: "{{ chart_full_annotations | default(0) }}"
       loop: "{{ charts_to_build }}"
       register: chart_builds
       ignore_errors: true

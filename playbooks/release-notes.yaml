@@ -1,0 +1,77 @@
+---
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- hosts: all
+  vars:
+    work_dir: "{{ zuul.project.src_dir }}"
+
+  tasks:
+    - name: Install PyYAML
+      pip:
+        name:
+          - PyYAML
+        virtualenv: "{{ virtualenv }}"
+        virtualenv_command: python3 -m venv
+
+    - name: Run the release note tooling unit tests
+      command: "{{ virtualenv }}/bin/python -m unittest discover -s tools -p test_*.py"
+      args:
+        chdir: "{{ work_dir }}"
+
+    # Zuul merges the change under review onto the target branch, so the
+    # newest commit that is not a merge is the change itself.
+    - name: Find the change under review
+      command: git log --no-merges -1 --format=%H HEAD
+      args:
+        chdir: "{{ work_dir }}"
+      register: change_commit
+      changed_when: false
+
+    - name: Check the release note trailers of the commit message
+      command: >-
+        {{ virtualenv }}/bin/python tools/check_commit_message.py
+        --commit {{ change_commit.stdout }}
+        --branch {{ zuul.branch | default('master') }}
+      args:
+        chdir: "{{ work_dir }}"
+
+    - name: Determine the charts the change touches
+      shell: |
+        set -eo pipefail
+        git diff --name-only {{ zuul.branch | default('master') }}...HEAD \
+          | awk -F/ 'NF > 1 {print $1}' \
+          | sort -u \
+          | while read -r dir; do
+              if [ -f "${dir}/Chart.yaml" ]; then
+                echo "${dir}"
+              fi
+            done
+      args:
+        chdir: "{{ work_dir }}"
+        executable: /bin/bash
+      register: changed_charts
+      changed_when: false
+
+    # Renders the annotation without writing Chart.yaml, so a change that
+    # would produce unparsable chart metadata fails here rather than in the
+    # post pipeline where nothing is watching.
+    - name: Render the artifacthub.io/changes annotation for those charts
+      command: >-
+        {{ virtualenv }}/bin/python tools/chart_annotations.py
+        --charts {{ changed_charts.stdout_lines | join(' ') }}
+        --base-version {{ base_version }}
+        --dry-run
+      args:
+        chdir: "{{ work_dir }}"
+      when: changed_charts.stdout_lines | length > 0
+...
