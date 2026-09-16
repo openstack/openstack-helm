@@ -1,1 +1,0 @@
-../component/heat/heat.sh

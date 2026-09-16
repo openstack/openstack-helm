@@ -256,11 +256,11 @@ using Rook custom resources.
 For details please refer to the `Rook`_ documentation and the `charts`_.
 
 .. note::
-    The following script `ceph-rook.sh`_ (recommended for testing only) can be used as
+    The `deploy-ceph`_ Ansible role (recommended for testing only) can be used as
     an example of how to deploy the Rook Ceph operator and a Ceph cluster using the
-    Rook `charts`_. Please note that the script places Ceph OSDs on loopback devices
+    Rook `charts`_. Please note that the role places Ceph OSDs on loopback devices
     which is **not recommended** for production. The loopback devices must exist before
-    using this script.
+    using this role.
 
 Once the Ceph cluster is deployed, the next step is to enable using it
 for services depoyed by OpenStack-Helm charts. The ``ceph-adapter-rook`` chart
@@ -279,7 +279,7 @@ Here we assume the Ceph cluster is deployed in the ``ceph`` namespace.
 
 .. _Rook: https://rook.io/
 .. _charts: https://rook.io/docs/rook/latest-release/Helm-Charts/helm-charts/
-.. _ceph-rook.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/ceph/ceph-rook.sh
+.. _deploy-ceph: https://opendev.org/openstack/openstack-helm/src/branch/master/roles/deploy-ceph
 
 Node labels
 -----------

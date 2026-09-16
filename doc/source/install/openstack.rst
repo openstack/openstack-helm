@@ -441,9 +441,10 @@ which is then used for ssh access to VMs. Or it could be Heat templates
 which you prepare in advance and then use with Openstack client.
 
 For convenience, you can create an executable entry point that runs the
-Openstack client in a Docker container. See for example `setup-client.sh`_.
+Openstack client in a Docker container. See for example the `setup-client`_
+Ansible task file which is used in the OpenStack-Helm CI jobs.
 
-.. _setup-client.sh: https://opendev.org/openstack/openstack-helm/src/branch/master/tools/deployment/common/setup-client.sh
+.. _setup-client: https://opendev.org/openstack/openstack-helm/src/branch/master/roles/deploy-charts/tasks/setup-client.yaml
 .. _quay.io/airshipit/openstack-client: https://quay.io/repository/airshipit/openstack-client?tab=tags&tag=latest
 
 

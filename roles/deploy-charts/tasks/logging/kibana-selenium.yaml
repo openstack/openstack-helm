@@ -9,26 +9,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
-- name: Ensure artifacts directory exists
-  file:
-    path: /tmp/artifacts
-    state: directory
 
-- name: Run Kibana Selenium test
-  shell: |
-    set -xe
-    python3 tools/gate/selenium/kibanaSelenium.py
-  args:
-    chdir: "{{ osh_git_repo }}"
-    executable: /bin/bash
-  environment:
-    CHROMEDRIVER: /etc/selenium/chromedriver
-    ARTIFACTS_DIR: /tmp/artifacts/
-    KIBANA_USER: admin
-    KIBANA_PASSWORD: changeme
-    KIBANA_URI: kibana.openstack-helm.org
-    KERNEL_QUERY: "discove?r_g=()&_a=(columns:!(_source),index:'kernel*',interval:auto,query:(language:kuery,query:''),sort:!('@timestamp',desc))"
-    JOURNAL_QUERY: "discove?r_g=()&_a=(columns:!(_source),index:'journal*',interval:auto,query:(language:kuery,query:''),sort:!('@timestamp',desc))"
-    LOGSTASH_QUERY: "discove?r_g=()&_a=(columns:!(_source),index:'logstash*',interval:auto,query:(language:kuery,query:''),sort:!('@timestamp',desc))"
-  ignore_errors: true
+# Query the kernel, journal and logstash indices through the Kibana discover view, screenshotting each.
+#
+# The test carries its own credentials and endpoint as defaults and creates
+# the artifacts directory it screenshots into, so there is nothing to pass
+# in here. Override any of it through osh_script_env if a job needs to.
+---
+- name: Run the Kibana Selenium test
+  include_tasks: _script.yaml
+  vars:
+    osh_script: selenium_tests/kibana_selenium.py
+    osh_script_assets:
+      - selenium_tests
+    # A Selenium failure is a dashboard problem, not a deployment problem:
+    # log it and let the job carry on, as this test always has.
+    osh_script_ignore_errors: true
+...

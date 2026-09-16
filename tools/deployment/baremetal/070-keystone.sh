@@ -1,1 +1,0 @@
-../component/keystone/keystone.sh

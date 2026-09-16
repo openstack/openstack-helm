@@ -13,9 +13,17 @@
 # Generate dual intermediate CA certificates for Octavia and store
 # them as a Kubernetes secret in the openstack namespace.
 #
-# Uses the existing create_dual_intermediate_CA.sh script which requires
-# the openssl.cnf file in the same directory.
+# Uses the create_dual_intermediate_CA.sh script from this role's files/
+# directory, which reads the openssl.cnf sitting next to it. The whole
+# octavia asset directory is staged onto the node, and the script writes
+# its dual_ca output tree there rather than into the git checkout.
 ---
+- name: Stage the Octavia assets on the node
+  copy:
+    src: octavia/
+    dest: "{{ osh_scripts_dir }}/octavia/"
+    mode: "0755"
+
 - name: Generate Octavia certificates and create K8s secret
   shell: |
     set -xe
@@ -40,6 +48,7 @@
       client.cert-and-key.pem: $(trim_data dual_ca/etc/octavia/certs/client.cert-and-key.pem)
     EOF
   args:
-    chdir: "{{ osh_git_repo }}/tools/deployment/component/octavia"
+    chdir: "{{ osh_scripts_dir }}/octavia"
     executable: /bin/bash
   changed_when: true
+...

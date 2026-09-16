@@ -1,0 +1,66 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Copy a shell script from the role's files/ directory to the node it has to
+# run on, then run it there.
+#
+# These scripts used to live in tools/deployment/component/ and were invoked
+# out of the git checkout with `chdir: {{ osh_git_repo }}`. Staging them makes
+# them independent of where the repo is cloned, and keeps the script next to
+# the tasks that are its only caller.
+#
+# Required variables:
+#   osh_script        - file name under roles/deploy-charts/files/
+#
+# Optional variables:
+#   osh_script_args   - arguments to pass to the script
+#   osh_script_env    - dict of environment variables to run the script with
+#   osh_script_chdir  - working directory (default: osh_scripts_dir)
+#   osh_script_assets - directories under roles/deploy-charts/files/ that the
+#                       script reads, staged next to it. The script gets their
+#                       location from osh_script_env, since it can no longer
+#                       find them relative to itself in the checkout.
+#   osh_script_ignore_errors - do not fail the play when the script exits
+#                       non-zero. Has to be a parameter here: ignore_errors on
+#                       the include_tasks that reaches this file applies to the
+#                       include, not to the task that runs the script.
+---
+- name: "Create the script directory {{ osh_scripts_dir }}"
+  file:
+    path: "{{ osh_scripts_dir }}"
+    state: directory
+    mode: "0755"
+
+# Staged before the script, not after: an asset directory may be the one
+# the script itself lives in, and the script has to end up executable.
+- name: "Stage the data {{ osh_script }} reads"
+  copy:
+    src: "{{ item }}/"
+    dest: "{{ osh_scripts_dir }}/{{ item }}/"
+    mode: "0644"
+  loop: "{{ osh_script_assets | default([]) }}"
+
+- name: "Stage {{ osh_script }} on {{ inventory_hostname }}"
+  copy:
+    src: "{{ osh_script }}"
+    dest: "{{ osh_scripts_dir }}/{{ osh_script }}"
+    mode: "0755"
+
+- name: "Run {{ osh_script }}"
+  shell:
+    cmd: "{{ osh_scripts_dir }}/{{ osh_script }} {{ osh_script_args | default('') }}"
+    chdir: "{{ osh_script_chdir | default(osh_scripts_dir) }}"
+    executable: /bin/bash
+  environment: "{{ osh_script_env | default({}) }}"
+  changed_when: true
+  ignore_errors: "{{ osh_script_ignore_errors | default(false) }}"
+...

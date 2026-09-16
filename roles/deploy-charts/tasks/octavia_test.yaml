@@ -13,6 +13,12 @@
 # Octavia integration test using a Heat stack that creates two web-server
 # VMs behind an Octavia load balancer, then verifies round-robin via curl.
 ---
+- name: Stage the Octavia assets on the node
+  copy:
+    src: octavia/
+    dest: "{{ osh_scripts_dir }}/octavia/"
+    mode: "0755"
+
 - name: Get compute flavor ID
   shell: openstack flavor show -f value -c id m1.amphora 2>/dev/null
   environment:
@@ -35,7 +41,7 @@
 - name: Create Octavia test Heat stack
   shell: |
     set -xe
-    HEAT_DIR="$(readlink -f {{ osh_git_repo }}/tools/deployment/component/octavia)"
+    HEAT_DIR="$(readlink -f {{ osh_scripts_dir }}/octavia)"
     TARGET_HOST_1="{{ _octavia_test_hosts.stdout_lines[0] }}"
     TARGET_HOST_2="{{ _octavia_test_hosts.stdout_lines[1] }}"
     export OS_CLOUD=openstack_helm
