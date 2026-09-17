@@ -138,11 +138,25 @@ done
 # SSH into the VM and check it can reach the outside world
 ssh -o "StrictHostKeyChecking no" -i ${SSH_DIR}/osh_key ${IMAGE_USER}@${FLOATING_IP} ping -q -c 1 -W 2 ${OSH_BR_EX_ADDR%/*}
 
+# Run a command in the VM until it succeeds, giving up after 10 attempts 10s
+# apart. The metadata proxy lives in the DHCP agent's container, so the
+# metadata server is briefly unreachable whenever that agent restarts, and a
+# single attempt turns any such restart into a test failure.
+vm_retry() {
+  local attempt
+  for attempt in $(seq 1 10); do
+    ssh -i ${SSH_DIR}/osh_key ${IMAGE_USER}@${FLOATING_IP} "$@" && return 0
+    echo "Attempt ${attempt}/10 failed: $*"
+    [ ${attempt} -lt 10 ] && sleep 10
+  done
+  return 1
+}
+
 # Check the VM can reach the metadata server
-ssh -i ${SSH_DIR}/osh_key ${IMAGE_USER}@${FLOATING_IP} curl --verbose --connect-timeout 5 169.254.169.254
+vm_retry curl --verbose --connect-timeout 5 169.254.169.254
 
 # Check the VM can reach the keystone server
-ssh -i ${SSH_DIR}/osh_key ${IMAGE_USER}@${FLOATING_IP} curl --verbose --connect-timeout 5 keystone.openstack-helm.org
+vm_retry curl --verbose --connect-timeout 5 keystone.openstack-helm.org
 
 # Check to see if cinder has been deployed, if it has then perform a volume attach.
 if openstack service list -f value -c Type | grep -q "^volume"; then
