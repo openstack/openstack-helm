@@ -12,11 +12,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+Liveness and readiness answer different questions and must not share an
+endpoint. /healthcheck is served by the uwsgi request workers, so it can only
+be answered while a worker is free -- and cinder-api runs a single worker. A
+saturated worker pool is a readiness condition (take the replica out of
+rotation until it drains), not a liveness one (kill it).
+
+Liveness therefore asks the uwsgi master through its stats socket, which the
+chart already opens (conf.cinder_api_uwsgi.uwsgi.stats) and which the master
+serves independently of the workers. Readiness keeps /healthcheck.
+*/}}
 {{- define "cinderApiLivenessProbeTemplate" }}
 httpGet:
   scheme: {{ tuple "volumev3" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-  path: {{ tuple "volumev3" "healthcheck" "internal" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+  path: /
+  {{- if index .Values.pod.probes.api "cinder-api" "liveness" "port" }}
+  port: {{ index .Values.pod.probes.api "cinder-api" "liveness" "port" }}
+  {{- else }}
   port: {{ tuple "volumev3" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  {{- end }}
 {{- end }}
 
 {{- define "cinderApiReadinessProbeTemplate" }}
