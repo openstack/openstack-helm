@@ -12,11 +12,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+Liveness and readiness answer different questions and must not share an
+endpoint. The API port is served by the uwsgi request workers, so it can only
+be answered while a worker is free -- and nova-api runs a single worker, so
+one slow request is enough. A busy worker pool is a readiness condition (take
+the replica out of rotation until it drains), not a liveness one (kill it),
+yet it failed both and the pod was restarted mid-request.
+
+Liveness therefore asks the uwsgi master through its stats socket, which the
+chart already opens (conf.nova_api_uwsgi.uwsgi.stats), and which the master
+serves independently of the workers.
+*/}}
 {{- define "novaApiOsapiLivenessProbeTemplate" }}
 httpGet:
   scheme: {{ tuple "compute" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
   path: /
+  {{- if index .Values.pod.probes "api-osapi" "default" "liveness" "port" }}
+  port: {{ index .Values.pod.probes "api-osapi" "default" "liveness" "port" }}
+  {{- else }}
   port: {{ tuple "compute" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  {{- end }}
 {{- end }}
 
 {{- define "novaApiOsapiReadinessProbeTemplate" }}
