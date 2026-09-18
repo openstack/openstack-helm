@@ -15,11 +15,27 @@ limitations under the License.
 */}}
 
 
+{{/*
+Liveness and readiness answer different questions and must not share an
+endpoint. /healthcheck is served by the uwsgi request workers, so it can only
+be answered while one is free. A saturated worker pool is a readiness
+condition (take the replica out of rotation until it drains), not a liveness
+one (kill it).
+
+Liveness therefore asks the uwsgi master through its stats socket, which the
+chart already opens (conf.octavia_api_uwsgi.uwsgi.stats) and which the master
+serves independently of the workers. That socket serves the stats document at
+/, not the API's healthcheck path. Readiness keeps /healthcheck.
+*/}}
 {{- define "octaviaApiLivenessProbeTemplate" }}
 httpGet:
   scheme: {{ tuple "load_balancer" "service" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-  path: {{ tuple "load_balancer" "healthcheck" "internal" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+  path: /
+  {{- if index .Values.pod.probes.api "octavia-api" "liveness" "port" }}
+  port: {{ index .Values.pod.probes.api "octavia-api" "liveness" "port" }}
+  {{- else }}
   port: {{ (splitList ":" (index (index .Values.conf.octavia_api_uwsgi "uwsgi") "http-socket") | last) }}
+  {{- end }}
 {{- end }}
 
 {{- define "octaviaApiReadinessProbeTemplate" }}
