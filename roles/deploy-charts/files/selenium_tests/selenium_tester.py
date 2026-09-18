@@ -10,6 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import base64
 import os
 import logging
 import sys
@@ -77,6 +78,32 @@ class SeleniumTester():
         service = Service(executable_path=self.chrome_driver)
         browser = webdriver.Chrome(service=service, options=options)
         return browser
+
+    def set_basic_auth(self, username, password):
+        """Authenticate to a page protected by HTTP basic auth.
+
+        The obvious way to do this is to navigate to
+        http://user:password@host, and that is what these tests used to do.
+        Chrome strips the credentials out of a navigation instead of sending
+        them, so the page answers 401, the browser has no dialog to show in
+        headless mode, and the test sits waiting for a title that never
+        arrives until it times out. Sending the header ourselves through the
+        DevTools protocol authenticates the request with nothing in the URL.
+
+        The header goes on every subsequent request from this browser, which
+        is what we want: each of these dashboards is behind the same realm.
+        """
+        token = base64.b64encode(
+            '{}:{}'.format(username, password).encode()
+        ).decode()
+        self.browser.execute_cdp_cmd('Network.enable', {})
+        self.browser.execute_cdp_cmd(
+            'Network.setExtraHTTPHeaders',
+            {'headers': {'Authorization': 'Basic {}'.format(token)}}
+        )
+        self.logger.info('Set HTTP basic credentials for user "{}"'.format(
+            username
+        ))
 
     def initialize_artifiacts_dir(self):
         if self.artifacts_dir and not os.path.exists(self.artifacts_dir):

@@ -24,10 +24,11 @@ st = SeleniumTester('Kibana')
 username = st.get_variable('KIBANA_USER', 'admin')
 password = st.get_variable('KIBANA_PASSWORD', 'changeme')
 kibana_uri = st.get_variable('KIBANA_URI', 'kibana.openstack-helm.org')
-kibana_url = 'http://{0}:{1}@{2}'.format(username, password, kibana_uri)
+kibana_url = 'http://{0}'.format(kibana_uri)
 
 try:
     st.logger.info('Attempting to connect to Kibana')
+    st.set_basic_auth(username, password)
     st.browser.get(kibana_url)
     el = WebDriverWait(st.browser, 45).until(
         EC.title_contains('Kibana')

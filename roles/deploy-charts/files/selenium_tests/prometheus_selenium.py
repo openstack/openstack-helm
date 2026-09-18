@@ -24,10 +24,11 @@ st = SeleniumTester('Prometheus')
 username = st.get_variable('PROMETHEUS_USER', 'admin')
 password = st.get_variable('PROMETHEUS_PASSWORD', 'changeme')
 prometheus_uri = st.get_variable('PROMETHEUS_URI', 'prometheus.openstack-helm.org')
-prometheus_url = 'http://{}:{}@{}'.format(username, password, prometheus_uri)
+prometheus_url = 'http://{}'.format(prometheus_uri)
 
 try:
     st.logger.info('Attempting to connect to Prometheus')
+    st.set_basic_auth(username, password)
     st.browser.get(prometheus_url)
     el = WebDriverWait(st.browser, 15).until(
         EC.title_contains('Prometheus')
@@ -39,29 +40,45 @@ except TimeoutException:
     st.browser.quit()
     sys.exit(1)
 
+# These pages used to be checked for a table at /html/body/div/table, an
+# absolute path that says the table is a child of the first div in the body.
+# That describes one particular rendering of the page and broke as soon as
+# the UI put anything else around it.
+#
+# Waiting for a table anywhere would fix that and introduce a worse problem:
+# the flags page is reached from the runtime page, which already has a table,
+# so the wait would be satisfied by the page we are leaving and the test would
+# pass without ever arriving. Require the URL to change first, so the wait is
+# for a table on the new page.
 try:
     st.logger.info('Attempting to view Runtime Information')
+    previous_url = st.browser.current_url
     st.click_link_by_name('Status')
     st.click_link_by_name('Runtime & Build Information')
+    WebDriverWait(st.browser, 15).until(EC.url_changes(previous_url))
     el = WebDriverWait(st.browser, 15).until(
-        EC.presence_of_element_located((By.XPATH, '/html/body/div/table[1]'))
+        EC.presence_of_element_located((By.TAG_NAME, 'table'))
     )
     st.take_screenshot('Prometheus Runtime Info')
 except TimeoutException:
     st.logger.error('Failed to load Runtime Information page')
+    st.take_screenshot('Prometheus Runtime Info Failure')
     st.browser.quit()
     sys.exit(1)
 
 try:
-    st.logger.info('Attempting to view Runtime Information')
+    st.logger.info('Attempting to view Command-Line Flags')
+    previous_url = st.browser.current_url
     st.click_link_by_name('Status')
     st.click_link_by_name('Command-Line Flags')
+    WebDriverWait(st.browser, 15).until(EC.url_changes(previous_url))
     el = WebDriverWait(st.browser, 15).until(
-        EC.presence_of_element_located((By.XPATH, '/html/body/div/table'))
+        EC.presence_of_element_located((By.TAG_NAME, 'table'))
     )
     st.take_screenshot('Prometheus Command Line Flags')
 except TimeoutException:
     st.logger.error('Failed to load Command Line Flags page')
+    st.take_screenshot('Prometheus Command Line Flags Failure')
     st.browser.quit()
     sys.exit(1)
 

@@ -24,10 +24,11 @@ st = SeleniumTester('Nagios')
 username = st.get_variable('NAGIOS_USER', 'nagiosadmin')
 password = st.get_variable('NAGIOS_PASSWORD', 'password')
 nagios_uri = st.get_variable('NAGIOS_URI', 'nagios.openstack-helm.org')
-nagios_url = 'http://{0}:{1}@{2}'.format(username, password, nagios_uri)
+nagios_url = 'http://{0}'.format(nagios_uri)
 
 try:
     st.logger.info('Attempting to connect to Nagios')
+    st.set_basic_auth(username, password)
     st.browser.get(nagios_url)
     el = WebDriverWait(st.browser, 15).until(
         EC.title_contains('Nagios')
