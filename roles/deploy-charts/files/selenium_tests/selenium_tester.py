@@ -13,6 +13,7 @@
 import base64
 import os
 import logging
+import string
 import sys
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -122,6 +123,32 @@ class SeleniumTester():
             link.click()
         except (TimeoutException, NoSuchElementException):
             self.logger.error("Failed clicking '{}' link".format(link_name))
+            self.browser.quit()
+            sys.exit(1)
+
+    def click_by_text(self, text):
+        """Click any element by its visible text, not just <a> tags.
+
+        Nav and menu items aren't always links - some UIs render them as
+        buttons or plain elements, which By.LINK_TEXT can't find. This
+        matches any element via XPath instead.
+
+        The match is case-insensitive, so a label whose casing changes
+        between app versions doesn't need its own test variant.
+        """
+        xpath = (
+            '//*[translate(normalize-space(text()), "{}", "{}")="{}"]'
+        ).format(
+            string.ascii_uppercase, string.ascii_lowercase, text.lower()
+        )
+        try:
+            el = WebDriverWait(self.browser, 15).until(
+                EC.element_to_be_clickable((By.XPATH, xpath))
+            )
+            self.logger.info("Clicking '{}'".format(text))
+            el.click()
+        except (TimeoutException, NoSuchElementException):
+            self.logger.error("Failed clicking '{}'".format(text))
             self.browser.quit()
             sys.exit(1)
 
