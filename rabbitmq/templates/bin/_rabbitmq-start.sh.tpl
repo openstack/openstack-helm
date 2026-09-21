@@ -16,6 +16,31 @@ limitations under the License.
 
 set -ex
 
+{{- if .Values.pod.nofile.server }}
+# RabbitMQ sizes its file-handle cache from the soft open-file limit it sees at
+# boot, logging "Limiting to approx N file handles (M sockets)". That budget has
+# to cover both client sockets and the segment/WAL files every quorum queue
+# keeps open, and with quorum queues enabled a deployment reaches a few hundred
+# of them easily -- neutron alone declares around 200.
+#
+# The container otherwise inherits the runtime's default soft limit, typically
+# 1024, which leaves roughly 180 handles for sockets once the quorum queues have
+# taken theirs. Past that the broker stops admitting connections and only lets a
+# new one in as an old one closes: clients then sit unanswered until they give
+# up, and the ones that suffer are whichever services open connections most
+# often rather than whichever are at fault.
+target={{ .Values.pod.nofile.server }}
+hard="$(ulimit -Hn)"
+if [ "${hard}" != "unlimited" ] && [ "${target}" -gt "${hard}" ]; then
+  # Cannot exceed the hard limit set by the container runtime; take what we can
+  # and say so, rather than failing to start.
+  echo "WARNING: requested nofile ${target} exceeds the hard limit ${hard}; using ${hard}"
+  target="${hard}"
+fi
+ulimit -n "${target}" || echo "WARNING: could not raise the open-file limit to ${target}"
+echo "open file limit: soft=$(ulimit -Sn) hard=$(ulimit -Hn)"
+{{- end }}
+
 function check_if_open () {
   HOST=$1
   PORT=$2

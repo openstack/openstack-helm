@@ -1,0 +1,14 @@
+---
+rabbitmq:
+  - |
+    Raise the broker's open-file limit to 65536 (pod.nofile.server) before
+    starting it. RabbitMQ sizes its whole file-handle budget from the soft
+    limit it sees at boot, and that budget covers the segment and WAL files of
+    every quorum queue as well as client sockets. With the runtime default of
+    1024 the broker logged "Limiting to approx 927 file handles (832 sockets)",
+    and a deployment with a few hundred quorum queues left only about 180
+    handles for sockets. Past that it stopped admitting connections, letting a
+    new one in only as an old one closed, so clients sat unanswered until they
+    gave up. The limit is capped at the container's hard limit; set
+    pod.nofile.server to null to leave the inherited limit alone.
+...
