@@ -12,12 +12,20 @@
     virtualenv: "{{ virtualenv }}"
     virtualenv_command: python3 -m venv
 
+# This task and "Install configuration files" both fetch from GitHub on a
+# single attempt, and either one failing takes openstack-helm-build-charts with
+# it before a chart is ever linted. Retry them the way the deploy-env role
+# retries its own downloads.
 - name: Install chart-testing
   become: true
   unarchive:
     remote_src: true
     src: "{{ ensure_chart_testing_repo_name_helm_chart }}/v{{ chart_testing_version }}/chart-testing_{{ chart_testing_version }}_linux_amd64.tar.gz"
     dest: /usr/local/bin
+  register: chart_testing_archive
+  until: chart_testing_archive is succeeded
+  retries: 5
+  delay: 10
 
 - name: Setup /etc/ct
   become: true
@@ -31,6 +39,10 @@
   get_url:
     url: "{{ ensure_chart_testing_repo_name_config }}/v{{ chart_testing_version }}/etc/{{ zj_item }}"
     dest: "/etc/ct/{{ zj_item }}"
+  register: chart_testing_config
+  until: chart_testing_config is succeeded
+  retries: 5
+  delay: 10
   loop:
   - chart_schema.yaml
   - lintconf.yaml
