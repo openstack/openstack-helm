@@ -12,11 +12,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{/*
+As for nova-api-osapi: the metadata port is served by the uwsgi request
+workers, so liveness asks the master through its stats socket
+(conf.nova_metadata_uwsgi.uwsgi.stats) instead of competing with them for a
+worker. Readiness keeps the metadata port, which is the right signal for
+taking a busy replica out of rotation.
+*/}}
 {{- define "novaApiMetadataLivenessProbeTemplate" }}
 httpGet:
   scheme: {{ tuple "compute_metadata" "service" "metadata" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
   path: /
+  {{- if index .Values.pod.probes "api-metadata" "default" "liveness" "port" }}
+  port: {{ index .Values.pod.probes "api-metadata" "default" "liveness" "port" }}
+  {{- else }}
   port: {{ .Values.network.metadata.port }}
+  {{- end }}
 {{- end }}
 
 {{- define "novaApiMetadataReadinessProbeTemplate" }}
