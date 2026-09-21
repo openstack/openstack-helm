@@ -1,0 +1,28 @@
+---
+neutron:
+  - |
+    The neutron ironic agent now runs as a StatefulSet instead of a
+    Deployment. The ironic-neutron-agent names its notification listener pool
+    queue after its own hostname, which under a Deployment is the pod name and
+    so changed on every rollout. Quorum queues cannot be declared
+    ``auto_delete``, so each rollout left the previous pool queue behind. A
+    stable hostname also keeps the agent's hash ring membership stable across
+    restarts.
+  - |
+    A headless service named ``neutron-ironic-agent`` is rendered alongside
+    the StatefulSet, under the same ``manifests.statefulset_ironic_agent``
+    value, as its governing service. It publishes the per-ordinal DNS names so
+    the FQDN the agent registers as its ``host`` resolves.
+  - |
+    ``pod.lifecycle.upgrades.statefulsets.pod_replacement_strategy`` is now
+    defined, defaulting to ``RollingUpdate``, so the update strategy of the
+    ironic agent StatefulSet can be overridden.
+upgrade:
+  - |
+    The neutron ``manifests.deployment_ironic_agent`` value has been renamed
+    to ``manifests.statefulset_ironic_agent``. Deployments that enabled the
+    ironic agent must rename it in their overrides; the agent is not rendered
+    at all if only the old name is set. The pod is recreated with an ordinal
+    name (neutron-ironic-agent-0), so the previous Deployment and its
+    ReplicaSets are removed on upgrade.
+...

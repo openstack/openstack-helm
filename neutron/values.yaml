@@ -886,6 +886,8 @@ pod:
     ironic_agent: 1
   lifecycle:
     upgrades:
+      statefulsets:
+        pod_replacement_strategy: RollingUpdate
       deployments:
         revision_history: 3
         pod_replacement_strategy: RollingUpdate
@@ -2783,7 +2785,16 @@ manifests:
   daemonset_ovn_agent: false
   daemonset_ovn_metadata_agent: false
   daemonset_ovn_vpn_agent: false
-  deployment_ironic_agent: false
+  # NOTE: The ironic agent runs as a StatefulSet because it names its
+  # notification listener pool queue after its own hostname. Under a
+  # Deployment that is the pod name, so it changed on every rollout, and
+  # quorum queues cannot be declared `auto_delete`, which left the previous
+  # pool queue behind each time. The StatefulSet gives each pod a stable
+  # hostname (neutron-ironic-agent-0, neutron-ironic-agent-1, ...) that is
+  # reused across restarts, which also keeps the agent's hash ring membership
+  # stable. This also renders the headless service those DNS names are
+  # published through.
+  statefulset_ironic_agent: false
   deployment_server: true
   deployment_rpc_server: true
   deployment_periodic_worker: true

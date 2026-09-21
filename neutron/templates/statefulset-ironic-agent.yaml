@@ -22,7 +22,7 @@ exec:
     - --check-neutron-server
 {{- end }}
 
-{{- if .Values.manifests.deployment_ironic_agent }}
+{{- if .Values.manifests.statefulset_ironic_agent }}
 {{- $envAll := . }}
 
 {{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "ironic_agent" -}}
@@ -39,7 +39,7 @@ exec:
 {{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: neutron-ironic-agent
   annotations:
@@ -47,11 +47,13 @@ metadata:
   labels:
 {{ tuple $envAll "neutron" "ironic-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
+  serviceName: neutron-ironic-agent
   replicas: {{ .Values.pod.replicas.ironic_agent }}
   selector:
     matchLabels:
 {{ tuple $envAll "neutron" "ironic-agent" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  podManagementPolicy: Parallel
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
   template:
     metadata:
       labels:
