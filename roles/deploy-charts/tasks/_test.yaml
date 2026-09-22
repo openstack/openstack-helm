@@ -20,6 +20,8 @@
 #   osh_namespace        - namespace (default: openstack)
 #   osh_helm_tests_tries - number of test attempts (default: 2)
 #   osh_test_timeout     - test timeout in seconds (default: 1200)
+#   logs_dir             - base directory the collect-logs playbook pulls
+#                          from (default: /tmp/logs)
 ---
 - name: "Delete stale test pods for {{ osh_chart }}"
   shell: |
@@ -41,6 +43,33 @@
   delay: 0
   until: _helm_test_result.rc == 0
   ignore_errors: true
+
+# The retry cleanup below deletes the test pods, which happens long before the
+# collect-logs playbook runs in post-run. Without this the only record of why a
+# Helm test failed is "pod <chart>-test failed", so grab the logs while the pod
+# still exists and stage them where gather-pod-logs will pick them up.
+- name: "Capture logs from failed test pods for {{ osh_chart }}"
+  shell: |
+    set -x
+    NAMESPACE={{ osh_namespace | default('osh') }}
+    for POD in $(kubectl get pods \
+                 -l application={{ osh_chart }},release_group={{ osh_release | default(osh_chart) }},component=test \
+                 --namespace=${NAMESPACE} \
+                 -o name | awk -F '/' '{ print $NF }'); do
+      DIR="{{ logs_dir | default('/tmp/logs') }}/pod-logs/failed-helm-tests/${NAMESPACE}/${POD}"
+      mkdir -p "${DIR}"
+      kubectl describe pod ${POD} -n ${NAMESPACE} > "${DIR}/describe.txt"
+      CONTAINERS=$(kubectl get pod ${POD} -n ${NAMESPACE} -o json | \
+                   jq -r '(.spec.initContainers[]?, .spec.containers[]) | .name')
+      for CONTAINER in ${CONTAINERS}; do
+        kubectl logs ${POD} -n ${NAMESPACE} -c ${CONTAINER} > "${DIR}/${CONTAINER}.txt"
+      done
+    done
+  args:
+    executable: /bin/bash
+  changed_when: true
+  ignore_errors: true
+  when: _helm_test_result is failed
 
 - name: "Delete stale test pods for {{ osh_chart }} (retry cleanup)"
   shell: |
