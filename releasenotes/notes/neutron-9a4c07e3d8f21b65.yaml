@@ -1,0 +1,17 @@
+---
+neutron:
+  - |
+    The DHCP and L3 agent init containers now receive a container security
+    context. Both daemonsets already referenced
+    ``pod.security_context.neutron_{dhcp,l3}_agent.container.neutron_{dhcp,l3}_agent_init``,
+    but the keys were absent from ``values.yaml``, so the init containers ran
+    with no container-level context at all. They are now defined with
+    ``readOnlyRootFilesystem: true``; unlike the metadata and OVN agent init
+    containers these scripts do not chown anything, so they do not need
+    ``runAsUser: 0``.
+
+    The DHCP agent's ``ovn-neutron-init`` init container now also renders the
+    resources and security context snippets, and is included in the AppArmor
+    annotation list. Previously it was skipped entirely, so it had no resource
+    requests or limits when ``pod.resources.enabled`` was set.
+...

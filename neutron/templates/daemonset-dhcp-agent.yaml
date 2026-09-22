@@ -80,7 +80,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 {{ tuple "neutron_dhcp_agent" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
-{{ dict "envAll" $envAll "podName" "neutron-dhcp-agent-default" "containerNames" (list "neutron-dhcp-agent" "neutron-dhcp-agent-init" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "neutron-dhcp-agent-default" "containerNames" (list "neutron-dhcp-agent" "neutron-dhcp-agent-init" "ovn-neutron-init" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
 {{ dict "envAll" $envAll "application" "neutron_dhcp_agent" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
 {{ tuple "neutron_dhcp_agent" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
@@ -99,6 +99,8 @@ spec:
         {{- if ( has "ovn" .Values.network.backend ) }}
         - name: ovn-neutron-init
 {{ tuple $envAll "neutron_dhcp" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.agent.dhcp | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "neutron_dhcp_agent" "container" "neutron_dhcp_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/neutron-ovn-init.sh
           volumeMounts:
