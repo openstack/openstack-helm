@@ -20,6 +20,11 @@
       shell: |
         helm repo add metallb https://metallb.github.io/metallb
 
+    # The chart tarball this pulls lives on github.com, which returns 504 often
+    # enough to matter: on 2026-09-21 it took out this task on three separate
+    # jobs across two changes inside twelve minutes. There was no second
+    # attempt to be had, so retry the way deploy-charts/_install.yaml already
+    # retries every chart it installs.
     - name: Install MetalLB
       become_user: "{{ kubectl.user }}"
       shell: |
@@ -28,6 +33,11 @@
           --namespace metallb-system \
           --create-namespace \
           --wait --timeout 5m
+      register: metallb_install
+      retries: 5
+      delay: 10
+      until: metallb_install.rc == 0
+      changed_when: true
 
     - name: Wait for MetalLB webhook to become ready
       command: kubectl -n metallb-system wait --timeout=120s --for=condition=Ready pods -l 'app.kubernetes.io/component=controller'
