@@ -53,8 +53,8 @@ except TimeoutException:
 try:
     st.logger.info('Attempting to view Runtime Information')
     previous_url = st.browser.current_url
-    st.click_link_by_name('Status')
-    st.click_link_by_name('Runtime & Build Information')
+    st.click_by_text('Status')
+    st.click_by_text('Runtime & Build Information')
     WebDriverWait(st.browser, 15).until(EC.url_changes(previous_url))
     el = WebDriverWait(st.browser, 15).until(
         EC.presence_of_element_located((By.TAG_NAME, 'table'))
@@ -69,8 +69,8 @@ except TimeoutException:
 try:
     st.logger.info('Attempting to view Command-Line Flags')
     previous_url = st.browser.current_url
-    st.click_link_by_name('Status')
-    st.click_link_by_name('Command-Line Flags')
+    st.click_by_text('Status')
+    st.click_by_text('Command-Line Flags')
     WebDriverWait(st.browser, 15).until(EC.url_changes(previous_url))
     el = WebDriverWait(st.browser, 15).until(
         EC.presence_of_element_located((By.TAG_NAME, 'table'))
