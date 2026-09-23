@@ -18,9 +18,13 @@
         replicas:
           server: 1
       volume:
-        enabled: false
+        # With Ceph the server claims a PersistentVolume from the Rook
+        # StorageClass; without it there is no StorageClass at all, so the
+        # data directory is a host path instead. See osh_ceph_storage.
+        enabled: {{ osh_ceph_storage | bool | ternary('true', 'false') }}
+        class_name: {{ osh_ceph_storage_class }}
         use_local_path_for_single_pod_cluster:
-          enabled: true
+          enabled: {{ osh_ceph_storage | bool | ternary('false', 'true') }}
       monitoring:
         prometheus:
           enabled: true

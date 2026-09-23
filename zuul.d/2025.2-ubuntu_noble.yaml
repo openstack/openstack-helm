@@ -12,24 +12,11 @@
 # limitations under the License.
 
 - job:
-    name: openstack-helm-cinder-2025-2-ubuntu_noble
+    name: openstack-helm-compute-kit-2025-2-ubuntu_noble
     parent: openstack-helm-deploy
     nodeset: openstack-helm-5nodes-ubuntu_noble
     run:
       - playbooks/deploy-env.yaml
-      - playbooks/deploy-cinder.yaml
-    vars:
-      osh_openstack_client_image_tag: "2025.2-ubuntu_noble"
-      osh_values_overrides:
-        - "2025.2-ubuntu_noble.yaml"
-        - "gateway.yaml"
-
-- job:
-    name: openstack-helm-compute-kit-2025-2-ubuntu_noble
-    parent: openstack-helm-deploy
-    nodeset: openstack-helm-3nodes-ubuntu_noble
-    run:
-      - playbooks/deploy-env.yaml
       - playbooks/deploy-compute-kit.yaml
     vars:
       osh_openstack_client_image_tag: "2025.2-ubuntu_noble"
@@ -38,7 +25,7 @@
         - "gateway.yaml"
 
 - job:
-    name: openstack-helm-compute-kit-ovn-2025-2-ubuntu_noble
+    name: openstack-helm-ovn-2025-2-ubuntu_noble
     parent: openstack-helm-deploy
     nodeset: openstack-helm-3nodes-ubuntu_noble
     run:
@@ -46,6 +33,8 @@
       - playbooks/deploy-compute-kit.yaml
     vars:
       osh_openstack_client_image_tag: "2025.2-ubuntu_noble"
+      # 3 nodes: no storage nodes for Ceph, so opt out of the default.
+      cinder_enabled: false
       osh_values_overrides:
         - "2025.2-ubuntu_noble.yaml"
         - "gateway.yaml"
@@ -54,4 +43,9 @@
       - ^ovn/.*
       - ^openvswitch/.*
       - ^playbooks/deploy-compute-kit\.yaml
+
+- job:
+    name: openstack-helm-compute-kit-ovn-2025-2-ubuntu_noble
+    parent: openstack-helm-ovn-2025-2-ubuntu_noble
+
 ...

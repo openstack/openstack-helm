@@ -28,19 +28,6 @@
       - ^playbooks/deploy-blazar\.yaml
 
 - job:
-    name: openstack-helm-cinder-2026-1-ubuntu_noble
-    parent: openstack-helm-deploy
-    nodeset: openstack-helm-5nodes-ubuntu_noble
-    run:
-      - playbooks/deploy-env.yaml
-      - playbooks/deploy-cinder.yaml
-    vars:
-      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
-      osh_values_overrides:
-        - "2026.1-ubuntu_noble.yaml"
-        - "gateway.yaml"
-
-- job:
     name: openstack-helm-cloudkitty-2026-1-ubuntu_noble
     parent: openstack-helm-deploy
     nodeset: openstack-helm-3nodes-ubuntu_noble
@@ -58,8 +45,17 @@
 
 - job:
     name: openstack-helm-compute-kit-2026-1-ubuntu_noble
+    description: |
+      The baseline deployment: Ceph via Rook, the compute kit, and cinder on
+      top of it with an RBD backend. This used to be two jobs -- compute-kit on
+      3 nodes and cinder on the 5-node rook nodeset -- which between them never
+      tested the thing an operator actually cares about, because the cinder job
+      deployed no compute and so never attached a volume to a VM. Deploying
+      both in one job is what lets nova_test.sh get past its "is there a volume
+      service" check and run the attach, so the extra two nodes buy coverage
+      rather than just consolidating two jobs into one.
     parent: openstack-helm-deploy
-    nodeset: openstack-helm-3nodes-ubuntu_noble
+    nodeset: openstack-helm-5nodes-ubuntu_noble
     run:
       - playbooks/deploy-env.yaml
       - playbooks/deploy-compute-kit.yaml
@@ -91,9 +87,8 @@
       cert_manager_setup: true
       osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
       osh_openstack_client_tls: true
-      # Also deploy Ceph + cinder + horizon (gated tasks in deploy-compute-kit)
-      # so their nginx TLS sidecars are exercised by this job.
-      cinder_enabled: true
+      # Ceph and cinder come with the playbook's defaults; horizon does not,
+      # and is added here so its nginx TLS sidecar is exercised by this job.
       horizon_enabled: true
       osh_values_overrides:
         - "2026.1-ubuntu_noble.yaml"
@@ -102,7 +97,7 @@
         - "messaging-tls.yaml"
 
 - job:
-    name: openstack-helm-compute-kit-dpdk-2026-1-ubuntu_noble
+    name: openstack-helm-dpdk-2026-1-ubuntu_noble
     description: |
       Run the openstack-helm compute-kit job with DPDK enabled.
       We use single node environment to run this job which means
@@ -122,6 +117,7 @@
         size: "2M"
         number: 2048
       osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      cinder_enabled: false
       osh_values_overrides:
         - "2026.1-ubuntu_noble.yaml"
         - "gateway.yaml"
@@ -133,7 +129,7 @@
       - ^neutron/.*
 
 - job:
-    name: openstack-helm-compute-kit-ovn-2026-1-ubuntu_noble
+    name: openstack-helm-ovn-2026-1-ubuntu_noble
     parent: openstack-helm-deploy
     nodeset: openstack-helm-3nodes-ubuntu_noble
     run:
@@ -141,6 +137,7 @@
       - playbooks/deploy-compute-kit.yaml
     vars:
       osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
+      cinder_enabled: false
       osh_values_overrides:
         - "2026.1-ubuntu_noble.yaml"
         - "gateway.yaml"
@@ -149,6 +146,10 @@
       - ^ovn/.*
       - ^openvswitch/.*
       - ^playbooks/deploy-compute-kit\.yaml
+
+- job:
+    name: openstack-helm-compute-kit-ovn-2026-1-ubuntu_noble
+    parent: openstack-helm-ovn-2026-1-ubuntu_noble
 
 - job:
     name: openstack-helm-freezer-2026-1-ubuntu_noble
@@ -203,37 +204,6 @@
       - ^roles/deploy-charts/files/manila_test_share\.sh
 
 - job:
-    name: openstack-helm-mariadb-operator-2026-1-ubuntu_noble
-    description: |
-      The mariadb-crd job with the other operator. The charts render exactly
-      the same Database/User/Grant/Connection resources from exactly the same
-      overrides; mariadb-operator.yaml changes mariadb_db.api_group to
-      k8s.mariadb.com, so the upstream mariadb-operator reconciles them
-      instead of the mariadb chart's db controller. Everything else -- the
-      nodeset, Ceph, cinder, which secrets are projected into which workloads
-      -- is identical, which is what makes a difference between the two jobs
-      attributable to the operator. The mariadb chart is not deployed at all
-      here: the database is a single operator-managed instance, not a Galera
-      cluster.
-    parent: openstack-helm-deploy
-    nodeset: openstack-helm-5nodes-ubuntu_noble
-    run:
-      - playbooks/deploy-env.yaml
-      - playbooks/deploy-mariadb-operator.yaml
-      - playbooks/deploy-compute-kit.yaml
-    vars:
-      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
-      # Makes deploy-compute-kit skip the mariadb chart: the database is
-      # already there, created by deploy-mariadb-operator.
-      mariadb_operator_enabled: true
-      cinder_enabled: true
-      osh_values_overrides:
-        - "2026.1-ubuntu_noble.yaml"
-        - "gateway.yaml"
-        - "mariadb-crd.yaml"
-        - "mariadb-operator.yaml"
-
-- job:
     name: openstack-helm-octavia-2026-1-ubuntu_noble
     parent: openstack-helm-deploy
     nodeset: openstack-helm-4nodes-ubuntu_noble
@@ -245,6 +215,20 @@
       osh_values_overrides:
         - "2026.1-ubuntu_noble.yaml"
         - "gateway.yaml"
+    files:
+      - ^octavia/.*
+      - ^values_overrides/octavia/.*
+      - ^playbooks/deploy-octavia\.yaml
+      # The amphora certificate chain, the Heat test environment and the
+      # octavia_resources/octavia_certs/octavia_test tasks all live in the
+      # deploy-charts role and are used by no other job.
+      - ^roles/deploy-charts/.*octavia.*
+      # Barbican: this is the only job in the check pipeline that deploys it.
+      # The tacker job does too, but its own files filter keeps it to tacker
+      # changes, and no always-run job touches barbican at all -- so without
+      # these two lines a barbican change would get no deployment coverage.
+      - ^barbican/.*
+      - ^values_overrides/barbican/.*
 
 - job:
     name: openstack-helm-skyline-2026-1-ubuntu_noble
@@ -345,18 +329,39 @@
       - ^playbooks/deploy-zaqar\.yaml
 
 - job:
-    name: openstack-helm-mariadb-crd-2026-1-ubuntu_noble
+    name: openstack-helm-crd-2026-1-ubuntu_noble
     description: |
-      Deploy the compute kit plus Ceph and cinder with declarative MariaDB
-      database management. Every chart in this deployment that owns a database
-      -- keystone, cinder, heat, glance, placement, nova and neutron -- renders
-      Database/User/Grant/Connection custom resources (manifests.mariadb_db)
-      which the mariadb chart's db controller reconciles, instead of running
-      the per-chart db-init jobs (manifests.job_db_init=false). This exercises
-      the single-database case, the multi-database case (nova owns nova,
-      nova_cell0 and nova_cell1 behind one account) and the non-default config
-      section case (placement writes [placement_database]). The 5-node rook
-      nodeset is needed because cinder is deployed with a Ceph backend.
+      Deploy the compute kit plus Ceph and cinder with every backing-service
+      resource the charts can declare managed as a custom resource, reconciled
+      by the controllers that ship in the openstack-helm charts themselves.
+
+      Databases: every chart that owns one -- keystone, cinder, heat, glance,
+      placement, nova and neutron -- renders Database/User/Grant/Connection
+      custom resources (manifests.mariadb_db) for the mariadb chart's db
+      controller, instead of running the per-chart db-init jobs
+      (manifests.job_db_init=false). This exercises the single-database case,
+      the multi-database case (nova owns nova, nova_cell0 and nova_cell1 behind
+      one account) and the non-default config section case (placement writes
+      [placement_database]).
+
+      Messaging: every chart that uses it -- keystone, cinder, glance, heat,
+      nova and neutron -- renders Vhost/User/Permission/Policy custom resources
+      (manifests.rabbitmq_topology) for the rabbitmq chart's topology
+      controller, instead of running the per-chart rabbit-init jobs
+      (manifests.job_rabbit_init=false). The verify-rabbitmq-topology.sh step
+      at the end of the playbook waits for every resource to report Ready,
+      reads the vhosts and accounts back out of the broker, and asserts the
+      guest account is gone and no rabbit-init job remains -- without it the
+      job would pass whether or not any of this worked, because oslo.messaging
+      retries forever.
+
+      Keystone resources are expected to join this job once the keystone CRDs
+      land: the point of one job rather than one per resource kind is that a
+      real deployment turns all of them on at once, and only a job that does
+      the same can catch them interfering.
+
+      The 5-node rook nodeset is needed because cinder is deployed with a Ceph
+      backend; cinder is deployed because it carries both sets of overrides.
     parent: openstack-helm-deploy
     nodeset: openstack-helm-5nodes-ubuntu_noble
     run:
@@ -364,71 +369,55 @@
       - playbooks/deploy-compute-kit.yaml
     vars:
       osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
-      # Also deploy Ceph and cinder (gated tasks in deploy-compute-kit).
-      cinder_enabled: true
       osh_values_overrides:
         - "2026.1-ubuntu_noble.yaml"
         - "gateway.yaml"
         - "mariadb-crd.yaml"
-
-- job:
-    name: openstack-helm-rabbitmq-crd-2026-1-ubuntu_noble
-    description: |
-      Deploy the compute kit with declarative RabbitMQ topology management.
-      Every chart in this deployment that uses messaging -- keystone, glance,
-      heat, nova and neutron -- renders Vhost/User/Permission/Policy custom
-      resources (manifests.rabbitmq_topology) instead of running the per-chart
-      rabbit-init jobs (manifests.job_rabbit_init=false), and the rabbitmq chart
-      deploys the reconciler that acts on them
-      (manifests.deployment_topology_controller). The
-      verify-rabbitmq-topology.sh step at the end of the playbook waits for
-      every resource to report Ready, reads the vhosts and accounts back out of
-      the broker, and asserts the guest account is gone and no rabbit-init job
-      remains -- without it the job would pass whether or not any of this
-      worked, because oslo.messaging retries forever. Cinder carries the same
-      override for the cinder job, which is not this one.
-    parent: openstack-helm-deploy
-    nodeset: openstack-helm-3nodes-ubuntu_noble
-    run:
-      - playbooks/deploy-env.yaml
-      - playbooks/deploy-compute-kit.yaml
-    vars:
-      osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
-      osh_values_overrides:
-        - "2026.1-ubuntu_noble.yaml"
-        - "gateway.yaml"
         - "rabbitmq-crd.yaml"
 
 - job:
-    name: openstack-helm-rabbitmq-operator-2026-1-ubuntu_noble
+    name: openstack-helm-operators-2026-1-ubuntu_noble
     description: |
-      The rabbitmq-crd job with the other reconciler. The charts render exactly
-      the same Vhost/User/Permission/Policy resources from exactly the same
-      overrides; rabbitmq-operator.yaml changes rabbitmq_topology.api_group to
-      rabbitmq.com, so the upstream messaging-topology-operator reconciles them
-      instead of the rabbitmq chart's topology controller. That makes any
-      difference between the two jobs attributable to the reconciler, which is
-      the compatibility claim these resources exist to support.
-      The rabbitmq chart is not deployed at all here. The broker is a
-      RabbitmqCluster managed by the upstream cluster operator, which the
-      topology operator also needs in order to resolve
-      rabbitmqClusterReference.name, and whose client service is what the
-      charts address once the chart's per-pod statefulset addressing is
-      dropped. cert-manager is deployed because the topology operator's
-      webhooks take their certificates from it.
+      The crd job with third-party operators doing the reconciling. The charts
+      render exactly the same custom resources from exactly the same overrides;
+      the *-operator.yaml files layered on top change only which API group they
+      are rendered into -- mariadb_db.api_group to k8s.mariadb.com and
+      rabbitmq_topology.api_group to rabbitmq.com -- so the upstream
+      mariadb-operator and messaging-topology-operator reconcile them instead
+      of the openstack-helm controllers. Everything else is identical to the
+      crd job, which is what makes a difference between the two attributable to
+      the reconciler. That interchangeability is the compatibility claim these
+      resources exist to support, and this is the job that tests it.
+
+      Neither the mariadb chart nor the rabbitmq chart is deployed here. The
+      database is a single operator-managed MariaDB instance rather than a
+      Galera cluster, and the broker is a RabbitmqCluster managed by the
+      upstream cluster operator -- which the topology operator also needs in
+      order to resolve rabbitmqClusterReference.name, and whose client service
+      is what the charts address once the rabbitmq chart's per-pod statefulset
+      addressing is dropped. cert-manager is deployed because the RabbitMQ
+      operators' webhooks take their certificates from it; mariadb-operator
+      brings its own cert-controller.
     parent: openstack-helm-deploy
-    nodeset: openstack-helm-3nodes-ubuntu_noble
+    nodeset: openstack-helm-5nodes-ubuntu_noble
     run:
       - playbooks/deploy-env.yaml
+      - playbooks/deploy-mariadb-operator.yaml
       - playbooks/deploy-rabbitmq-operator.yaml
       - playbooks/deploy-compute-kit.yaml
     vars:
       osh_openstack_client_image_tag: "2026.1-ubuntu_noble"
       cert_manager_setup: true
+      # Make deploy-compute-kit skip the mariadb and rabbitmq charts: the
+      # database and the broker are already there, created by the two
+      # deploy-*-operator playbooks above.
+      mariadb_operator_enabled: true
       rabbitmq_operator_enabled: true
       osh_values_overrides:
         - "2026.1-ubuntu_noble.yaml"
         - "gateway.yaml"
+        - "mariadb-crd.yaml"
+        - "mariadb-operator.yaml"
         - "rabbitmq-crd.yaml"
         - "rabbitmq-operator.yaml"
 ...
