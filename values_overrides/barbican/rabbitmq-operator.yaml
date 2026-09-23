@@ -1,0 +1,20 @@
+---
+# Target the upstream messaging-topology-operator instead of the rabbitmq
+# chart's own topology controller. This file is layered on top of
+# rabbitmq-crd.yaml and changes only who reconciles the custom resources and
+# how the broker is addressed, so the two deployments are otherwise identical.
+#
+# On its own this file provisions nothing: manifests.rabbitmq_topology stays
+# false without rabbitmq-crd.yaml.
+rabbitmq_topology:
+  api_group: rabbitmq.com
+# The broker is a RabbitmqCluster rather than the rabbitmq chart, and the
+# cluster operator publishes a single client service named after the cluster
+# instead of the per-pod addresses that chart's StatefulSet exposes. Dropping
+# the statefulset stanza points transport_url at that service, and leaves
+# hosts.default as both the service name and the name
+# rabbitmqClusterReference resolves to.
+endpoints:
+  oslo_messaging:
+    statefulset: null
+...
