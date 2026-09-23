@@ -77,7 +77,7 @@ spec:
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 {{ tuple "neutron_ovn_metadata_agent" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
-{{ dict "envAll" $envAll "podName" "neutron-ovn-metadata-agent-default" "containerNames" (list "neutron-ovn-metadata-agent" "neutron-ovn-metadata-agent-init" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
+{{ dict "envAll" $envAll "podName" "neutron-ovn-metadata-agent-default" "containerNames" (list "neutron-ovn-metadata-agent" "neutron-ovn-metadata-agent-init" "ovn-neutron-init" "init") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
 {{ dict "envAll" $envAll "application" "neutron_ovn_metadata_agent" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
 {{ tuple "neutron_ovn_metadata_agent" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
@@ -93,13 +93,13 @@ spec:
       shareProcessNamespace: true
       initContainers:
 {{ tuple $envAll "pod_dependency" $mounts_neutron_ovn_metadata_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-        - name: neutron-metadata-agent-init
-{{ tuple $envAll "neutron_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
+        - name: neutron-ovn-metadata-agent-init
+{{ tuple $envAll "neutron_ovn_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.ovn_metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "neutron_metadata_agent" "container" "neutron_metadata_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "application" "neutron_ovn_metadata_agent" "container" "neutron_ovn_metadata_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
             - name: NEUTRON_USER_UID
-              value: "{{ .Values.pod.security_context.neutron_metadata_agent.pod.runAsUser }}"
+              value: "{{ .Values.pod.security_context.neutron_ovn_metadata_agent.pod.runAsUser }}"
           command:
             - /tmp/neutron-metadata-agent-init.sh
           volumeMounts:
@@ -121,9 +121,9 @@ spec:
             - name: socket
               mountPath: /var/lib/neutron/openstack-helm
         - name: ovn-neutron-init
-{{ tuple $envAll "neutron_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll "neutron_ovn_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.ovn_metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "neutron_metadata_agent" "container" "neutron_metadata_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+{{ dict "envAll" $envAll "application" "neutron_ovn_metadata_agent" "container" "neutron_ovn_metadata_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - /tmp/neutron-ovn-init.sh
           volumeMounts:
@@ -135,7 +135,7 @@ spec:
               readOnly: true
       containers:
         - name: neutron-ovn-metadata-agent
-{{ tuple $envAll "neutron_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll "neutron_ovn_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.agent.ovn_metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
           env:
             - name: RPC_PROBE_TIMEOUT
