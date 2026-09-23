@@ -41,6 +41,16 @@ except TimeoutException:
 
 st.logger.info("Attempting to log into Grafana dashboard")
 try:
+    # Wait for the form rather than asking for it straight away. The title
+    # waited for above is in the document Grafana serves; the login form is
+    # drawn afterwards, by the frontend bundle. find_element does not wait,
+    # so reaching for the fields the moment the title appears is a race
+    # against a browser that has not finished rendering -- one a loaded CI
+    # node loses often enough to matter, and the report when it does is a
+    # missing login form on a Grafana that is perfectly healthy.
+    WebDriverWait(st.browser, 30).until(
+        EC.presence_of_element_located((By.NAME, 'user'))
+    )
     st.browser.find_element(By.NAME, 'user').send_keys(username)
     st.browser.find_element(By.NAME, 'password').send_keys(password)
     # Grafana builds its CSS class names with Emotion, so they are content
@@ -49,8 +59,12 @@ try:
     # test with it. The submit button is the only one on the login form and
     # its type is part of the form's behaviour rather than its styling.
     st.browser.find_element(By.CSS_SELECTOR, 'button[type="submit"]').click()
-except NoSuchElementException:
+except (TimeoutException, NoSuchElementException):
     st.logger.error("Failed to find the Grafana login form")
+    # Screenshot here too, so that a form which is genuinely absent rather
+    # than merely late leaves something to look at. Without this the run
+    # ends with an empty /tmp/artifacts and nothing to tell the two apart.
+    st.take_screenshot('Grafana Login Form Missing')
     st.browser.quit()
     sys.exit(1)
 
