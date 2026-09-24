@@ -13,114 +13,117 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Builds and stages the charts which the chart repo is missing. This
+# deliberately doesn't look at the range of the Zuul event: the post pipeline
+# uses Zuul's supercedent manager, so when changes land faster than this job
+# runs Zuul drops the intermediate queue items and the surviving event's range
+# steps over the commits they carried. Comparing against the index instead
+# means a dropped event only delays a chart until the next run.
+#
+# publish-openstack-artifacts uploads the artifacts directory from its own
+# post-run, but only when the job succeeded, so there is no point in staging
+# artifacts from a post-run of our own and nothing to gain from failing the
+# job over a single chart.
+
 - hosts: all
+  roles:
+    - ensure-pip
+    - ensure-helm
+
+  vars:
+    published_index: "{{ ansible_user_dir }}/published-index.yaml"
+    package_dir: "{{ ansible_user_dir }}/chart-packages"
+    charts_to_build: "{{ chart_publish_plan.stdout_lines | default([]) }}"
+    failed_charts: "{{ chart_builds.results | default([]) | selectattr('failed') | map(attribute='item') | list }}"
+    published_index_exists: "{{ _published_index.status_code | default(-1) == 200 }}"
+    # Only set this to bootstrap a chart repo which has no index yet. It just
+    # allows the fetch of the index to 404; what gets published is still keyed
+    # off whether an index came back, so a transient 404 can never replace the
+    # published index with only the charts built here.
+    chart_index_bootstrap: false
+
   tasks:
-    - name: Get list of changed charts
-      shell: "ct list-changed --target-branch master --since {{ zuul.oldrev | default('HEAD~1') }} --chart-dirs . 2>/dev/null"
-      args:
-        chdir: "{{ zuul.project.src_dir }}"
-      register: changed_charts_output
-      changed_when: false
+    - name: Install reno
+      pip:
+        name: reno>=4.1.0
+        virtualenv: "{{ virtualenv }}"
+        virtualenv_command: python3 -m venv
 
-    - name: Parse changed charts
-      set_fact:
-        changed_charts: "{{ changed_charts_output.stdout_lines }}"
-
-    - name: Get charts that depend on helm-toolkit
-      shell: |
-        set -o pipefail
-        find . -mindepth 2 -maxdepth 2 -name Chart.yaml -print \
-          | while read -r chart_file; do
-              if grep -Eq 'name:[[:space:]]*helm-toolkit' "${chart_file}"; then
-                basename "$(dirname "${chart_file}")"
-              fi
-            done \
-          | sort -u
-      args:
-        chdir: "{{ zuul.project.src_dir }}"
-        executable: /bin/bash
-      register: helm_toolkit_dependents_output
-      changed_when: false
-      when: "'helm-toolkit' in changed_charts"
-
-    - name: Expand changed charts when helm-toolkit changes
-      set_fact:
-        changed_charts_to_publish: "{{ (changed_charts + (helm_toolkit_dependents_output.stdout_lines | default([]))) | unique }}"
-
-    - name: Display charts to publish
-      debug:
-        msg: "Charts to publish: {{ changed_charts_to_publish }}"
-
-    - name: Download current index
-      register: _get_url
-      failed_when: _get_url.status_code not in (200, 404)
+    - name: Download the published index
+      register: _published_index
+      failed_when:
+        - _published_index.status_code | default(-1) != 200
+        - not (_published_index.status_code | default(-1) == 404 and chart_index_bootstrap)
       get_url:
         url: "https://tarballs.opendev.org/{{ zuul.project.name }}/index.yaml"
-        dest: "{{ zuul.project.src_dir }}/index.yaml"
+        dest: "{{ published_index }}"
 
-    - name: Create a new index
-      when: _get_url.status_code == 404
-      shell: helm repo index {{ zuul.project.src_dir }} --url https://tarballs.opendev.org/{{ zuul.project.name }}
-
-    - name: Merge into existing index
-      when: _get_url.status_code == 200
-      shell: helm repo index {{ zuul.project.src_dir }} --merge {{ zuul.project.src_dir }}/index.yaml --url https://tarballs.opendev.org/{{ zuul.project.name }}
-
-    - name: Cat updated index
-      shell: cat {{ zuul.project.src_dir }}/index.yaml
-      register: index_content
+    - name: Work out which charts the index is missing
+      command: >-
+        tools/chart_publish_plan.sh {{ base_version }}
+        {{ published_index if published_index_exists | bool else '' }}
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+      register: chart_publish_plan
       changed_when: false
 
-    - name: Display updated index
+    - name: Display charts to build
       debug:
-        msg: "{{ index_content.stdout }}"
+        msg: "Charts to build: {{ charts_to_build }}"
 
-    - name: Ensure artifact directory exists
+    # Packaged straight into a per-chart staging directory so that the index is
+    # built from exactly the tarballs which are about to be uploaded, and not
+    # from whatever else is lying around in the checkout.
+    - name: Build each chart the index is missing
+      make:
+        chdir: "{{ zuul.project.src_dir }}"
+        target: "{{ item.split() | first }}"
+        params:
+          PYTHON: "{{ virtualenv }}/bin/python"
+          BASE_VERSION: "{{ base_version }}"
+          PACKAGE_DIR: "{{ package_dir }}/{{ item.split() | first }}"
+      loop: "{{ charts_to_build }}"
+      register: chart_builds
+      ignore_errors: true
+
+    # A chart which fails to build is left for the next run to pick up rather
+    # than held against the ones which did build, since failing the job here
+    # would stop every chart from being uploaded.
+    - name: Report charts which could not be built
+      debug:
+        msg: "Charts which could not be built, left for the next run: {{ failed_charts | join(', ') }}"
+      when: failed_charts | length > 0
+
+    - name: Fail when no chart could be built at all
+      fail:
+        msg: "None of the {{ charts_to_build | length }} charts could be built"
+      when:
+        - charts_to_build | length > 0
+        - failed_charts | length == charts_to_build | length
+
+    # publish-openstack-artifacts uploads this directory without creating it,
+    # so it has to exist even on the runs which had nothing to build.
+    - name: Ensure the artifact directory exists
       file:
         path: "{{ zuul.executor.work_root }}/artifacts/"
         state: directory
       delegate_to: localhost
 
-    - name: Ensure chart subdirectories exist in artifacts
-      file:
-        path: "{{ zuul.executor.work_root }}/artifacts/{{ item }}"
-        state: directory
-      delegate_to: localhost
-      loop: "{{ changed_charts_to_publish }}"
-      when: changed_charts_to_publish | length > 0
+    - name: Stage the built charts for publishing
+      when: charts_to_build | length > 0
+      block:
+        - name: Index the built charts
+          command: >-
+            helm repo index {{ package_dir }}
+            {{ ('--merge ' + published_index) if published_index_exists | bool else '' }}
+            --url https://tarballs.opendev.org/{{ zuul.project.name }}
 
-    - name: Gather packaged charts from changed chart directories
-      find:
-        file_type: file
-        paths: "{{ zuul.project.src_dir }}/{{ item }}"
-        patterns: "{{ item }}-[0-9]*.tgz"
-      register: chart_packages
-      loop: "{{ changed_charts_to_publish }}"
-      when: changed_charts_to_publish | length > 0
-
-    - name: Display chart tarballs to be published
-      debug:
-        msg: "src: {{ item.1.path }} dest: {{ zuul.executor.work_root }}/artifacts/{{ item.0.item }}/"
-      loop: "{{ chart_packages.results | subelements('files', skip_missing=True) }}"
-      when: changed_charts_to_publish | length > 0
-
-    - name: Copy packaged charts to artifacts preserving directory structure
-      synchronize:
-        mode: pull
-        src: "{{ item.1.path }}"
-        dest: "{{ zuul.executor.work_root }}/artifacts/{{ item.0.item }}/"
-        verify_host: true
-        owner: no
-        group: no
-      loop: "{{ chart_packages.results | subelements('files', skip_missing=True) }}"
-      when: changed_charts_to_publish | length > 0
-
-    - name: Copy index.yaml to artifacts
-      synchronize:
-        mode: pull
-        src: "{{ zuul.project.src_dir }}/index.yaml"
-        dest: "{{ zuul.executor.work_root }}/artifacts/"
-        verify_host: true
-        owner: no
-        group: no
+        - name: Copy the built charts and the index to artifacts
+          synchronize:
+            mode: pull
+            src: "{{ package_dir }}/"
+            dest: "{{ zuul.executor.work_root }}/artifacts/"
+            verify_host: true
+            owner: no
+            group: no
 ...

@@ -1,0 +1,22 @@
+---
+fixes:
+  - |
+    Chart publishing no longer skips merged changes. The publishing job runs in
+    the ``post`` pipeline, whose ``supercedent`` manager drops queued items when
+    changes land faster than the job runs, and it decided what to build by
+    diffing the surviving event's commit range, so charts carried by a dropped
+    event were never built. It now builds whatever the published index is
+    missing, so a dropped event only delays a chart until the next run.
+  - |
+    A failed fetch of the published index no longer truncates it. The job used
+    to treat a missing index as a new chart repo and publish one built from
+    only the charts of that run, so a transient failure would have dropped every
+    other chart from the index. It now fails instead, unless it is explicitly
+    told to bootstrap an empty chart repo.
+upgrade:
+  - |
+    Chart versions are derived from the chart's own git history instead of the
+    commit the publishing job happened to run at, and charts which depend on
+    ``helm-toolkit`` count its commits as well. Patch numbers jump once,
+    upwards; no chart version goes backwards.
+...
