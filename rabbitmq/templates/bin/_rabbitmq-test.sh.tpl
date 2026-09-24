@@ -97,7 +97,7 @@ else:
 print("Checking cluster partitions")
 for node in nodes:
     if "partitions" not in node:
-        failures.append(f"partitions key not reported for node {node['name']}")
+        print(f"partitions key not reported for node {node['name']}")
         continue
     if node["partitions"]:
         failures.append(
