@@ -61,10 +61,18 @@ conf:
     clientCertificateData: null
     clientKeyData: null
   paste:
-    pipeline:main:
-      pipeline: cors healthcheck request_id authtoken api_v1
+    composite:main:
+      paste.composite_factory: magnum.api:root_app_factory
+      /: api
+      /healthcheck: healthcheck
+    pipeline:api:
+      pipeline: cors http_proxy_to_wsgi request_id osprofiler authtoken api_v1
     app:api_v1:
       paste.app_factory: magnum.api.app:app_factory
+    app:healthcheck:
+      paste.app_factory: oslo_middleware:Healthcheck.app_factory
+      backends: disable_by_file
+      disable_by_file_path: /etc/magnum/healthcheck_disable
     filter:authtoken:
       acl_public_routes: /, /v1
       paste.filter_factory: magnum.api.middleware.auth_token:AuthTokenMiddleware.factory
@@ -73,10 +81,11 @@ conf:
     filter:cors:
       paste.filter_factory: oslo_middleware.cors:filter_factory
       oslo_config_project: magnum
-    filter:healthcheck:
-      paste.filter_factory: oslo_middleware:Healthcheck.factory
-      backends: disable_by_file
-      disable_by_file_path: /etc/magnum/healthcheck_disable
+    filter:http_proxy_to_wsgi:
+      paste.filter_factory: oslo_middleware.http_proxy_to_wsgi:HTTPProxyToWSGI.factory
+      oslo_config_project: magnum
+    filter:osprofiler:
+      paste.filter_factory: magnum.common.profiler:WsgiMiddleware.factory
   policy: {}
   magnum:
     DEFAULT:
@@ -192,12 +201,12 @@ conf:
       lazy-apps: true
       log-x-forwarded-for: true
       master: true
+      module: magnum.wsgi.api:application
       need-app: true
       procname-prefix-spaced: "magnum-api:"
       route-user-agent: '^kube-probe.* donotlog:'
       thunder-lock: true
       worker-reload-mercy: 80
-      wsgi-file: /var/lib/openstack/bin/magnum-api-wsgi
       stats: 0.0.0.0:1717
       stats-http: true
 
