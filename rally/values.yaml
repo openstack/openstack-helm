@@ -120,6 +120,12 @@ pod:
           cpu: "100m"
         limits:
           memory: "1024Mi"
+      cron_run_task:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
       image_repo_sync:
         requests:
           memory: "128Mi"
@@ -136,6 +142,25 @@ jobs:
   run_tasks:
     backoffLimit: 6
     restartPolicy: OnFailure
+  # -- Periodic rally run, rendered when manifests.cron_job_run_task
+  ## is enabled. Runs the same enabled_tasks as the run_task hook Job.
+  ## Task results are stored in the rally database on every run.
+  cron_run_task:
+    cron: "0 0 * * *"
+    starting_deadline: 600
+    backoffLimit: 1
+    restartPolicy: OnFailure
+    history:
+      success: 3
+      failed: 1
+    # Separate PVC for reports, so that the CronJob does not share the
+    # ReadWriteOnce volume with the run_task hook Job. Created together
+    # with the CronJob.
+    pvc:
+      name: pvc-rally-cron
+      requests:
+        storage: 2Gi
+      storage_class: general
 
 dependencies:
   dynamic:
@@ -176,6 +201,14 @@ dependencies:
         - endpoint: internal
           service: identity
     run_task:
+      jobs:
+        - rally-manage-db
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+    cron_run_task:
       jobs:
         - rally-manage-db
       services:
@@ -4000,6 +4033,7 @@ manifests:
   configmap_etc: true
   configmap_tasks: true
   configmap_test_templates: true
+  cron_job_run_task: false
   job_bootstrap: true
   job_db_init: true
   job_image_repo_sync: true
