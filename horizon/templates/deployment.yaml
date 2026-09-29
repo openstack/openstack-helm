@@ -12,6 +12,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "dashboardLivenessProbeTemplate" }}
+httpGet:
+  scheme: {{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  path: /
+  port: {{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "dashboardReadinessProbeTemplate" }}
+httpGet:
+  scheme: {{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
+  path: /
+  port: {{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if .Values.manifests.deployment }}
 {{- $envAll := . }}
 
@@ -89,22 +103,8 @@ spec:
           ports:
             - name: web
               containerPort: {{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            httpGet:
-              scheme: {{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-              path: /
-              port: {{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 15
-            periodSeconds: 10
-            timeoutSeconds: 5
-          livenessProbe:
-            httpGet:
-              scheme: {{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.keystone_endpoint_scheme_lookup" | upper }}
-              path: /
-              port: {{ tuple "dashboard" "internal" "web" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-            initialDelaySeconds: 180
-            periodSeconds: 60
-            timeoutSeconds: 5
+{{ dict "envAll" $envAll "component" "dashboard" "container" "horizon" "type" "readiness" "probeTemplate" (include "dashboardReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "dashboard" "container" "horizon" "type" "liveness" "probeTemplate" (include "dashboardLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
