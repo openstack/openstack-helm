@@ -65,17 +65,7 @@ spec:
             {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
           initContainers:
 {{ tuple $envAll "ovn_db_sync" $mounts_neutron_ovn_db_sync_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
-            - name: ovn-neutron-init
-{{ tuple $envAll "neutron_ovn_db_sync" | include "helm-toolkit.snippets.image" | indent 14 }}
-              command:
-                - /tmp/neutron-ovn-init.sh
-              volumeMounts:
-                - name: pod-shared
-                  mountPath: /tmp/pod-shared
-                - name: neutron-bin
-                  mountPath: /tmp/neutron-ovn-init.sh
-                  subPath: neutron-ovn-init.sh
-                  readOnly: true
+{{ dict "envAll" $envAll "application" "neutron_ovn_db_sync" "image" "neutron_ovn_db_sync" "resources" $envAll.Values.pod.resources.jobs.ovn_db_sync | include "neutron.snippets.ovn_neutron_init_container" | indent 12 }}
           containers:
             - name: neutron-ovn-db-sync
 {{ tuple $envAll "neutron_ovn_db_sync" | include "helm-toolkit.snippets.image" | indent 14 }}

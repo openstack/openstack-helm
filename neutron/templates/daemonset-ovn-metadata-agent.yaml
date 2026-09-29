@@ -107,6 +107,8 @@ spec:
               mountPath: /run/openvswitch
             - name: pod-tmp
               mountPath: /tmp
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
             - name: neutron-bin
               mountPath: /tmp/neutron-metadata-agent-init.sh
               subPath: neutron-metadata-agent-init.sh
@@ -120,19 +122,7 @@ spec:
               readOnly: true
             - name: socket
               mountPath: /var/lib/neutron/openstack-helm
-        - name: ovn-neutron-init
-{{ tuple $envAll "neutron_ovn_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.agent.ovn_metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "neutron_ovn_metadata_agent" "container" "neutron_ovn_metadata_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          command:
-            - /tmp/neutron-ovn-init.sh
-          volumeMounts:
-            - name: pod-tmp
-              mountPath: /tmp
-            - name: neutron-bin
-              mountPath: /tmp/neutron-ovn-init.sh
-              subPath: neutron-ovn-init.sh
-              readOnly: true
+{{ dict "envAll" $envAll "application" "neutron_ovn_metadata_agent" "image" "neutron_ovn_metadata" "resources" $envAll.Values.pod.resources.agent.ovn_metadata | include "neutron.snippets.ovn_neutron_init_container" | indent 8 }}
       containers:
         - name: neutron-ovn-metadata-agent
 {{ tuple $envAll "neutron_ovn_metadata" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -153,6 +143,8 @@ spec:
               mountPath: /run/openvswitch
             - name: pod-tmp
               mountPath: /tmp
+            - name: pod-shared
+              mountPath: /tmp/pod-shared
             - name: oslo-lock-path
               mountPath: {{ .Values.conf.neutron.oslo_concurrency.lock_path }}
             - name: pod-var-neutron
@@ -225,6 +217,8 @@ spec:
 {{ if $mounts_neutron_ovn_metadata_agent.volumeMounts }}{{ toYaml $mounts_neutron_ovn_metadata_agent.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
+          emptyDir: {}
+        - name: pod-shared
           emptyDir: {}
         - name: oslo-lock-path
           emptyDir: {}

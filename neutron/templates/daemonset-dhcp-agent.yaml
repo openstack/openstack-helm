@@ -97,19 +97,7 @@ spec:
       initContainers:
 {{ tuple $envAll "pod_dependency" $mounts_neutron_dhcp_agent_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         {{- if ( has "ovn" .Values.network.backend ) }}
-        - name: ovn-neutron-init
-{{ tuple $envAll "neutron_dhcp" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.agent.dhcp | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "neutron_dhcp_agent" "container" "neutron_dhcp_agent_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          command:
-            - /tmp/neutron-ovn-init.sh
-          volumeMounts:
-            - name: pod-shared
-              mountPath: /tmp/pod-shared
-            - name: neutron-bin
-              mountPath: /tmp/neutron-ovn-init.sh
-              subPath: neutron-ovn-init.sh
-              readOnly: true
+{{ dict "envAll" $envAll "application" "neutron_dhcp_agent" "image" "neutron_dhcp" "resources" $envAll.Values.pod.resources.agent.dhcp | include "neutron.snippets.ovn_neutron_init_container" | indent 8 }}
         {{- end }}
         - name: neutron-dhcp-agent-init
 {{ tuple $envAll "neutron_dhcp" | include "helm-toolkit.snippets.image" | indent 10 }}
