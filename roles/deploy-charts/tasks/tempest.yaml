@@ -80,42 +80,47 @@
       tempest run --config-file /etc/tempest/tempest.conf
       --regex tempest.scenario.test_server_basic_ops
 
-- name: Deploy tempest
-  include_tasks: _install.yaml
-  vars:
-    osh_chart: tempest
-    osh_values_overrides_tempest:
-      - /tmp/tempest.yaml
-    osh_helm_timeout: 900
-    # A failed run fails helm, and every retry would rerun the suite.
-    osh_helm_retries: 0
-    # The post-install hook Job runs inside helm install, so we wait for
-    # the helm command itself to complete (which includes the test run).
-    # No need for wait-for-pods separately.
-    osh_wait: false
+# A failed run fails helm, which would end the play before the logs of the
+# failed tests are printed.
+- name: Deploy tempest and run the tests
+  block:
+    - name: Deploy tempest
+      include_tasks: _install.yaml
+      vars:
+        osh_chart: tempest
+        osh_values_overrides_tempest:
+          - /tmp/tempest.yaml
+        osh_helm_timeout: 900
+        # A failed run fails helm, and every retry would rerun the suite.
+        osh_helm_retries: 0
+        # The post-install hook Job runs inside helm install, so we wait for
+        # the helm command itself to complete (which includes the test run).
+        # No need for wait-for-pods separately.
+        osh_wait: false
 
-- name: Wait for tempest test Job to complete
-  command: >-
-    kubectl wait --for=condition=complete
-    job/tempest-run-tests
-    --namespace={{ osh_namespace | default('openstack') }}
-    --timeout={{ osh_tempest_timeout | default(900) }}s
-  register: _tempest_wait
-  failed_when: false
-  changed_when: false
+    - name: Wait for tempest test Job to complete
+      command: >-
+        kubectl wait --for=condition=complete
+        job/tempest-run-tests
+        --namespace={{ osh_namespace | default('openstack') }}
+        --timeout={{ osh_tempest_timeout | default(900) }}s
+      register: _tempest_wait
+      failed_when: false
+      changed_when: false
+  always:
+    - name: Get tempest test Job logs
+      shell: >-
+        kubectl logs
+        job/tempest-run-tests
+        --namespace={{ osh_namespace | default('openstack') }}
+      register: _tempest_logs
+      changed_when: false
+      # No Job to read when helm failed before creating it.
+      failed_when: false
 
-- name: Get tempest test Job logs
-  shell: >-
-    kubectl logs
-    job/tempest-run-tests
-    --namespace={{ osh_namespace | default('openstack') }}
-    --tail=50
-  register: _tempest_logs
-  changed_when: false
-
-- name: Print tempest test results
-  debug:
-    var: _tempest_logs.stdout_lines
+    - name: Print tempest test results
+      debug:
+        var: _tempest_logs.stdout_lines
 
 - name: Fail if tempest tests did not pass
   fail:
