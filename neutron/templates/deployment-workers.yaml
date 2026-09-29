@@ -73,17 +73,7 @@ spec:
       initContainers:
 {{ tuple $envAll "pod_dependency" $mountsInit | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
 {{- if has "ovn" $envAll.Values.network.backend }}
-        - name: ovn-neutron-init
-{{ tuple $envAll $application | include "helm-toolkit.snippets.image" | indent 10 }}
-          command:
-            - /tmp/neutron-ovn-init.sh
-          volumeMounts:
-            - name: pod-shared
-              mountPath: /tmp/pod-shared
-            - name: neutron-bin
-              mountPath: /tmp/neutron-ovn-init.sh
-              subPath: neutron-ovn-init.sh
-              readOnly: true
+{{ dict "envAll" $envAll "application" $application "image" $application "resources" $resources | include "neutron.snippets.ovn_neutron_init_container" | indent 8 }}
 {{- end }}
       containers:
         - name: {{ $container }}

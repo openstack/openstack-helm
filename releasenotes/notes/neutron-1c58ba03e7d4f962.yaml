@@ -1,0 +1,26 @@
+---
+neutron:
+  - |
+    The ``ovn-neutron-init`` init container is now rendered from a single
+    chart-local snippet, ``neutron.snippets.ovn_neutron_init_container`` in
+    ``neutron/templates/_helpers.tpl``, instead of being copied into each of
+    the nine templates that need it. The copies had drifted: five were missing
+    resources and a security context entirely.
+
+    All nine now read their container security context from a single
+    ``ovn_neutron_init`` key under the application in
+    ``pod.security_context``. Operators who set
+    ``pod.security_context.<application>.container.<application>_init`` expecting
+    it to cover this container must move those settings to
+    ``ovn_neutron_init``; ``values_overrides/neutron/apparmor.yaml`` has been
+    updated accordingly and now also covers the pods it previously missed.
+
+    As a result the container no longer runs as ``runAsUser: 0`` in the OVN,
+    OVN metadata and OVN VPN agent daemonsets. ``neutron-ovn-init.sh`` only
+    writes ``ovn.ini`` into a mounted volume, so it does not need root, and the
+    six other pods that render it already ran it unprivileged.
+
+    Those three daemonsets also declare an explicit ``pod-shared`` emptyDir
+    rather than relying on ``/tmp/pod-shared`` being a subdirectory of the
+    shared ``pod-tmp`` volume, matching every other pod in the chart.
+...
