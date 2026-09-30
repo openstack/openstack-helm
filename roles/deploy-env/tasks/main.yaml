@@ -86,6 +86,32 @@
     _control_plane: "{{ (groups['k8s_control_plane'] | default([]))[0] | default('') }}"
   when: inventory_hostname in (groups['k8s_nodes'] | default([]))
 
+# Computed once and reused by the reachability check and the join task below,
+# so both act on the exact same join command rather than each re-extracting it
+# from hostvars.
+- name: Determine control-plane join command and API endpoint
+  set_fact:
+    _join_command: "{{ _join_command_raw }}"
+    # `kubeadm token create --print-join-command` prints
+    # `kubeadm join <endpoint> --token ...`, so the endpoint is the third word.
+    _api_endpoint: "{{ _join_command_raw.split()[2] }}"
+  vars:
+    _join_command_raw: "{{ (groups['k8s_control_plane'] | map('extract', hostvars, ['join_command', 'stdout_lines', 0]))[0] }}"
+  when: inventory_hostname in (groups['k8s_nodes'] | default([]))
+
+# kubeadm's discovery client cannot tell "no route to the API server" apart
+# from the signature race the retry loop below targets -- both just look like
+# discovery hanging until its five minute timeout. Check plain TCP
+# reachability first, with its own much shorter timeout, so a node with a
+# sustained network outage fails here with an unambiguous message instead of
+# silently spending the whole join-retry budget first.
+- name: Wait for the control-plane API endpoint to be reachable
+  wait_for:
+    host: "{{ _api_endpoint.split(':')[0] }}"
+    port: "{{ _api_endpoint.split(':')[1] }}"
+    timeout: "{{ kubeadm_api_reachable_timeout | int }}"
+  when: inventory_hostname in (groups['k8s_nodes'] | default([]))
+
 # kubeadm does retry discovery internally, but only by re-reading cluster-info
 # over the connection it already has, so it cannot recover from a node whose
 # view of the cluster is wrong.
@@ -122,11 +148,6 @@
     exit "${rc}"
   args:
     executable: /bin/bash
-  vars:
-    _join_command: "{{ (groups['k8s_control_plane'] | map('extract', hostvars, ['join_command', 'stdout_lines', 0]))[0] }}"
-    # `kubeadm token create --print-join-command` prints
-    # `kubeadm join <endpoint> --token ...`, so the endpoint is the third word.
-    _api_endpoint: "{{ _join_command.split()[2] }}"
   register: _kubeadm_join
   until: _kubeadm_join.rc == 0
   retries: "{{ kubeadm_join_retries | int }}"
