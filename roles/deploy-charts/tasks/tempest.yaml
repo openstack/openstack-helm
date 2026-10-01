@@ -17,12 +17,31 @@
 # deployed by the compute-kit playbook and runs a basic VM scenario,
 # then waits for the test Job to finish.
 #
+# Tempest takes IDs, not names, for the image, flavor and public network.
+# They are looked up from what the glance and nova bootstrap jobs and
+# nova_test create, so run this after nova_test.
+#
 # Optional variables:
 #   osh_tempest_services  - dict of service_available overrides
 #                           (default: nova, neutron, glance, heat enabled)
 #   osh_tempest_script    - custom tempest run command
 #   osh_tempest_timeout   - timeout for the test Job in seconds (default: 900)
 ---
+- name: Look up the IDs tempest needs
+  shell: "openstack {{ item.value }} -f value -c id"
+  environment:
+    OS_CLOUD: openstack_helm
+  loop: "{{ _lookups | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: _osh_tempest_ids
+  changed_when: false
+  vars:
+    _lookups:
+      image: "image show 'Cirros 0.6.2 64-bit'"
+      flavor: "flavor show m1.tiny"
+      public_network: "network show public"
+
 - name: Create tempest values file
   copy:
     dest: /tmp/tempest.yaml
@@ -39,17 +58,19 @@
             cinder: {{ (osh_tempest_services | default({})).get('cinder', false) | lower }}
             swift: {{ (osh_tempest_services | default({})).get('swift', false) | lower }}
           compute:
-            flavor_ref: 1
-            image_ref: auto
-            image_ref_alt: auto
+            flavor_ref: {{ _ids.flavor }}
+            image_ref: {{ _ids.image }}
+            image_ref_alt: {{ _ids.image }}
           validation:
             connect_method: floating
             run_validation: true
           network:
             floating_network_name: public
+            public_network_id: {{ _ids.public_network }}
       pvc:
         enabled: false
   vars:
+    _ids: "{{ dict(_osh_tempest_ids.results | map(attribute='item.key') | zip(_osh_tempest_ids.results | map(attribute='stdout'))) }}"
     _osh_tempest_default_script: >-
       tempest run --config-file /etc/tempest/tempest.conf
       --regex tempest.scenario.test_server_basic_ops
