@@ -11,26 +11,29 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */}}
-{{- if .Values.manifests.service_conductor }}
+
+{{/*
+The governing service shares manifests.statefulset_conductor rather than
+carrying its own key: a StatefulSet whose serviceName names a service that
+does not exist has no per-ordinal DNS, so the two are never useful apart.
+*/}}
+{{- if .Values.manifests.statefulset_conductor }}
 {{- $envAll := . }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ tuple "nfv_orchestration" "conductor" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+  # Not tacker-conductor: the chart used to render a ClusterIP service of that
+  # name, and a service's clusterIP cannot be changed to None in place, so
+  # reusing the name would fail the upgrade of every existing release.
+  name: tacker-conductor-headless
 spec:
-  ports:
-    - name: conductor
-      port: {{ tuple "nfv_orchestration" "internal" "conductor" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-    {{ if .Values.network.conductor.node_port.enabled }}
-      nodePort: {{ .Values.network.conductor.node_port.port }}
-    {{ end }}
+  # Named by the conductor StatefulSet's serviceName. It publishes the
+  # per-ordinal DNS names
+  # (tacker-conductor-0.tacker-conductor-headless...). The conductor consumes
+  # from RabbitMQ and serves nothing directly, so the service is headless and
+  # declares no ports, which Kubernetes allows only for a headless service.
+  clusterIP: None
   selector:
 {{ tuple $envAll "tacker" "conductor" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
-  {{ if .Values.network.conductor.node_port.enabled }}
-  type: NodePort
-  {{ if .Values.network.conductor.external_policy_local }}
-  externalTrafficPolicy: Local
-  {{ end }}
-  {{ end }}
 {{- end }}
