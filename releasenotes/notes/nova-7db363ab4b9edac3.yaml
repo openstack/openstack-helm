@@ -1,0 +1,25 @@
+---
+nova:
+  - |
+    The ``nova-compute`` daemonset's AppArmor annotation now covers every
+    container the pod can run: ``ceph-perms``, ``ceph-admin-keyring-placement``,
+    ``ceph-keyring-placement``, ``nova-compute-spice-init``,
+    ``nova-compute-serial-init``, ``nova-compute-ssh-init`` and
+    ``nova-compute-ssh`` were missing, so
+    ``pod.mandatory_access_control.nova-compute-default`` profiles set for
+    them were silently ignored.
+  - |
+    The ``nova-compute-ironic`` StatefulSet now renders
+    ``annotations.pod.nova_compute_ironic`` (or ``annotations.pod.default``),
+    which it dropped. Its AppArmor annotation now reads
+    ``pod.mandatory_access_control.nova-compute-ironic`` and covers its
+    ``nova-compute-ironic`` and ``init`` containers. It previously read
+    ``nova-compute-default`` and annotated a ``nova-compute`` container that
+    does not exist in that pod, so no profile ever applied. Move any profiles
+    for the ironic compute pod to the new key.
+  - |
+    The ``nova-spiceproxy`` deployment now renders the AppArmor annotation
+    from ``pod.mandatory_access_control.nova-spiceproxy``, which it lacked
+    entirely. The ``nova-serialproxy`` annotation no longer lists a
+    ``nova-serialproxy-init-assets`` container that the pod does not have.
+...
