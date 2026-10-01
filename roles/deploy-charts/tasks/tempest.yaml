@@ -67,6 +67,11 @@
           network:
             floating_network_name: public
             public_network_id: {{ _ids.public_network }}
+      # One attempt: a failed run is a result, not a flake.
+      jobs:
+        run_tests:
+          backoffLimit: 0
+          restartPolicy: Never
       pvc:
         enabled: false
   vars:
@@ -82,6 +87,8 @@
     osh_values_overrides_tempest:
       - /tmp/tempest.yaml
     osh_helm_timeout: 900
+    # A failed run fails helm, and every retry would rerun the suite.
+    osh_helm_retries: 0
     # The post-install hook Job runs inside helm install, so we wait for
     # the helm command itself to complete (which includes the test run).
     # No need for wait-for-pods separately.
