@@ -9,64 +9,76 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-{{- if .Values.manifests.deployment_producer }}
+
+{{/*
+manifests.deployment_central defaulted to true, so an override that set it
+to false to disable the central would otherwise be silently ignored after the
+rename and the central would start.
+*/}}
+{{- if hasKey .Values.manifests "deployment_central" }}
+{{- fail "manifests.deployment_central has been renamed to manifests.statefulset_central" }}
+{{- end }}
+
+{{- if .Values.manifests.statefulset_central }}
 
 {{- $envAll := . }}
-{{- $mounts_designate_producer := .Values.pod.mounts.designate_producer.designate_producer }}
-{{- $mounts_designate_producer_init := .Values.pod.mounts.designate_producer.init_container }}
-{{- $etcSources := .Values.pod.etcSources.designate_producer }}
+{{- $mounts_designate_central := .Values.pod.mounts.designate_central.designate_central }}
+{{- $mounts_designate_central_init := .Values.pod.mounts.designate_central.init_container }}
+{{- $etcSources := .Values.pod.etcSources.designate_central }}
 
-{{- $serviceAccountName := "designate-producer" }}
-{{ tuple $envAll "producer" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+{{- $serviceAccountName := "designate-central" }}
+{{ tuple $envAll "central" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: designate-producer
+  name: designate-central
   annotations:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
   labels:
-{{ tuple $envAll "designate" "producer" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{ tuple $envAll "designate" "central" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
-  replicas: {{ .Values.pod.replicas.producer }}
+  serviceName: designate-central
+  replicas: {{ .Values.pod.replicas.central }}
   selector:
     matchLabels:
-{{ tuple $envAll "designate" "producer" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+{{ tuple $envAll "designate" "central" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+  podManagementPolicy: Parallel
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
   template:
     metadata:
       labels:
-{{ tuple $envAll "designate" "producer" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+{{ tuple $envAll "designate" "central" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
-{{ tuple "designate_producer" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
+{{ tuple "designate_central" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
     spec:
-{{ tuple "designate_producer" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
-{{ tuple "designate_producer" . | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 6 }}
+{{ tuple "designate_central" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
+{{ tuple "designate_central" . | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
 {{ dict "envAll" $envAll "application" "designate" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       affinity:
-{{ tuple $envAll "designate" "producer" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+{{ tuple $envAll "designate" "central" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.producer.node_selector_key }}: {{ .Values.labels.producer.node_selector_value }}
+        {{ .Values.labels.central.node_selector_key }}: {{ .Values.labels.central.node_selector_value }}
       initContainers:
-{{ tuple $envAll "producer" $mounts_designate_producer_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "central" $mounts_designate_central_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
-        - name: designate-producer
-{{ tuple $envAll "designate_producer" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.producer | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "designate" "container" "designate_producer" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
+        - name: designate-central
+{{ tuple $envAll "designate_central" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.central | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "designate" "container" "designate_central" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - bash
-            - /tmp/designate-producer.sh
+            - /tmp/designate-central.sh
           volumeMounts:
             - name: oslo-lock-path
               mountPath: {{ .Values.conf.designate.oslo_concurrency.lock_path }}
             - name: designate-bin
-              mountPath: /tmp/designate-producer.sh
-              subPath: designate-producer.sh
+              mountPath: /tmp/designate-central.sh
+              subPath: designate-central.sh
               readOnly: true
             - name: pod-etc-designate
               mountPath: /etc/designate
@@ -93,7 +105,7 @@ spec:
               subPath: {{ base .Values.conf.designate.DEFAULT.log_config_append }}
               readOnly: true
             {{- end }}
-{{ if $mounts_designate_producer.volumeMounts }}{{ toYaml $mounts_designate_producer.volumeMounts | indent 12 }}{{ end }}
+{{ if $mounts_designate_central.volumeMounts }}{{ toYaml $mounts_designate_central.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: oslo-lock-path
           emptyDir: {}
@@ -117,5 +129,5 @@ spec:
 {{- else }}
           emptyDir: {}
 {{ end }}
-{{ if $mounts_designate_producer.volumes }}{{ toYaml $mounts_designate_producer.volumes | indent 8 }}{{ end }}
+{{ if $mounts_designate_central.volumes }}{{ toYaml $mounts_designate_central.volumes | indent 8 }}{{ end }}
 {{- end }}

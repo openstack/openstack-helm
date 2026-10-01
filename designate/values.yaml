@@ -168,6 +168,8 @@ pod:
     worker: 1
   lifecycle:
     upgrades:
+      statefulsets:
+        pod_replacement_strategy: RollingUpdate
       deployments:
         revision_history: 3
         pod_replacement_strategy: RollingUpdate
@@ -865,9 +867,18 @@ manifests:
   configmap_etc: true
   cron_job_service_cleaner: true
   deployment_api: true
-  deployment_central: true
-  deployment_worker: true
-  deployment_producer: true
+  # NOTE: central, worker and producer run as StatefulSets because each is
+  # an oslo.messaging RPC server whose per-server `<topic>.<host>` queue is
+  # named after `host`, which defaults to the hostname. Under a Deployment
+  # that is the pod name, so it changed on every rollout, and quorum queues
+  # cannot be declared `auto_delete`, which left the previous queues behind
+  # each time. The StatefulSets give each pod a stable hostname
+  # (designate-central-0, designate-central-1, ...) that is reused across
+  # restarts. Each also renders the headless service those DNS names are
+  # published through.
+  statefulset_central: true
+  statefulset_worker: true
+  statefulset_producer: true
   deployment_mdns: true
   deployment_sink: false
   job_bootstrap: true
