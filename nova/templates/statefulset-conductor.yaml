@@ -39,6 +39,15 @@ exec:
     - conductor
 {{- end }}
 
+{{/*
+manifests.deployment_conductor defaulted to true, so an override that set it
+to false to disable the conductor would otherwise be silently ignored now that
+the Deployment is gone, and the conductor would start.
+*/}}
+{{- if hasKey .Values.manifests "deployment_conductor" }}
+{{- fail "manifests.deployment_conductor has been removed, use manifests.statefulset_conductor" }}
+{{- end }}
+
 {{- if .Values.manifests.statefulset_conductor }}
 {{- $envAll := . }}
 
@@ -90,6 +99,7 @@ spec:
 {{ if $envAll.Values.pod.tolerations.nova.enabled }}
 {{ tuple $envAll "nova" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
 {{ end }}
+      terminationGracePeriodSeconds: {{ $envAll.Values.pod.lifecycle.termination_grace_period.conductor.timeout }}
       initContainers:
 {{ tuple $envAll "conductor" $mounts_nova_conductor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:

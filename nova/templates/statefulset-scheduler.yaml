@@ -39,6 +39,15 @@ exec:
     - scheduler
 {{- end }}
 
+{{/*
+manifests.deployment_scheduler defaulted to true, so an override that set it
+to false to disable the scheduler would otherwise be silently ignored now that
+the Deployment is gone, and the scheduler would start.
+*/}}
+{{- if hasKey .Values.manifests "deployment_scheduler" }}
+{{- fail "manifests.deployment_scheduler has been removed, use manifests.statefulset_scheduler" }}
+{{- end }}
+
 {{- if .Values.manifests.statefulset_scheduler }}
 {{- $envAll := . }}
 
@@ -90,6 +99,7 @@ spec:
 {{ if $envAll.Values.pod.tolerations.nova.enabled }}
 {{ tuple $envAll "nova" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
 {{ end }}
+      terminationGracePeriodSeconds: {{ $envAll.Values.pod.lifecycle.termination_grace_period.scheduler.timeout }}
       initContainers:
 {{ tuple $envAll "scheduler" $mounts_nova_scheduler_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
