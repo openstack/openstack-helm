@@ -234,7 +234,7 @@ Kubernetes resources should be deployed:
       daemonset_ovs_agent: true
       daemonset_sriov_agent: true
       deployment_server: true
-      deployment_rpc_server: true
+      statefulset_rpc_server: true
       ingress_server: true
       job_bootstrap: true
       job_db_init: true

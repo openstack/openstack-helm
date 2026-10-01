@@ -1,0 +1,32 @@
+---
+neutron:
+  - |
+    The neutron rpc server now runs as a StatefulSet instead of a Deployment.
+    oslo.messaging names the rpc server's per-server ``<topic>.<host>`` queues
+    after its ``host``, which defaults to the hostname and under a Deployment
+    is the pod name, so it changed on every rollout. Quorum queues cannot be
+    declared ``auto_delete``, so each rollout left the previous queues behind.
+    The StatefulSet gives each pod a stable hostname that is reused across
+    restarts.
+  - |
+    A headless service named ``neutron-rpc-server`` is rendered alongside the
+    StatefulSet, under the same ``manifests.statefulset_rpc_server`` value, as
+    its governing service.
+  - |
+    The neutron ``manifests.deployment_rpc_server`` value has been renamed to
+    ``manifests.statefulset_rpc_server``. Because the old value defaulted to
+    ``true``, an override that set it to ``false`` (as the OVN overrides do)
+    would otherwise be silently ignored and the rpc server would start, so the
+    chart now fails to render if ``manifests.deployment_rpc_server`` is set at
+    all. Rename it in your overrides. The pods are recreated with ordinal
+    names (neutron-rpc-server-0, ...), so the previous Deployment and its
+    ReplicaSets are removed on upgrade. Helm deletes the Deployment and
+    creates the StatefulSet in the same upgrade, so expect a brief window with
+    no rpc server running. Queues left behind by the old Deployment's pod
+    names are not removed and can be deleted by hand.
+  - |
+    The neutron rpc server's update strategy now comes from
+    ``pod.lifecycle.upgrades.statefulsets`` rather than
+    ``pod.lifecycle.upgrades.deployments``. Overrides of the latter, such as
+    ``rolling_update.max_surge``, no longer apply to the rpc server.
+...

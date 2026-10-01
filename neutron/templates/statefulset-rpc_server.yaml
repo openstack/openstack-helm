@@ -12,7 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_rpc_server }}
+{{/*
+manifests.deployment_rpc_server defaulted to true, so an override that set it
+to false to disable the rpc server would otherwise be silently ignored after
+the rename and the rpc server would start.
+*/}}
+{{- if hasKey .Values.manifests "deployment_rpc_server" }}
+{{- fail "manifests.deployment_rpc_server has been renamed to manifests.statefulset_rpc_server" }}
+{{- end }}
+
+{{- if .Values.manifests.statefulset_rpc_server }}
 {{- $envAll := . }}
 
 {{- $dependencyOpts := dict "envAll" $envAll "dependencyMixinParam" $envAll.Values.network.backend "dependencyKey" "rpc_server" -}}
@@ -29,7 +38,7 @@ limitations under the License.
 {{ tuple $envAll "pod_dependency" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: neutron-rpc-server
   annotations:
@@ -37,11 +46,13 @@ metadata:
   labels:
 {{ tuple $envAll "neutron" "rpc_server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
+  serviceName: neutron-rpc-server
   replicas: {{ .Values.pod.replicas.rpc_server }}
   selector:
     matchLabels:
 {{ tuple $envAll "neutron" "rpc_server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  podManagementPolicy: Parallel
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
   template:
     metadata:
       labels:
