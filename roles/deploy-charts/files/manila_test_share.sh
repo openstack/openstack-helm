@@ -109,6 +109,7 @@ fi
 : ${OSH_MANILA_STACK:="manila-nfs-vms"}
 : ${OSH_MANILA_PRIVATE_SUBNET:="192.168.130.0/24"}
 : ${OSH_MANILA_STACK_TIMEOUT:=1800}
+: ${OSH_MANILA_SERVER_GROUP_POLICY:="anti-affinity"}
 if ! openstack stack show "${OSH_MANILA_STACK}" >/dev/null 2>&1; then
   openstack stack create \
     --parameter public_net=${OSH_EXT_NET_NAME} \
@@ -116,6 +117,7 @@ if ! openstack stack show "${OSH_MANILA_STACK}" >/dev/null 2>&1; then
     --parameter ssh_key=${OSH_VM_KEY_STACK} \
     --parameter cidr=${OSH_MANILA_PRIVATE_SUBNET} \
     --parameter dns_nameserver=${OSH_BR_EX_ADDR%/*} \
+    --parameter server_group_policy=${OSH_MANILA_SERVER_GROUP_POLICY} \
     -t ${HEAT_DIR}/heat-manila-nfs-vms.yaml \
     ${OSH_MANILA_STACK}
 fi

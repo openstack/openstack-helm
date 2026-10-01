@@ -15,46 +15,49 @@
 # deploy-ceph has provisioned the CephNFS pod, but before manila uses
 # the proxy IP as cephfs_ganesha_server_ip in its config.
 ---
-- name: Discover NFS-Ganesha pod host IP
-  command: >-
-    kubectl -n {{ ceph_cluster_namespace | default('ceph') }}
-    get pods -l app=rook-ceph-nfs
-    -o jsonpath={.items[0].status.hostIP}
-  register: _ganesha_host_ip
-  changed_when: false
+- name: Configure the NFS-Ganesha tcp proxy
+  when: tcpproxy_nfs_ganesha_setup | bool
+  block:
+    - name: Discover NFS-Ganesha pod host IP
+      command: >-
+        kubectl -n {{ ceph_cluster_namespace | default('ceph') }}
+        get pods -l app=rook-ceph-nfs
+        -o jsonpath={.items[0].status.hostIP}
+      register: _ganesha_host_ip
+      changed_when: false
 
-- name: Fail if no Ganesha pod found
-  fail:
-    msg: "No rook-ceph-nfs pod found in namespace {{ ceph_cluster_namespace | default('ceph') }}. Is deploy-ceph applied with ceph_enable_cephfs: true?"
-  when: _ganesha_host_ip.stdout | trim == ""
+    - name: Fail if no Ganesha pod found
+      fail:
+        msg: "No rook-ceph-nfs pod found in namespace {{ ceph_cluster_namespace | default('ceph') }}. Is deploy-ceph applied with ceph_enable_cephfs: true?"
+      when: _ganesha_host_ip.stdout | trim == ""
 
-- name: Render nginx tcp proxy config with Ganesha backend
-  template:
-    src: files/nginx_tcp_proxy.conf
-    dest: /tmp/nginx_tcp_proxy.conf
-    owner: root
-    group: root
-    mode: "0644"
-  vars:
-    ganesha_backend_ip: "{{ _ganesha_host_ip.stdout | trim }}"
-  become: true
+    - name: Render nginx tcp proxy config with Ganesha backend
+      template:
+        src: files/nginx_tcp_proxy.conf
+        dest: /tmp/nginx_tcp_proxy.conf
+        owner: root
+        group: root
+        mode: "0644"
+      vars:
+        ganesha_backend_ip: "{{ _ganesha_host_ip.stdout | trim }}"
+      become: true
 
-- name: Restart nginx tcp proxy container so new config is picked up
-  docker_container:
-    name: nginx_tcp_proxy
-    image: "{{ nginx_image }}"
-    network_mode: host
-    capabilities:
-      - NET_ADMIN
-      - NET_RAW
-    mounts:
-      - source: /tmp/nginx_tcp_proxy.conf
-        target: /etc/nginx/nginx.conf
-        type: bind
-    entrypoint: nginx
-    command: |
-      -g 'daemon off;'
-    state: started
-    recreate: yes
-  become: true
+    - name: Restart nginx tcp proxy container so new config is picked up
+      docker_container:
+        name: nginx_tcp_proxy
+        image: "{{ nginx_image }}"
+        network_mode: host
+        capabilities:
+          - NET_ADMIN
+          - NET_RAW
+        mounts:
+          - source: /tmp/nginx_tcp_proxy.conf
+            target: /etc/nginx/nginx.conf
+            type: bind
+        entrypoint: nginx
+        command: |
+          -g 'daemon off;'
+        state: started
+        recreate: yes
+      become: true
 ...
