@@ -12,7 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_engine }}
+{{/*
+manifests.deployment_engine defaulted to true, so an override that set it to
+false to disable the engine would otherwise be silently ignored after the
+rename and the engine would start.
+*/}}
+{{- if hasKey .Values.manifests "deployment_engine" }}
+{{- fail "manifests.deployment_engine has been renamed to manifests.statefulset_engine" }}
+{{- end }}
+
+{{- if .Values.manifests.statefulset_engine }}
 {{- $envAll := . }}
 
 {{- $mounts_masakari_engine := .Values.pod.mounts.masakari_engine.masakari_engine }}
@@ -22,7 +31,7 @@ limitations under the License.
 {{- tuple $envAll "masakari_engine" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: masakari-engine
   annotations:
@@ -30,11 +39,13 @@ metadata:
   labels:
 {{ tuple $envAll "masakari" "engine" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
+  serviceName: masakari-engine
   replicas: {{ .Values.pod.replicas.masakari_engine }}
   selector:
     matchLabels:
 {{ tuple $envAll "masakari" "engine" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  podManagementPolicy: Parallel
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
   template:
     metadata:
       labels:
