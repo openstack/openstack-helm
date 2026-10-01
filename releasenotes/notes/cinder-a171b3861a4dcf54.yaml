@@ -1,0 +1,18 @@
+---
+cinder:
+  - |
+    The ``cinder-storage-init`` job now takes its pod security context from
+    ``pod.security_context.storage_init``, the same key the
+    ``cinder-backup-storage-init`` job uses. It read
+    ``pod.security_context.cinder``, which does not exist, so the pod rendered
+    no ``runAsUser`` and its storage init containers ran as the image's
+    default user (root). They now run as ``42424`` like the backup storage
+    init job, which runs the same kind of script in the same image.
+
+    The job's ``ceph-keyring-placement`` init container now renders
+    ``pod.security_context.storage_init.container.ceph_keyring_placement``
+    instead of a hard-coded ``runAsUser: 0``, which adds
+    ``readOnlyRootFilesystem: true``. The script writes only to the
+    ``/etc/ceph`` and ``/tmp`` emptyDir volumes, as in the backup storage init
+    job, which already used this key.
+...
