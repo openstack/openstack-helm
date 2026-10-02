@@ -10,7 +10,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# Barbican has had no built-in simple_crypto KEK since 2025.2 and the chart
+# sets none, so without one every secret store fails with a 500.
+- name: Generate a key encryption key for barbican
+  shell: |
+    set -e
+    KEK=$(head -c 32 /dev/urandom | base64 | tr '+/' '-_')
+    cat > /tmp/barbican-kek.yaml <<EOV
+    conf:
+      barbican:
+        simple_crypto_plugin:
+          kek: "${KEK}"
+    EOV
+  args:
+    executable: /bin/bash
+    creates: /tmp/barbican-kek.yaml
+
 - name: Deploy barbican
   include_tasks: _install.yaml
+  vars:
+    osh_chart: barbican
+    osh_values_overrides_barbican:
+      - /tmp/barbican-kek.yaml
+
+- name: Run barbican Helm tests
+  include_tasks: _test.yaml
   vars:
     osh_chart: barbican
