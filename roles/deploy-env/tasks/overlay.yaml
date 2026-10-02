@@ -41,4 +41,27 @@
       dst {{ hostvars[item]['ansible_host'] }}
   loop: "{{ groups['all'] | sort }}"
   when: item != inventory_hostname
+
+# Peers are known by every address they may send from: the one the FDB
+# points at (ansible_host), the one their own vxlan device uses as its local
+# address (ansible_default_ipv4), and nodepool's private and public addresses
+# for clouds that NAT one onto the other. Only IPv4, like the overlay itself.
+- name: Accept vxlan packets only from this job's nodes
+  shell: |
+    set -e
+    iptables -N OSH-OVERLAY 2>/dev/null || iptables -F OSH-OVERLAY
+    {% for ip in _overlay_peer_ips %}
+    iptables -A OSH-OVERLAY -s {{ ip }} -j ACCEPT
+    {% endfor %}
+    iptables -A OSH-OVERLAY -j DROP
+    iptables -C INPUT -p udp --dport {{ overlay_network_vxlan_port }} -j OSH-OVERLAY 2>/dev/null \
+      || iptables -I INPUT 1 -p udp --dport {{ overlay_network_vxlan_port }} -j OSH-OVERLAY
+  vars:
+    _overlay_peer_ips: >-
+      {{ (groups['all'] | map('extract', hostvars) | map(attribute='ansible_host', default='') | list
+          + groups['all'] | map('extract', hostvars) | map(attribute='ansible_default_ipv4', default={}) | map(attribute='address', default='') | list
+          + groups['all'] | map('extract', hostvars) | map(attribute='nodepool', default={}) | map(attribute='private_ipv4', default='') | list
+          + groups['all'] | map('extract', hostvars) | map(attribute='nodepool', default={}) | map(attribute='public_ipv4', default='') | list)
+         | select('match', '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$') | unique | sort }}
+  when: overlay_network_restrict_peers
 ...
