@@ -1,0 +1,283 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- /*
+MariaDB custom resources declaring the databases this chart owns. They are
+reconciled by the mariadb chart's db controller, which creates the databases,
+the accounts and their grants, and writes the connection strings into the
+secrets named below.
+
+Enable this instead of the db-init jobs, and null out conf.grafana.database.url
+so the environment variable is the only source. See
+values_overrides/grafana/mariadb-crd.yaml.
+*/}}
+{{- if .Values.manifests.mariadb_db }}
+{{- $envAll := . }}
+{{- if .Values.manifests.job_db_init }}
+{{- fail "manifests.mariadb_db and manifests.job_db_init are mutually exclusive, set manifests.job_db_init to false" }}
+{{- end }}
+{{- if .Values.manifests.job_db_init_session }}
+{{- fail "manifests.mariadb_db and manifests.job_db_init_session are mutually exclusive, set manifests.job_db_init_session to false" }}
+{{- end }}
+{{- /*
+The API group is chosen in values, so the same resources can be reconciled
+either by the mariadb chart's own db controller or by the upstream
+mariadb-operator. Two things differ between the two targets:
+Connection.retryInterval does not exist upstream and is omitted, and the
+password placeholder is .PasswordEncoded here but .Password upstream, which
+renders no percent-encoded variant. A password containing a character that is
+reserved in a URI therefore needs the osh group.
+*/}}
+{{- $apiGroup := .Values.mariadb_db.api_group }}
+{{- $osh := eq $apiGroup "mariadb.osh.openstack.org" }}
+{{- if not (or $osh (eq $apiGroup "k8s.mariadb.com")) }}
+{{- fail (printf "mariadb_db.api_group must be mariadb.osh.openstack.org or k8s.mariadb.com, not %s" $apiGroup) }}
+{{- end }}
+{{- $apiVersion := printf "%s/v1alpha1" $apiGroup }}
+{{- $mariadbHost := index .Values.endpoints.oslo_db.hosts "default" }}
+
+{{- /*
+grafana owns two databases, grafana and grafana_session, each behind its own
+account, so there are two password secrets and two Users. grafana is not an
+oslo.config service and has no config snippet directory, so no Connection here
+emits an oslo.config snippet: the grafana database URL is consumed as the
+GF_DATABASE_URL environment variable, which grafana gives precedence over
+[database] url in grafana.ini, and the grafana_session URI as db-session-sync's
+DB_CONNECTION environment variable.
+*/}}
+{{- $grafanaAuth := .Values.endpoints.oslo_db.auth.user }}
+
+{{- /* One account for the grafana database. */}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-db-password
+  labels:
+{{ tuple $envAll "grafana" "db-password" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+type: Opaque
+data:
+  password: {{ $grafanaAuth.password | b64enc }}
+---
+apiVersion: {{ $apiVersion }}
+kind: User
+metadata:
+  name: grafana
+  labels:
+{{ tuple $envAll "grafana" "db-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+    waitForIt: true
+  name: {{ $grafanaAuth.username | quote }}
+  host: "%"
+  passwordSecretKeyRef:
+    name: grafana-db-password
+    key: password
+  {{- /* 0 means unlimited. Anything else throttles the service. */}}
+  maxUserConnections: 0
+{{- if .Values.tls.oslo_db }}
+  require:
+    x509: true
+{{- end }}
+  retryInterval: 10s
+
+{{- /* The grafana database. */}}
+{{- $grafanaName := .Values.endpoints.oslo_db.path | trimPrefix "/" }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Database
+metadata:
+  name: grafana
+  labels:
+{{ tuple $envAll "grafana" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+    waitForIt: true
+  {{- /* spec.name carries the schema name: it may contain an underscore, which
+  metadata.name may not. */}}
+  name: {{ $grafanaName | quote }}
+  characterSet: utf8
+  collate: utf8_general_ci
+  retryInterval: 10s
+---
+apiVersion: {{ $apiVersion }}
+kind: Grant
+metadata:
+  name: grafana
+  labels:
+{{ tuple $envAll "grafana" "db-grant" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+    waitForIt: true
+  privileges:
+    - ALL
+  database: {{ $grafanaName | quote }}
+  table: "*"
+  username: {{ $grafanaAuth.username | quote }}
+  host: "%"
+  grantOption: false
+  retryInterval: 10s
+---
+apiVersion: {{ $apiVersion }}
+kind: Connection
+metadata:
+  name: grafana-db-conn
+  labels:
+{{ tuple $envAll "grafana" "db-connection" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $mariadbHost | quote }}
+  serviceName: {{ $mariadbHost | quote }}
+  host: {{ tuple "oslo_db" "internal" $envAll | include "helm-toolkit.endpoints.endpoint_host_lookup" | quote }}
+  port: {{ tuple "oslo_db" "internal" "mysql" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  username: {{ $grafanaAuth.username | quote }}
+  passwordSecretKeyRef:
+    name: grafana-db-password
+    key: password
+  database: {{ $grafanaName | quote }}
+  secretName: grafana-db-conn
+  secretTemplate:
+    {{- /* A bare URL rather than an oslo.config snippet: the grafana server,
+    set-admin-user and run-migrator take this as the GF_DATABASE_URL
+    environment variable. The scheme is grafana's driver name, mysql, not
+    SQLAlchemy's mysql+pymysql, and client TLS is configured by the ssl_* keys
+    in [database], so only the charset is added when certificates are on, as
+    configmap-etc.yaml does. The block scalar strips the trailing newline -- an
+    environment variable carries the bytes verbatim, and grafana would be
+    handed the newline too. */}}
+    key: GF_DATABASE_URL
+    format: |-
+      mysql://{{ `{{ .Username }}` }}:{{ if $osh }}{{ `{{ .PasswordEncoded }}` }}{{ else }}{{ `{{ .Password }}` }}{{ end }}@{{ `{{ .Host }}` }}:{{ `{{ .Port }}` }}/{{ `{{ .Database }}` }}{{ if .Values.manifests.certificates }}?charset=utf8{{ end }}
+  healthCheck:
+    interval: 30s
+    retryInterval: 3s
+{{- if $osh }}
+  {{- /* Not a field upstream has; it paces the osh controller's retries. */}}
+  retryInterval: 10s
+{{- end }}
+{{- $sessionHost := index .Values.endpoints.oslo_db_session.hosts "default" }}
+{{- $sessionAuth := .Values.endpoints.oslo_db_session.auth.user }}
+
+{{- /* One account for the grafana_session database. */}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-session-db-password
+  labels:
+{{ tuple $envAll "grafana" "db-password" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+type: Opaque
+data:
+  password: {{ $sessionAuth.password | b64enc }}
+---
+apiVersion: {{ $apiVersion }}
+kind: User
+metadata:
+  name: grafana-session
+  labels:
+{{ tuple $envAll "grafana" "db-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $sessionHost | quote }}
+    waitForIt: true
+  name: {{ $sessionAuth.username | quote }}
+  host: "%"
+  passwordSecretKeyRef:
+    name: grafana-session-db-password
+    key: password
+  {{- /* 0 means unlimited. Anything else throttles the service. */}}
+  maxUserConnections: 0
+{{- if .Values.tls.oslo_db_session }}
+  require:
+    x509: true
+{{- end }}
+  retryInterval: 10s
+
+{{- /* The grafana_session database. */}}
+{{- $sessionName := .Values.endpoints.oslo_db_session.path | trimPrefix "/" }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Database
+metadata:
+  name: grafana-session
+  labels:
+{{ tuple $envAll "grafana" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $sessionHost | quote }}
+    waitForIt: true
+  {{- /* spec.name carries the schema name: it may contain an underscore, which
+  metadata.name may not. */}}
+  name: {{ $sessionName | quote }}
+  characterSet: utf8
+  collate: utf8_general_ci
+  retryInterval: 10s
+---
+apiVersion: {{ $apiVersion }}
+kind: Grant
+metadata:
+  name: grafana-session
+  labels:
+{{ tuple $envAll "grafana" "db-grant" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $sessionHost | quote }}
+    waitForIt: true
+  privileges:
+    - ALL
+  database: {{ $sessionName | quote }}
+  table: "*"
+  username: {{ $sessionAuth.username | quote }}
+  host: "%"
+  grantOption: false
+  retryInterval: 10s
+---
+apiVersion: {{ $apiVersion }}
+kind: Connection
+metadata:
+  name: grafana-session-db-conn
+  labels:
+{{ tuple $envAll "grafana" "db-connection" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  mariaDbRef:
+    name: {{ $sessionHost | quote }}
+  serviceName: {{ $sessionHost | quote }}
+  host: {{ tuple "oslo_db_session" "internal" $envAll | include "helm-toolkit.endpoints.endpoint_host_lookup" | quote }}
+  port: {{ tuple "oslo_db_session" "internal" "mysql" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+  username: {{ $sessionAuth.username | quote }}
+  passwordSecretKeyRef:
+    name: grafana-session-db-password
+    key: password
+  database: {{ $sessionName | quote }}
+  secretName: grafana-session-db-conn
+  secretTemplate:
+    {{- /* A bare URI rather than an oslo.config snippet: job-db-session-sync
+    takes this as the DB_CONNECTION environment variable, so the key and the
+    TLS parameters are the ones the chart's own secret_db_session used. The
+    block scalar strips the trailing newline -- an environment variable carries
+    the bytes verbatim, and the sync script would be handed the newline too. */}}
+    key: DB_CONNECTION
+    format: |-
+      {{ .Values.endpoints.oslo_db_session.scheme }}://{{ `{{ .Username }}` }}:{{ if $osh }}{{ `{{ .PasswordEncoded }}` }}{{ else }}{{ `{{ .Password }}` }}{{ end }}@{{ `{{ .Host }}` }}:{{ `{{ .Port }}` }}/{{ `{{ .Database }}` }}{{ if .Values.manifests.certificates }}?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert{{ end }}
+  healthCheck:
+    interval: 30s
+    retryInterval: 3s
+{{- if $osh }}
+  {{- /* Not a field upstream has; it paces the osh controller's retries. */}}
+  retryInterval: 10s
+{{- end }}
+{{- end }}
