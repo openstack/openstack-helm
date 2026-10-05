@@ -1,0 +1,36 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{/*
+The governing service shares manifests.statefulset_rpc_server rather than
+carrying its own key: a StatefulSet whose serviceName names a service that
+does not exist has no per-ordinal DNS, so the two are never useful apart.
+*/}}
+{{- if .Values.manifests.statefulset_rpc_server }}
+{{- $envAll := . }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: neutron-rpc-server
+spec:
+  # Named by the rpc server StatefulSet's serviceName. It publishes the
+  # per-ordinal DNS names (neutron-rpc-server-0.neutron-rpc-server...).
+  # The rpc server consumes from RabbitMQ and serves nothing directly, so
+  # the service is headless and declares no ports, which Kubernetes allows
+  # only for a headless service.
+  clusterIP: None
+  selector:
+{{ tuple $envAll "neutron" "rpc_server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+{{- end }}

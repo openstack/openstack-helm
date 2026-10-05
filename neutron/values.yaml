@@ -2857,7 +2857,15 @@ manifests:
   # published through.
   statefulset_ironic_agent: false
   deployment_server: true
-  deployment_rpc_server: true
+  # NOTE: The rpc server runs as a StatefulSet because oslo.messaging names
+  # its per-server `<topic>.<host>` queues after its host, which defaults to
+  # the hostname. Under a Deployment that is the pod name, so it changed on
+  # every rollout, and quorum queues cannot be declared `auto_delete`, which
+  # left the previous queues behind each time. The StatefulSet gives each pod
+  # a stable hostname (neutron-rpc-server-0, neutron-rpc-server-1, ...) that
+  # is reused across restarts. This also renders the headless service those
+  # DNS names are published through.
+  statefulset_rpc_server: true
   deployment_periodic_worker: true
   deployment_ovn_maintenance_worker: true
   job_bootstrap: true
