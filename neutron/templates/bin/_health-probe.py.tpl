@@ -394,12 +394,40 @@ def check_pid_running(pid):
     else:
        return False
 
+def use_own_reply_queue(probe_type):
+    """Give this probe a reply queue no other probe shares.
+
+    With [oslo_messaging_rabbit] use_queue_manager the reply queue is named
+    reply_<hostname>:<processname>:<counter>. Every probe is a new process, so
+    the counter restarts at 1, and the agents run with hostNetwork, so the
+    hostname is the node's. Left alone, every RPC probe on a node -- the DHCP,
+    L3 and OVS agents', readiness and liveness alike -- consumes from the same
+    reply_<node>:health-probe.py:1, and two that run at once take each other's
+    replies: the loser times out and is reported as a dead agent.
+
+    Naming the process after the queue it probes and the kind of probe keeps
+    the names stable, so each probe keeps reusing one queue instead of creating
+    a new one every run. oslo.config reads OS_<GROUP>__<OPTION> before the
+    config files.
+    """
+    queue = "neutron-server"
+    for i, arg in enumerate(sys.argv):
+        if arg == "--agent-queue-name" and i + 1 < len(sys.argv):
+            queue = sys.argv[i + 1]
+        elif arg.startswith("--agent-queue-name="):
+            queue = arg.split("=", 1)[1]
+    os.environ["OS_OSLO_MESSAGING_RABBIT__PROCESSNAME"] = \
+        "health-probe-%s-%s" % (queue, probe_type)
+
 if __name__ == "__main__":
 
     if "liveness-probe" in ','.join(sys.argv):
+        probe_type = "liveness"
         pidfile = "/tmp/liveness.pid"  #nosec
     else:
+        probe_type = "readiness"
         pidfile = "/tmp/readiness.pid"  #nosec
+    use_own_reply_queue(probe_type)
     data = {}
     if os.path.isfile(pidfile):
         with open(pidfile,'r') as f:

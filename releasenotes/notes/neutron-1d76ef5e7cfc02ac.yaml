@@ -1,0 +1,18 @@
+---
+neutron:
+  - |
+    The RPC health probes no longer share one RabbitMQ reply queue per node.
+    With ``use_queue_manager`` the probe's reply queue was named after the
+    node and the process, ``reply_<node>:health-probe.py:1``, for every agent
+    probe on that node, so two probes running at the same time took each
+    other's replies and the losing one timed out. The DHCP agent's liveness
+    probe fired at the same time as another agent's on every node, so it
+    failed every time and the agent was restarted about every 25 minutes,
+    taking the metadata proxy down with it. Each probe now names its process
+    after the queue it probes and whether it is a liveness or readiness probe.
+
+    The DHCP agent's liveness probe now passes ``--liveness-probe`` like every
+    other agent's, so it keeps its own PID file instead of sharing the
+    readiness probe's, and it no longer restarts the agent just because the
+    RabbitMQ connection is down.
+...

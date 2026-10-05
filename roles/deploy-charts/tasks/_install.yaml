@@ -38,10 +38,14 @@
 # hookOnly strategy, which still runs and waits for the hooks, and the
 # namespace is settled afterwards by _wait.yaml.
 ---
+# osh_common_values_file goes first so it is the first --values helm sees and
+# therefore the weakest: a job override, or a chart's own override file, still
+# wins over it. It is stat-ed like any other entry, so a playbook that never
+# ran prepare-charts simply does not get it.
 - name: "Check override files for {{ osh_chart }}"
   stat:
     path: "{{ item if item.startswith('/') else osh_values_overrides_path ~ '/' ~ osh_chart ~ '/' ~ item }}"
-  loop: "{{ (osh_values_overrides | default([])) + (lookup('vars', 'osh_values_overrides_' ~ osh_chart, default=[])) }}"
+  loop: "{{ [osh_common_values_file] + (osh_values_overrides | default([])) + (lookup('vars', 'osh_values_overrides_' ~ osh_chart, default=[])) }}"
   register: _osh_override_stats
 
 - name: "Build override file list for {{ osh_chart }}"

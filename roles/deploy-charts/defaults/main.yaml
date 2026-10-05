@@ -43,6 +43,21 @@ osh_ceph_storage: false
 # The StorageClass Rook creates; matches class_name in the chart values.
 osh_ceph_storage_class: general
 
+# How many RabbitMQ servers the rabbitmq chart is deployed with. One, because
+# these are test environments and a broker per node buys nothing here.
+#
+# The consumer charts have to be told: each renders its transport_url from
+# endpoints.oslo_messaging.statefulset.replicas, addressing that many per-pod
+# names (rabbitmq-rabbitmq-0, rabbitmq-rabbitmq-1, ...). Their default is 2,
+# matching the rabbitmq chart's own default, so deploying one server and
+# leaving the consumers alone points every service at a second broker that was
+# never created. Both numbers come from here so they cannot drift apart again.
+osh_rabbitmq_replicas: 1
+# Values applied to every chart before its own overrides, written by
+# prepare-charts. First in the list, so anything a job or a chart override says
+# still wins -- the rabbitmq-operator overrides null this stanza out entirely.
+osh_common_values_file: /tmp/osh-common.yaml
+
 # TLS settings for OpenStack client (clouds.yaml)
 osh_openstack_client_tls: false
 osh_openstack_client_tls_ca_cert_path: "/etc/openstack/ca.pem"
