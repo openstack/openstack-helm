@@ -43,9 +43,9 @@ CERT_DIR = "/etc/rabbitmq/certs"
 
 connection = os.environ["RABBITMQ_ADMIN_CONNECTION"]
 expected_nodes = int(os.environ["RABBIT_REPLICA_COUNT"])
+scheme = os.environ["RABBITMQ_ADMIN_SCHEME"]
 
 parsed = urllib.parse.urlsplit(connection)
-scheme = "https" if parsed.scheme in ("https", "rabbits") else "http"
 base = f"{scheme}://{parsed.hostname}:{parsed.port}"
 username = urllib.parse.unquote(parsed.username or "")
 password = urllib.parse.unquote(parsed.password or "")
