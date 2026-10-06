@@ -1,0 +1,15 @@
+---
+nova:
+  - |
+    The ``nova-compute`` daemonset's ``ceph-admin-keyring-placement`` and
+    ``ceph-keyring-placement`` init containers now get a container security
+    context with ``readOnlyRootFilesystem: true`` and
+    ``allowPrivilegeEscalation: false``. They read
+    ``pod.security_context.nova.container.ceph_admin_keyring_placement`` and
+    ``ceph_keyring_placement``, which were never defined in ``values.yaml``,
+    so they ran with no container-level security context at all. Both
+    scripts only write to ``/etc/ceph`` and ``/tmp``, which are mounted
+    volumes, and keep running as the pod's ``nova`` user, which the
+    preceding ``ceph-perms`` container already gave ownership of
+    ``/etc/ceph``.
+...
