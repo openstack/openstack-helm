@@ -66,7 +66,7 @@ First let's set environment variables that are later used in the subsequent sect
 
 .. code-block:: bash
 
-    export OPENSTACK_RELEASE=2025.1
+    export OPENSTACK_RELEASE=2026.1
     # Features enabled for the deployment. This is used to look up values overrides.
     export FEATURES="${OPENSTACK_RELEASE} ubuntu_noble"
     # Directory where values overrides are looked up or downloaded to.
@@ -86,14 +86,14 @@ Please read the help:
 
     helm osh get-values-overrides --help
 
-For example, if you pass the feature set ``2025.1 ubuntu_noble`` it will try to
+For example, if you pass the feature set ``2026.1 ubuntu_noble`` it will try to
 look up the following files:
 
 .. code-block:: bash
 
-    2025.1.yaml
+    2026.1.yaml
     ubuntu_noble.yaml
-    2025.1-ubuntu_noble.yaml
+    2026.1-ubuntu_noble.yaml
 
 Let's download the values overrides for the feature set defined above:
 

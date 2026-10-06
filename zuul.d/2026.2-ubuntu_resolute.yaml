@@ -1,0 +1,69 @@
+---
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The 2026.2 images are built on Ubuntu Resolute, and these jobs run them on
+# Resolute hosts, so ubuntu_resolute here names both. deploy-env needs nothing
+# release-specific for that: of the two apt repositories it adds, Docker's is
+# keyed on the distribution release and does publish a resolute suite, and the
+# Kubernetes one is keyed on the Kubernetes version, not the distribution.
+
+- job:
+    name: openstack-helm-compute-kit-2026-2-ubuntu_resolute
+    description: |
+      The 2026.2 baseline deployment: Ceph via Rook, the compute kit, and
+      cinder on top of it with an RBD backend -- the same coverage as the
+      2026.1 compute-kit job, so a failure that shows up here and not there is
+      attributable to the release.
+
+      Three nodes rather than the five the 2026.1 job uses, because these are
+      16GB rather than 8GB. Three is what Ceph needs here and no fewer: the
+      pools are size 1, but mon.count and mgr.count are both 3 and the failure
+      domain is host, so one mon and one mgr per node. Every node in
+      k8s_cluster gets the /dev/loop100 OSD device and rook has
+      useAllNodes: true, so all three host an OSD and cinder keeps its RBD
+      backend -- which is the point of deploying cinder here at all, since it
+      is what lets nova_test attach a volume to a VM.
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_resolute
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-compute-kit.yaml
+    vars:
+      osh_openstack_client_image_tag: "2026.2-ubuntu_resolute"
+      osh_values_overrides:
+        - "2026.2-ubuntu_resolute.yaml"
+        - "gateway.yaml"
+
+- job:
+    name: openstack-helm-compute-kit-ovn-2026-2-ubuntu_resolute
+    description: |
+      The compute kit with OVN instead of OVS. Three nodes, so there are no
+      storage nodes for Ceph and cinder is opted out of.
+
+      Not in this repository's check pipeline -- the 2026.1 ovn job already
+      covers chart changes. It exists so openstack-helm-images can parent its
+      own OVN job on it, the same way it parents on the compute-kit job above.
+    parent: openstack-helm-deploy
+    nodeset: openstack-helm-3nodes-ubuntu_resolute
+    run:
+      - playbooks/deploy-env.yaml
+      - playbooks/deploy-compute-kit.yaml
+    vars:
+      osh_openstack_client_image_tag: "2026.2-ubuntu_resolute"
+      # 3 nodes: no storage nodes for Ceph, so opt out of the default.
+      cinder_enabled: false
+      osh_values_overrides:
+        - "2026.2-ubuntu_resolute.yaml"
+        - "gateway.yaml"
+        - "ovn.yaml"
+...

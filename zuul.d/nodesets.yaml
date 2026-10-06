@@ -394,4 +394,217 @@
           - node-2
           - node-3
           - node-4
+
+# Ubuntu Resolute. Resolute has no unqualified "ubuntu-resolute" label in
+# opendev -- only the sized ones -- so these name a flavor explicitly, and they
+# take 16GB rather than the 8GB the unqualified jammy and noble labels resolve
+# to.
+#
+# 8GB is not enough for 2026.2. Its services are a few percent larger per
+# process than their 2026.1 counterparts, and the compute-kit job puts the
+# control-plane node (kube-apiserver, ceph-mon, an OSD) into the schedulable
+# pool, so whichever OpenStack pods land there push it over. On the 8GB attempt
+# that node sat at 88% and the kernel OOM-killed keystone-api three times,
+# which left the in-cluster identity endpoint with no ready backend and failed
+# the neutron helm test. The equivalent noble nodes run at 73-77%, so the
+# margin was already thin before 2026.2 widened it.
+#
+# Raising the per-node ceiling is what fixes this, not adding nodes: the charts
+# set no resource requests, so the scheduler cannot balance by memory and packs
+# unevenly -- the five 8GB nodes ranged from 41% to 89% while averaging 66%, so
+# the cluster had spare memory and still OOM-killed a pod. The compute-kit job
+# therefore runs on three of these rather than five, which is the same total
+# memory as six 8GB nodes would be, with twice the headroom per node.
+
+- nodeset:
+    name: openstack-helm-1node-ubuntu_resolute
+    nodes:
+      - name: primary
+        label: ubuntu-resolute-16GB
+    groups:
+      - name: primary
+        nodes:
+          - primary
+      - name: k8s_cluster
+        nodes:
+          - primary
+      - name: k8s_control_plane
+        nodes:
+          - primary
+
+- nodeset:
+    name: openstack-helm-3nodes-ubuntu_resolute
+    nodes:
+      - name: primary
+        label: ubuntu-resolute-16GB
+      - name: node-1
+        label: ubuntu-resolute-16GB
+      - name: node-2
+        label: ubuntu-resolute-16GB
+    groups:
+      - name: primary
+        nodes:
+          - primary
+      - name: nodes
+        nodes:
+          - node-1
+          - node-2
+      - name: k8s_cluster
+        nodes:
+          - primary
+          - node-1
+          - node-2
+      - name: k8s_control_plane
+        nodes:
+          - primary
+      - name: k8s_nodes
+        nodes:
+          - node-1
+          - node-2
+
+- nodeset:
+    name: openstack-helm-1node-2nodes-ubuntu_resolute
+    nodes:
+      - name: primary
+        label: ubuntu-resolute-16GB
+      - name: node-1
+        label: ubuntu-resolute-16GB
+      - name: node-2
+        label: ubuntu-resolute-16GB
+    groups:
+      - name: primary
+        nodes:
+          - primary
+      - name: k8s_cluster
+        nodes:
+          - node-1
+          - node-2
+      - name: k8s_control_plane
+        nodes:
+          - node-1
+      - name: k8s_nodes
+        nodes:
+          - node-2
+
+- nodeset:
+    name: openstack-helm-1node-3nodes-ubuntu_resolute
+    nodes:
+      - name: primary
+        label: ubuntu-resolute-16GB
+      - name: node-1
+        label: ubuntu-resolute-16GB
+      - name: node-2
+        label: ubuntu-resolute-16GB
+      - name: node-3
+        label: ubuntu-resolute-16GB
+    groups:
+      - name: primary
+        nodes:
+          - primary
+      - name: k8s_cluster
+        nodes:
+          - node-1
+          - node-2
+          - node-3
+      - name: k8s_control_plane
+        nodes:
+          - node-1
+      - name: k8s_nodes
+        nodes:
+          - node-2
+          - node-3
+
+- nodeset:
+    name: openstack-helm-1node-32GB-ubuntu_resolute
+    nodes:
+      - name: primary
+        # The 32GB flavor. The number of such nodes is extremely
+        # limited.
+        label: ubuntu-resolute-32GB
+    groups:
+      - name: primary
+        nodes:
+          - primary
+      - name: k8s_cluster
+        nodes:
+          - primary
+      - name: k8s_control_plane
+        nodes:
+          - primary
+
+- nodeset:
+    name: openstack-helm-4nodes-ubuntu_resolute
+    nodes:
+      - name: primary
+        label: ubuntu-resolute-16GB
+      - name: node-1
+        label: ubuntu-resolute-16GB
+      - name: node-2
+        label: ubuntu-resolute-16GB
+      - name: node-3
+        label: ubuntu-resolute-16GB
+    groups:
+      - name: primary
+        nodes:
+          - primary
+      - name: nodes
+        nodes:
+          - node-1
+          - node-2
+          - node-3
+      - name: k8s_cluster
+        nodes:
+          - primary
+          - node-1
+          - node-2
+          - node-3
+      - name: k8s_control_plane
+        nodes:
+          - primary
+      - name: k8s_nodes
+        nodes:
+          - node-1
+          - node-2
+          - node-3
+
+- nodeset:
+    name: openstack-helm-5nodes-ubuntu_resolute
+    nodes:
+      - name: primary
+        label: ubuntu-resolute-16GB
+      - name: node-1
+        label: ubuntu-resolute-16GB
+      - name: node-2
+        label: ubuntu-resolute-16GB
+      - name: node-3
+        label: ubuntu-resolute-16GB
+      - name: node-4
+        label: ubuntu-resolute-16GB
+    groups:
+      - name: primary
+        nodes:
+          - primary
+      - name: nodes
+        nodes:
+          - node-1
+          - node-2
+          - node-3
+          - node-4
+      - name: k8s_cluster
+        nodes:
+          - primary
+          - node-1
+          - node-2
+          - node-3
+          - node-4
+      - name: k8s_control_plane
+        nodes:
+          - primary
+      - name: k8s_nodes
+        nodes:
+          - node-1
+          - node-2
+          - node-3
+          - node-4
+
 ...

@@ -23,21 +23,17 @@ that are tested and proved to work.
      - Host OS
      - Image OS
      - Kubernetes version
-   * - 2025.1 (Epoxy)
-     - Ubuntu Jammy
-     - Ubuntu Jammy
-     - >=1.33,<=1.35
-   * - 2025.1 (Epoxy)
-     - Ubuntu Noble
-     - Ubuntu Noble
-     - >=1.33,<=1.35
-   * - 2025.2 (Dalmatian)
+   * - 2025.2 (Flamingo)
      - Ubuntu Noble
      - Ubuntu Noble
      - >=1.33,<=1.35
    * - 2026.1 (Gazpacho)
      - Ubuntu Noble
      - Ubuntu Noble
+     - >=1.33,<=1.35
+   * - 2026.2 (Hibiscus)
+     - Ubuntu Resolute
+     - Ubuntu Resolute
      - >=1.33,<=1.35
 
 Communication
