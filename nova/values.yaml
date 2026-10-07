@@ -2732,22 +2732,27 @@ manifests:
   daemonset_compute: true
   deployment_api_metadata: true
   deployment_api_osapi: true
-  deployment_conductor: true
   deployment_novncproxy: true
   deployment_serialproxy: true
   deployment_spiceproxy: true
-  deployment_scheduler: true
-  # NOTE: StatefulSets provide stable pod hostnames (e.g., nova-conductor-0, nova-conductor-1)
-  # which are used as service host names in `openstack compute service list`.
-  # When enabled, the corresponding deployment_* manifest is automatically disabled.
-  # This ensures service names remain stable across pod restarts.
   # -- Declare this chart's messaging vhost, account and permissions
   ## as RabbitMQ custom resources reconciled by the rabbitmq chart's
   ## topology controller, instead of running the rabbit_init job. The
   ## two are mutually exclusive.
   rabbitmq_topology: false
-  statefulset_conductor: false
-  statefulset_scheduler: false
+  # NOTE: The conductor and scheduler run as StatefulSets because nova
+  # registers each service under its `host`, which defaults to the hostname
+  # and under a Deployment is the pod name, so it changed on every rollout.
+  # Every new host added a `services` row (left for cron_job_service_cleaner
+  # to prune), and oslo.messaging names the per-server `<topic>.<host>`
+  # queue after it. Quorum queues cannot be declared `auto_delete`, so each
+  # rollout left the previous queues behind. The StatefulSets give each pod
+  # a stable hostname (nova-conductor-0, nova-scheduler-0, ...) that is
+  # reused across restarts and written as `host` unless
+  # conf.nova.DEFAULT.host is set. This also renders the headless services
+  # those DNS names are published through.
+  statefulset_conductor: true
+  statefulset_scheduler: true
   job_bootstrap: true
   job_storage_init: true
   job_db_init: true

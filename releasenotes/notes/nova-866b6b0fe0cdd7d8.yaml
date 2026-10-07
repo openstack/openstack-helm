@@ -1,0 +1,39 @@
+---
+nova:
+  - |
+    The nova conductor and scheduler now run as StatefulSets by default, and
+    their Deployment templates have been removed. nova registers each service
+    under its ``host``, which defaults to the hostname and under a Deployment
+    is the pod name, so it changed on every rollout. Each new host added a
+    ``services`` row and oslo.messaging names the per-server
+    ``<topic>.<host>`` queues after it. Quorum queues cannot be declared
+    ``auto_delete``, so each rollout left the previous queues behind. The
+    StatefulSets give each pod a stable hostname that is reused across
+    restarts and, unless ``conf.nova.DEFAULT.host`` is set, written as the
+    service's ``host``.
+  - |
+    ``manifests.statefulset_conductor`` and ``manifests.statefulset_scheduler``
+    now default to ``true``, and ``manifests.deployment_conductor`` and
+    ``manifests.deployment_scheduler`` have been removed. Because the old
+    values defaulted to ``true``, an override that set them to ``false`` to
+    disable the conductor or scheduler would otherwise be silently ignored
+    and the service would start, so the chart now fails to render if either
+    is set at all. Remove them from your overrides and set the
+    ``statefulset_*`` value instead. The pods are recreated with ordinal
+    names (nova-conductor-0, nova-scheduler-0, ...), so the previous
+    Deployments and their ReplicaSets are removed on upgrade. Helm deletes
+    the Deployments and creates the StatefulSets in the same upgrade, so
+    expect a brief window with no conductor or scheduler running. Queues
+    left behind by the old Deployments' pod names are not removed and can be
+    deleted by hand; their ``services`` rows are pruned by the
+    ``nova-service-cleaner`` cron job or can be deleted with
+    ``openstack compute service delete``.
+  - |
+    The nova conductor's and scheduler's update strategy now comes from
+    ``pod.lifecycle.upgrades.statefulsets`` rather than
+    ``pod.lifecycle.upgrades.deployments``. Overrides of the latter, such as
+    ``rolling_update.max_surge``, no longer apply to them. The StatefulSets
+    now also set ``terminationGracePeriodSeconds`` from
+    ``pod.lifecycle.termination_grace_period.conductor`` and ``scheduler``,
+    as the Deployments did.
+...
