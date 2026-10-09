@@ -26,7 +26,7 @@
 #                           (default: nova, neutron, glance, heat enabled;
 #                           horizon follows horizon_enabled)
 #   osh_tempest_script    - custom tempest run command
-#   osh_tempest_timeout   - timeout for the test Job in seconds (default: 900)
+#   osh_tempest_timeout   - timeout for the test run in seconds (default: 900)
 ---
 - name: Look up the IDs tempest needs
   shell: "openstack {{ item.value }} -f value -c id"
@@ -117,7 +117,8 @@
         osh_chart: tempest
         osh_values_overrides_tempest:
           - /tmp/tempest.yaml
-        osh_helm_timeout: 900
+        # helm waits for the test Job, so this bounds the whole run.
+        osh_helm_timeout: "{{ osh_tempest_timeout | default(900) }}"
         # A failed run fails helm, and every retry would rerun the suite.
         osh_helm_retries: 0
         # The post-install hook Job runs inside helm install, so we wait for
