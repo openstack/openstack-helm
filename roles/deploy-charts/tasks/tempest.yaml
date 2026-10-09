@@ -42,6 +42,14 @@
       flavor: "flavor show m1.tiny"
       public_network: "network show public"
 
+# The glance bootstrap uploads Cirros private to the admin project, and
+# tempest boots servers in projects it creates for each test class.
+- name: Let tempest's projects boot the bootstrap image
+  shell: "openstack image set --public {{ _osh_tempest_ids.results | selectattr('item.key', 'eq', 'image') | map(attribute='stdout') | first }}"
+  environment:
+    OS_CLOUD: openstack_helm
+  changed_when: true
+
 - name: Create tempest values file
   copy:
     dest: /tmp/tempest.yaml
