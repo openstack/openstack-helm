@@ -30,18 +30,58 @@
         - openstack-helm-pre-commit
         - openstack-helm-bandit
         - openstack-helm-build-charts
+        # The compute kit jobs run in check only when the change touches
+        # something they deploy: a compute kit chart (or its
+        # values_overrides), a chart it runs on, helm-toolkit, or the roles
+        # that deploy them. Zuul also runs a job whose own definition or
+        # playbooks the change modifies, so those are not listed. The gate
+        # still runs compute-kit unconditionally, so no change merges without
+        # it. The matchers are set here rather than in the job definitions
+        # because openstack-helm-images and loci parent their own jobs on
+        # these and would otherwise inherit them.
         # 2025.2 Ubuntu Noble
-        - openstack-helm-compute-kit-2025-2-ubuntu_noble  # 5 nodes; rook, cinder, glance, heat, nova, neutron (ovs), placement
+        # 5 nodes; rook, cinder, glance, heat, nova, neutron (ovs), placement
+        - openstack-helm-compute-kit-2025-2-ubuntu_noble:
+            files: &compute_kit
+              - &helm_toolkit ^helm-toolkit/.*
+              - &compute_kit_charts ^(values_overrides/)?(ceph-adapter-rook|cinder|glance|heat|keystone|libvirt|mariadb|memcached|neutron|nova|openvswitch|placement|rabbitmq)/.*
+              - &deploy_env ^roles/(deploy-env|deploy-ceph|deploy-apparmor|mount-extra-volume|override-images|describe-kubernetes-objects|gather-[^/]+|helm-release-status)/.*
+              - &deploy_charts ^roles/deploy-charts/(defaults/.*|tasks/(main|_[^/]+|prepare-[^/]+|setup-client)\.yaml)$
+              - &compute_kit_tasks ^roles/deploy-charts/tasks/(ceph-adapter-rook|cinder|glance|heat|keystone|libvirt|mariadb|memcached|neutron|nova|openvswitch|placement|rabbitmq|nova_test|force-cronjob-run)\.yaml$
+              - &compute_kit_files ^roles/deploy-charts/files/(heat/.*|nova_test\.sh|force-cronjob-run\.sh|verify-[^/]+\.sh)$
         # 2026.1 Ubuntu Noble
-        - openstack-helm-compute-kit-2026-1-ubuntu_noble  # 5 nodes; rook, cinder, glance, heat, nova, neutron (ovs), placement
+        # 5 nodes; rook, cinder, glance, heat, nova, neutron (ovs), placement
+        - openstack-helm-compute-kit-2026-1-ubuntu_noble:
+            files: *compute_kit
         # TLS everywhere: gateway API + in-pod nginx sidecars, mariadb and
         # rabbitmq mTLS. Deploys the compute kit plus ceph, cinder and horizon,
         # all behind TLS sidecars.
-        - openstack-helm-tls-2026-1-ubuntu_noble  # 5 nodes rook, cinder, glance, heat, nova, neutron (ovs), placement
+        # 5 nodes rook, cinder, glance, heat, nova, neutron (ovs), placement
+        - openstack-helm-tls-2026-1-ubuntu_noble:
+            files:
+              - *helm_toolkit
+              - *compute_kit_charts
+              - *deploy_env
+              - *deploy_charts
+              - *compute_kit_tasks
+              - *compute_kit_files
+              - ^(values_overrides/)?horizon/.*
+              - ^roles/deploy-charts/tasks/horizon\.yaml$
         - openstack-helm-ovn-2026-1-ubuntu_noble  # 3 nodes glance, heat, nova, neutron (ovn), placement
         - openstack-helm-dpdk-2026-1-ubuntu_noble  # 32GB node; run only if neutron, nova or openvswitch changed
-        - openstack-helm-crd-2026-1-ubuntu_noble  # 5 nodes; same as compute-kit but with OSH controllers
-        - openstack-helm-operators-2026-1-ubuntu_noble  # 5 nodes; same as compute-kit with third-party operators
+        # 5 nodes; same as compute-kit but with OSH controllers
+        - openstack-helm-crd-2026-1-ubuntu_noble:
+            files: *compute_kit
+        # 5 nodes; same as compute-kit with third-party operators
+        - openstack-helm-operators-2026-1-ubuntu_noble:
+            files:
+              - *helm_toolkit
+              - *compute_kit_charts
+              - *deploy_env
+              - *deploy_charts
+              - *compute_kit_tasks
+              - *compute_kit_files
+              - ^roles/deploy-charts/tasks/(mariadb|rabbitmq)-operator[^/]*\.yaml$
         - openstack-helm-octavia-2026-1-ubuntu_noble  # 4 nodes; glance, heat, nova, neutron (ovs), placement, octavia
         - openstack-helm-blazar-2026-1-ubuntu_noble  # 3 nodes; run only if blazar changed
         - openstack-helm-cloudkitty-2026-1-ubuntu_noble  # 3 nodes; run only if cloudkitty changed
@@ -54,10 +94,28 @@
         - openstack-helm-trove-2026-1-ubuntu_noble  # 5 nodes; run only if trove changed
         - openstack-helm-zaqar-2026-1-ubuntu_noble  # 3 nodes; run only if zaqar changed
         # 2026.2 Ubuntu Resolute
-        - openstack-helm-compute-kit-2026-2-ubuntu_resolute  # 3 nodes @16GB; rook, cinder, glance, heat, nova, neutron (ovs), placement
-        # Infra jobs
-        - openstack-helm-logging
-        - openstack-helm-monitoring
+        # 3 nodes @16GB; rook, cinder, glance, heat, nova, neutron (ovs), placement
+        - openstack-helm-compute-kit-2026-2-ubuntu_resolute:
+            files: *compute_kit
+        # Infra jobs, filtered the same way as the compute kit jobs above.
+        - openstack-helm-logging:
+            files:
+              - *helm_toolkit
+              - ^(values_overrides/)?(ceph-adapter-rook|elasticsearch|fluentd|kibana)/.*
+              - *deploy_env
+              - *deploy_charts
+              - ^roles/deploy-charts/tasks/(ceph-adapter-rook|logging/[^/]+)\.yaml$
+              - ^roles/deploy-charts/files/(fluentd\.yaml|selenium_tests/(selenium_tester|kibana_selenium)\.py)$
+              - &selenium ^roles/(deploy-selenium|gather-selenium-data)/.*
+        - openstack-helm-monitoring:
+            files:
+              - *helm_toolkit
+              - ^(values_overrides/)?(grafana|kubernetes-node-problem-detector|mariadb|nagios|postgresql|prometheus|prometheus-alertmanager|prometheus-blackbox-exporter|prometheus-kube-state-metrics|prometheus-node-exporter|prometheus-process-exporter|registry)/.*
+              - *deploy_env
+              - *deploy_charts
+              - ^roles/deploy-charts/tasks/(mariadb|postgresql|monitoring/[^/]+)\.yaml$
+              - ^roles/deploy-charts/files/selenium_tests/(selenium_tester|grafana_selenium|prometheus_selenium|nagios_selenium)\.py$
+              - *selenium
     gate:
       jobs:
         - openstack-helm-linter
