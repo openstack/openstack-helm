@@ -51,6 +51,15 @@
     OS_CLOUD: openstack_helm
   changed_when: true
 
+# The chart's static extension list is stale (it has the old "tag" alias,
+# neutron reports "standard-attr-tag"), so ask the deployed neutron.
+- name: Look up the network extensions neutron has
+  command: openstack extension list --network -f value -c Alias
+  environment:
+    OS_CLOUD: openstack_helm
+  register: _osh_tempest_network_extensions
+  changed_when: false
+
 - name: Create tempest values file
   copy:
     dest: /tmp/tempest.yaml
@@ -67,6 +76,8 @@
             cinder: {{ (osh_tempest_services | default({})).get('cinder', false) | lower }}
             swift: {{ (osh_tempest_services | default({})).get('swift', false) | lower }}
             horizon: {{ (osh_tempest_services | default({})).get('horizon', horizon_enabled | default(false)) | lower }}
+          network-feature-enabled:
+            api_extensions: {{ _osh_tempest_network_extensions.stdout_lines | sort | to_json }}
           compute:
             flavor_ref: {{ _ids.flavor }}
             image_ref: {{ _ids.image }}
