@@ -25,6 +25,14 @@ limitations under the License.
 {{- $_ := set .Values.conf.grafana.database "url" $url -}}
 {{- end -}}
 {{- end -}}
+{{- /*
+With manifests.mariadb_db the URL comes from GF_DATABASE_URL and
+conf.grafana.database.url is null, so the block above is skipped. The server
+certificate name it would have set is not part of the URL, so set it here.
+*/}}
+{{- if and .Values.manifests.mariadb_db .Values.manifests.certificates (not .Values.conf.grafana.database.server_cert_name) -}}
+{{- $_ := tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.endpoint_host_lookup" | set .Values.conf.grafana.database "server_cert_name" -}}
+{{- end -}}
 ---
 apiVersion: v1
 kind: Secret

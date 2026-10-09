@@ -1,0 +1,40 @@
+---
+barbican:
+  - |
+    The chart can now provision its database declaratively, like keystone and
+    the other charts converted earlier: ``templates/mariadb-db.yaml`` renders
+    the ``Database``, ``User``, ``Grant`` and ``Connection`` resources, gated
+    by ``manifests.mariadb_db`` (off by default) and reconciled by whichever
+    operator ``mariadb_db.api_group`` selects. Rendering fails if
+    ``manifests.job_db_init`` is also enabled. The connection is written into
+    ``barbican-db-conn`` as an ``oslo.config`` snippet, which
+    ``values_overrides/barbican/mariadb-crd.yaml`` projects into the API and
+    db-sync pods. ``values_overrides/barbican/mariadb-operator.yaml`` is now
+    layered on top of it and only switches the API group; the custom
+    resources it used to declare through ``extraObjects`` are rendered by the
+    chart instead.
+grafana:
+  - |
+    The chart can now provision its ``grafana`` and ``grafana_session``
+    databases declaratively. ``templates/mariadb-db.yaml``, gated by
+    ``manifests.mariadb_db`` (off by default), renders one account, database,
+    grant and connection for each, and rendering fails if
+    ``manifests.job_db_init`` or ``manifests.job_db_init_session`` is also
+    enabled.
+
+    grafana is not an ``oslo.config`` service, so its connection reaches it
+    through environment variables rather than a projected config snippet. The
+    ``grafana-db-conn`` secret holds the database URL, which the grafana
+    server, set-admin-user and run-migrator read as ``GF_DATABASE_URL``, and
+    ``grafana-session-db-conn`` holds the session database URI under the
+    ``DB_CONNECTION`` key db-session-sync already reads, consumed by pointing
+    ``secrets.oslo_db_session.user`` at it. Because an environment variable
+    gives no ordering the way a projected volume does, each of those
+    workloads waits on its ``Connection`` reporting ``Ready``.
+
+    When ``manifests.certificates`` is on, ``server_cert_name`` is still set
+    in ``grafana.ini`` although the URL no longer is.
+    ``values_overrides/grafana/mariadb-operator.yaml`` is now layered on top of
+    ``mariadb-crd.yaml``; previously it provisioned the databases through
+    ``extraObjects`` but left grafana connecting with the chart-generated URL.
+...
