@@ -59,6 +59,12 @@ limitations under the License.
 {{- $_ := tuple "oslo_messaging" "internal" "blazar" "amqp" . | include "helm-toolkit.endpoints.authenticated_transport_endpoint_uri_lookup" | set .Values.conf.blazar.oslo_messaging_notifications "transport_url" -}}
 {{- end -}}
 
+{{- if empty (index .Values.conf.blazar_api_uwsgi.uwsgi "http-socket") -}}
+{{- $http_socket_port := tuple "reservation" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" | toString }}
+{{- $http_socket := printf "0.0.0.0:%s" $http_socket_port }}
+{{- $_ := set .Values.conf.blazar_api_uwsgi.uwsgi "http-socket" $http_socket -}}
+{{- end -}}
+
 {{/*
 Openstack auth
 */}}
@@ -98,6 +104,7 @@ type: Opaque
 data:
   rally_tests.yaml: {{ toYaml .Values.conf.rally_tests.tests | b64enc }}
   blazar.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.blazar | b64enc }}
+  blazar-api-uwsgi.ini: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.blazar_api_uwsgi | b64enc }}
   logging.conf: {{ include "helm-toolkit.utils.to_oslo_conf" .Values.conf.logging | b64enc }}
   api-paste.ini: {{ include "helm-toolkit.utils.to_ini" .Values.conf.api_paste | b64enc }}
   policy.yaml: {{ toYaml .Values.conf.policy | b64enc }}
