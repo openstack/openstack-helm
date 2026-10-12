@@ -201,4 +201,20 @@ spec:
           emptyDir: {}
 {{ end }}
 {{ if $mounts_octavia_api.volumes }}{{ toYaml $mounts_octavia_api.volumes | indent 8 }}{{ end }}
+{{- /*
+The driver agent sidecar mounts pod.mounts.octavia_driver_agent, so the
+volumes behind those mounts belong to this pod as well. A volume both
+containers need, such as a shared CA bundle, may be listed under both
+octavia_api and octavia_driver_agent; it is declared once, because a pod
+rejects duplicate volume names.
+*/}}
+{{- $api_volume_names := list }}
+{{- range $mounts_octavia_api.volumes }}
+{{- $api_volume_names = append $api_volume_names .name }}
+{{- end }}
+{{- range $mounts_octavia_driver_agent.volumes }}
+{{- if not (has .name $api_volume_names) }}
+{{ list . | toYaml | indent 8 }}
+{{- end }}
+{{- end }}
 {{- end }}
