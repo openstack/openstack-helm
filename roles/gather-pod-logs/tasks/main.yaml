@@ -42,7 +42,9 @@
               mkdir -p "{{ logs_dir }}/pod-logs/${NAMESPACE}/${POD}"
               mkdir -p "{{ logs_dir }}/pod-logs/failed-pods/${NAMESPACE}/${POD}"
               kubectl logs ${POD} -n ${NAMESPACE} -c ${CONTAINER} > "{{ logs_dir }}/pod-logs/${NAMESPACE}/${POD}/${CONTAINER}.txt"
-              kubectl logs --previous ${POD} -n ${NAMESPACE} -c ${CONTAINER} > "{{ logs_dir }}/pod-logs/failed-pods/${NAMESPACE}/${POD}/${CONTAINER}.txt"
+              # only restarted containers have the previous logs
+              PREVIOUS="{{ logs_dir }}/pod-logs/failed-pods/${NAMESPACE}/${POD}/${CONTAINER}.txt"
+              kubectl logs --previous ${POD} -n ${NAMESPACE} -c ${CONTAINER} > "${PREVIOUS}" 2> /dev/null || rm -f "${PREVIOUS}"
             done
           }
           export -f get_pod_logs
