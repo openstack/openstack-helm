@@ -1,0 +1,64 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Create the ironic PXE interface
+  become: true
+  shell: |
+    set -xe
+    ip link show ironic-pxe || ip link add ironic-pxe type dummy
+    ip addr replace 172.24.6.1/24 dev ironic-pxe
+    ip link set ironic-pxe up
+
+- name: Create Ironic values file
+  copy:
+    dest: /tmp/ironic.yaml
+    content: |
+      conf:
+        ironic:
+          DEFAULT:
+            enabled_hardware_types: ipmi,redfish,fake-hardware
+            enabled_boot_interfaces: pxe,fake
+            enabled_deploy_interfaces: direct,fake
+            enabled_network_interfaces: noop
+          conductor:
+            automated_clean: false
+          dhcp:
+            dhcp_provider: none
+      network:
+        pxe:
+          device: ironic-pxe
+      bootstrap:
+        image:
+          enabled: false
+        object_store:
+          enabled: false
+      dependencies:
+        static:
+          api:
+            jobs: &ironic_jobs
+              - ironic-db-sync
+              - ironic-ks-user
+              - ironic-ks-endpoints
+              - ironic-rabbit-init
+          conductor:
+            jobs: *ironic_jobs
+      manifests:
+        job_bootstrap: false
+        job_manage_cleaning_network: false
+
+- name: Deploy ironic
+  include_tasks: _install.yaml
+  vars:
+    osh_chart: ironic
+    osh_values_overrides_ironic:
+      - /tmp/ironic.yaml
+...
