@@ -14,26 +14,39 @@ limitations under the License.
 
 {{/*
 abstract: |
-  Renders mandatory access control annotations for a list of containers
-  driven by values.yaml. As of now, it can only generate an apparmor
-  annotation, but in the future could generate others.
+  Deprecated, renders nothing. This snippet used to render AppArmor
+  annotations, which Kubernetes replaced with the appArmorProfile field of
+  the pod and container securityContext, set through pod.security_context.
+  It now fails the render when pod.mandatory_access_control sets an AppArmor
+  profile for one of the containers, so that a deployment relying on it is
+  not silently left running without its profile.
 values: |
   pod:
     mandatory_access_control:
       type: apparmor
       myPodName:
         myContainerName: localhost/myAppArmor
-        mySecondContainerName: localhost/secondProfile # optional
-        myThirdContainerName: localhost/thirdProfile # optional
 usage: |
-  {{ dict "envAll" . "podName" "myPodName" "containerNames" (list "myContainerName" "mySecondContainerName" "myThirdContainerName") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" }}
+  {{ dict "envAll" . "podName" "myPodName" "containerNames" (list "myContainerName") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" }}
 return: |
-  container.apparmor.security.beta.kubernetes.io/myContainerName: localhost/myAppArmor
-  container.apparmor.security.beta.kubernetes.io/mySecondContainerName: localhost/secondProfile
-  container.apparmor.security.beta.kubernetes.io/myThirdContainerName: localhost/thirdProfile
+  Nothing when no profile is set. Otherwise the render fails with:
+  pod.mandatory_access_control.myPodName.myContainerName: AppArmor profiles
+  can no longer be set per container under pod.mandatory_access_control, set
+  appArmorProfile under pod.security_context instead.
 note: |
-  The number of container underneath is a variable arguments. It loops through
-  all the container names specified.
+  This snippet is kept for backward compatibility only, so that charts still
+  calling it keep rendering and values still setting a profile are rejected
+  rather than ignored. It will be removed in a future release. Set the
+  profile through pod.security_context instead:
+
+  pod:
+    security_context:
+      myApplication:
+        container:
+          myContainerName:
+            appArmorProfile:
+              type: Localhost
+              localhostProfile: myAppArmor
 */}}
 {{- define "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" -}}
 {{- $envAll := index . "envAll" -}}
@@ -48,7 +61,7 @@ note: |
 {{- range $name := $containerNames -}}
 {{- $apparmorProfile := index $envAll.Values.pod.mandatory_access_control $podName $name -}}
 {{- if $apparmorProfile }}
-container.apparmor.security.beta.kubernetes.io/{{ $name }}: {{ $apparmorProfile }}
+{{- fail (printf "pod.mandatory_access_control.%s.%s: AppArmor profiles can no longer be set per container under pod.mandatory_access_control, set appArmorProfile under pod.security_context instead." $podName $name) }}
 {{- end -}}
 {{- end -}}
 {{- end -}}
@@ -57,4 +70,3 @@ container.apparmor.security.beta.kubernetes.io/{{ $name }}: {{ $apparmorProfile 
 {{- end -}}
 {{- end -}}
 {{- end -}}
-
