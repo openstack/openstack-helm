@@ -169,8 +169,29 @@ def collect(chart, all_charts, rev_range, repo=".", note_cache=None):
     note_cache.update(relnotes.read_blobs(wanted, repo=repo))
 
     for sha, message in relnotes.messages_in_range(rev_range, repo=repo):
-        trailers, charts_spec, change_id = relnotes.parse_changelog_trailers(message)
+        trailers, charts_spec, change_id, _ = relnotes.release_notes_of(message)
         links = relnotes.gerrit_links(change_id)
+
+        # A commit may say the same thing twice, once as a reno note and once
+        # in its message. The note is the one written for a deployer to read,
+        # so it wins and the message is not consulted for this chart. Reno
+        # notes are on their way out; until they are forbidden outright this
+        # is what keeps a change from being announced twice.
+        from_note = []
+        for path in note_paths.get(sha, ()):
+            content = note_cache.get("%s:%s" % (sha, path), "")
+            basename = os.path.basename(path)
+            owner = relnotes.note_owner(basename, all_charts)
+            for entry in note_entries(
+                content, owner, chart, all_charts,
+                aggregate=relnotes.is_aggregate_note(basename, all_charts),
+            ):
+                entry.links = links
+                from_note.append(entry)
+
+        if from_note:
+            entries.extend(from_note)
+            continue
 
         targets = None
         for kind, description in trailers:
@@ -186,17 +207,6 @@ def collect(chart, all_charts, rev_range, repo=".", note_cache=None):
                 entries.append(
                     relnotes.Entry(kind, description, links, source="trailer")
                 )
-
-        for path in note_paths.get(sha, ()):
-            content = note_cache.get("%s:%s" % (sha, path), "")
-            basename = os.path.basename(path)
-            owner = relnotes.note_owner(basename, all_charts)
-            for entry in note_entries(
-                content, owner, chart, all_charts,
-                aggregate=relnotes.is_aggregate_note(basename, all_charts),
-            ):
-                entry.links = links
-                entries.append(entry)
 
     seen = set()
     unique = []
