@@ -1,0 +1,42 @@
+---
+# Declare this chart's keystone user, roles and catalog entry declaratively:
+# the chart renders Keystone custom resources (templates/identity-entities.yaml)
+# which the keystone chart's identity controller reconciles, instead of running
+# the ks_user, ks_service and ks_endpoints jobs.
+#
+# Turning those three off is what removes this chart's copy of the keystone
+# administrative credentials from the pods that provisioned the catalog entry.
+# The chart keeps rendering the <service>-keystone-admin secret, which other
+# jobs in the chart still read.
+
+manifests:
+  identity_entities: true
+  job_ks_endpoints: false
+  job_ks_service: false
+  job_ks_user: false
+
+# The ks_user and ks_endpoints jobs were dependencies of every component that
+# talks to the Keystone catalog, and helm-toolkit.utils.dependency_jobs_filter
+# drops a disabled job from those lists. The custom resources replace them, so
+# the same components wait for the same work to finish -- now on the readiness
+# of the resources themselves rather than on a job having run.
+dependencies:
+  static:
+    api: &identity
+      custom_resources:
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: User
+          name: cinder-cinder
+          conditions:
+            - type: Ready
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: Endpoint
+          name: cinder-volumev3
+          conditions:
+            - type: Ready
+    backup: *identity
+    db_purge: *identity
+    scheduler: *identity
+    volume: *identity
+    volume_usage_audit: *identity
+...

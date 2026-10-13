@@ -33,6 +33,16 @@ data:
 {{ tuple $rallyTests | include "helm-toolkit.scripts.rally_test" | indent 4 }}
   ks-user.sh: |
 {{- include "helm-toolkit.scripts.keystone_user" . | indent 4 }}
+{{- /*
+Gated so that a deployment which leaves the identity controller disabled keeps
+a byte-identical bin configmap. This configmap's hash annotates the keystone
+api pod template, so an unconditional key here would roll every existing
+deployment on upgrade.
+*/}}
+{{- if .Values.manifests.deployment_identity_controller }}
+  identity_controller.py: |
+{{ tuple "bin/_identity_controller.py.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+{{- end }}
   cred-clean.py: |
 {{ tuple "bin/_cred-clean.py.tpl" . | include "helm-toolkit.utils.template" |indent 4}}
   db-init.py: |

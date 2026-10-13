@@ -1,0 +1,116 @@
+---
+# Declare this chart's keystone users, roles and catalog entries declaratively:
+# the chart renders Keystone custom resources (templates/identity-entities.yaml)
+# which the keystone chart's identity controller reconciles, instead of running
+# the ks_user, ks_service and ks_endpoints jobs.
+#
+# The ks_user_domain job stays enabled: the domain-scoped heat_stack_user
+# account it creates is not part of this path, so this chart keeps a reader of
+# the keystone administrative credentials.
+
+manifests:
+  identity_entities: true
+  job_ks_endpoints: false
+  job_ks_service: false
+  job_ks_user: false
+
+# The ks_user and ks_endpoints jobs were dependencies of every component that
+# talks to the Keystone catalog, and helm-toolkit.utils.dependency_jobs_filter
+# drops a disabled job from those lists. The custom resources replace them, so
+# the same components wait for the same work to finish -- now on the readiness
+# of the resources themselves rather than on a job having run.
+dependencies:
+  static:
+    api:
+      custom_resources:
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: User
+          name: heat-heat
+          conditions:
+            - type: Ready
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: Endpoint
+          name: heat-orchestration
+          conditions:
+            - type: Ready
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: Endpoint
+          name: heat-cloudformation
+          conditions:
+            - type: Ready
+    cfn:
+      custom_resources:
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: User
+          name: heat-heat
+          conditions:
+            - type: Ready
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: Endpoint
+          name: heat-orchestration
+          conditions:
+            - type: Ready
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: Endpoint
+          name: heat-cloudformation
+          conditions:
+            - type: Ready
+    engine:
+      custom_resources:
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: User
+          name: heat-heat
+          conditions:
+            - type: Ready
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: Endpoint
+          name: heat-orchestration
+          conditions:
+            - type: Ready
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: Endpoint
+          name: heat-cloudformation
+          conditions:
+            - type: Ready
+    engine_cleaner:
+      custom_resources:
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: User
+          name: heat-heat
+          conditions:
+            - type: Ready
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: Endpoint
+          name: heat-orchestration
+          conditions:
+            - type: Ready
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: Endpoint
+          name: heat-cloudformation
+          conditions:
+            - type: Ready
+    purge_deleted:
+      custom_resources:
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: User
+          name: heat-heat
+          conditions:
+            - type: Ready
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: Endpoint
+          name: heat-orchestration
+          conditions:
+            - type: Ready
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: Endpoint
+          name: heat-cloudformation
+          conditions:
+            - type: Ready
+    trusts:
+      custom_resources:
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: User
+          name: heat-heat
+          conditions:
+            - type: Ready
+...

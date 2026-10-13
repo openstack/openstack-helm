@@ -1,0 +1,769 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{/*
+Custom resource definitions reconciled by the identity-controller deployment.
+They describe the Keystone objects the per-chart ks-service, ks-user and
+ks-endpoints jobs create today: a domain, a project, a role, a user, a role
+assignment, a catalog service and its endpoints. Group is the one kind those
+jobs have no equivalent for; a RoleAssignment can grant a role to a group
+rather than a user, which is how a federated deployment grants access.
+
+Definitions are cluster scoped objects and carry helm.sh/resource-policy: keep,
+so that uninstalling the keystone release does not cascade-delete every
+identity resource in the cluster.
+*/}}
+
+{{/*
+Fields shared by every kind in this group.
+
+metadata.name is a Kubernetes name, chosen by the chart that renders the
+resource; spec.name is the Keystone name. They are deliberately independent:
+several charts need the same domain, project and roles, and each declares its
+own resource for them (cinder-service, glance-service, ...) because a single
+owner would be a cross-chart dependency Helm cannot express. Reconciliation is
+find-or-create, so several resources naming one Keystone object converge on it.
+*/}}
+{{- define "keystone.crds.common_spec_properties" }}
+keystoneRef:
+  description: |
+    The Keystone deployment this resource belongs to. When name is set and
+    names something else, the resource belongs to another controller: this one
+    neither reconciles it nor writes its status, so a resource nobody serves is
+    recognisable by carrying no condition at all.
+  type: object
+  properties:
+    name:
+      type: string
+      minLength: 1
+deletionPolicy:
+  description: |
+    Whether deleting this resource also removes the object it created in
+    Keystone. Defaults to retain: deleting a project orphans every resource
+    owned by it across every service, and helm uninstall of one chart must not
+    do that.
+  type: string
+  enum:
+    - retain
+    - delete
+  default: retain
+retryInterval:
+  description: Minimum delay before retrying this resource after a failure.
+  type: string
+  pattern: ^([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+$
+{{- end }}
+
+{{/*
+The status subresource shared by every kind in this group.
+
+The conditions list is metav1.Condition, structurally identical to the one the
+mariadb and rabbitmq groups use, so that readiness is the condition of type
+Ready everywhere: what kubectl wait --for=condition=Ready reads, what the
+printer columns select on, and what a kubernetes-entrypoint custom_resources
+dependency will select on once that client can select a condition by type. The
+RBAC such a dependency needs is already derived from the entry's apiVersion and
+kind by helm-toolkit.snippets.kubernetes_pod_rbac_roles, and every kind here
+pluralizes as the lowercased kind plus an s, so none needs its resource named
+explicitly.
+
+Takes "id" -- the name of the field carrying the ID Keystone assigned, empty
+for a role assignment, which has none -- "what" for its description, and "map"
+for an Endpoint, which carries one ID per interface rather than one.
+*/}}
+{{- define "keystone.crds.status" }}
+{{- $id := index . "id" }}
+{{- $what := index . "what" }}
+{{- $map := index . "map" | default false }}
+type: object
+properties:
+  observedGeneration:
+    description: The metadata.generation this status was computed from.
+    type: integer
+    format: int64
+    minimum: 0
+{{- if $id }}
+  {{ $id }}:
+    description: The ID Keystone assigned to this {{ $what }}.
+{{- if $map }}
+    type: object
+    additionalProperties:
+      type: string
+{{- else }}
+    type: string
+{{- end }}
+{{- end }}
+  conditions:
+    description: Conditions observed for this resource.
+    type: array
+    items:
+      description: Condition contains details for one aspect of the current state of this API resource.
+      type: object
+      required:
+        - lastTransitionTime
+        - message
+        - reason
+        - status
+        - type
+      properties:
+        lastTransitionTime:
+          description: |
+            When the condition last moved from one status to another. It does
+            not change while the status stays the same.
+          type: string
+          format: date-time
+        message:
+          description: Human readable detail about the transition. May be empty.
+          type: string
+          maxLength: 32768
+        observedGeneration:
+          description: |
+            The metadata.generation this condition was computed from. A value
+            behind the current generation means the condition is out of date.
+          type: integer
+          format: int64
+          minimum: 0
+        reason:
+          description: |
+            CamelCase programmatic identifier for the reason of the last
+            transition. Reconciled or ReconcileError.
+          type: string
+          minLength: 1
+          maxLength: 1024
+          pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+        status:
+          description: Status of the condition, one of True, False, Unknown.
+          type: string
+          enum:
+            - "True"
+            - "False"
+            - Unknown
+        type:
+          description: Type of condition in CamelCase.
+          type: string
+          maxLength: 316
+          pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+{{- end }}
+
+{{/* The Ready printer columns every kind shares. */}}
+{{- define "keystone.crds.ready_columns" }}
+- name: Ready
+  type: string
+  jsonPath: .status.conditions[?(@.type=="Ready")].status
+- name: Status
+  type: string
+  jsonPath: .status.conditions[?(@.type=="Ready")].message
+- name: Age
+  type: date
+  jsonPath: .metadata.creationTimestamp
+{{- end }}
+
+{{/*
+The API group is hardcoded rather than driven from values, because each consumer
+chart declares its own resources in its own templates/identity-entities.yaml
+and cannot read this chart's values. Those templates carry the same group
+literal, which must stay in sync with the one below.
+*/}}
+{{- if .Values.manifests.crds }}
+{{- $group := "keystone.osh.openstack.org" }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: domains.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "keystone" "identity-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Domain
+    listKind: DomainList
+    plural: domains
+    singular: domain
+    categories:
+      - keystone
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Domain
+          type: string
+          jsonPath: .spec.name
+{{ include "keystone.crds.ready_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - name
+              properties:
+{{ include "keystone.crds.common_spec_properties" . | indent 16 }}
+                name:
+                  description: The domain name in Keystone.
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                description:
+                  type: string
+                enabled:
+                  type: boolean
+                  default: true
+            status:
+{{ include "keystone.crds.status" (dict "id" "domainID" "what" "domain") | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: projects.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "keystone" "identity-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Project
+    listKind: ProjectList
+    plural: projects
+    singular: project
+    categories:
+      - keystone
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Project
+          type: string
+          jsonPath: .spec.name
+        - name: Domain
+          type: string
+          jsonPath: .spec.domain
+{{ include "keystone.crds.ready_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - name
+              properties:
+{{ include "keystone.crds.common_spec_properties" . | indent 16 }}
+                name:
+                  description: The project name in Keystone.
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                domain:
+                  description: Name of the domain holding this project.
+                  type: string
+                  default: Default
+                description:
+                  type: string
+                enabled:
+                  type: boolean
+                  default: true
+            status:
+{{ include "keystone.crds.status" (dict "id" "projectID" "what" "project") | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: roles.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "keystone" "identity-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Role
+    listKind: RoleList
+    plural: roles
+    singular: role
+    categories:
+      - keystone
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Role
+          type: string
+          jsonPath: .spec.name
+{{ include "keystone.crds.ready_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - name
+              properties:
+{{ include "keystone.crds.common_spec_properties" . | indent 16 }}
+                name:
+                  description: The role name in Keystone.
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                domain:
+                  description: |
+                    Name of the domain this role is specific to. Omit for a
+                    global role, which is what every OpenStack service role is.
+                  type: string
+            status:
+{{ include "keystone.crds.status" (dict "id" "roleID" "what" "role") | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: groups.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "keystone" "identity-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Group
+    listKind: GroupList
+    plural: groups
+    singular: group
+    categories:
+      - keystone
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Group
+          type: string
+          jsonPath: .spec.name
+        - name: Domain
+          type: string
+          jsonPath: .spec.domain
+{{ include "keystone.crds.ready_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              {{/*
+              Membership is deliberately not a field. A group's members are
+              whatever the identity provider's mapping puts in it, and the
+              charts converted here grant roles to users directly, so nothing
+              declares a group yet: the kind exists because a RoleAssignment
+              can name one, which is how a federated deployment grants access.
+              Managing local, non-federated membership would need a member list
+              naming users, and is left out until something needs it.
+              */}}
+              type: object
+              required:
+                - name
+              properties:
+{{ include "keystone.crds.common_spec_properties" . | indent 16 }}
+                name:
+                  description: The group name in Keystone.
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                domain:
+                  description: Name of the domain holding this group.
+                  type: string
+                  default: Default
+                description:
+                  type: string
+            status:
+{{ include "keystone.crds.status" (dict "id" "groupID" "what" "group") | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: users.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "keystone" "identity-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: User
+    listKind: UserList
+    plural: users
+    singular: user
+    categories:
+      - keystone
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: User
+          type: string
+          jsonPath: .spec.name
+        - name: Domain
+          type: string
+          jsonPath: .spec.domain
+{{ include "keystone.crds.ready_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - name
+                - passwordSecret
+              properties:
+{{ include "keystone.crds.common_spec_properties" . | indent 16 }}
+                name:
+                  description: The user name in Keystone.
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                domain:
+                  description: Name of the domain holding this user.
+                  type: string
+                  default: Default
+                description:
+                  type: string
+                email:
+                  type: string
+                enabled:
+                  type: boolean
+                  default: true
+                defaultProject:
+                  description: |
+                    The project a token is scoped to when the user
+                    authenticates without naming one.
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                    domain:
+                      type: string
+                      default: Default
+                passwordSecret:
+                  description: |
+                    The secret holding this user's password. The default key is
+                    the one the <service>-keystone-<userClass> openrc secrets
+                    every chart already renders use, so adopting this path adds
+                    no secret.
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                    key:
+                      type: string
+                      default: OS_PASSWORD
+            status:
+{{ include "keystone.crds.status" (dict "id" "userID" "what" "user") | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: roleassignments.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "keystone" "identity-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: RoleAssignment
+    listKind: RoleAssignmentList
+    plural: roleassignments
+    singular: roleassignment
+    categories:
+      - keystone
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Role
+          type: string
+          jsonPath: .spec.role.name
+        - name: User
+          type: string
+          jsonPath: .spec.user.name
+        - name: Group
+          type: string
+          jsonPath: .spec.group.name
+        - name: Project
+          type: string
+          jsonPath: .spec.project.name
+{{ include "keystone.crds.ready_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - role
+              x-kubernetes-validations:
+                - rule: has(self.user) != has(self.group)
+                  message: exactly one of spec.user and spec.group must be set
+                - rule: has(self.project) != has(self.domain)
+                  message: exactly one of spec.project and spec.domain must be set
+              properties:
+{{ include "keystone.crds.common_spec_properties" . | indent 16 }}
+                role:
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                    domain:
+                      description: Set for a domain-specific role.
+                      type: string
+                user:
+                  description: |
+                    The user this role is granted to. Exactly one of user and
+                    group is set.
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                    domain:
+                      type: string
+                      default: Default
+                group:
+                  description: |
+                    The group this role is granted to. Every member of the
+                    group holds the role, which is how a federated deployment
+                    grants access: identities arrive from the identity provider
+                    as shadow users and are mapped into groups, so there is no
+                    user to name.
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                    domain:
+                      type: string
+                      default: Default
+                project:
+                  description: The project this role is granted on.
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                    domain:
+                      type: string
+                      default: Default
+                domain:
+                  description: The domain this role is granted on.
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+            status:
+{{ include "keystone.crds.status" (dict "id" "" "what" "role assignment") | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: services.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "keystone" "identity-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  {{/*
+  services and endpoints shadow a core v1 resource in short form, so these
+  need the fully qualified services.keystone.osh.openstack.org. The keystone
+  category is the practical answer for interactive use: kubectl get keystone
+  lists a namespace's identity resources.
+  */}}
+  names:
+    kind: Service
+    listKind: ServiceList
+    plural: services
+    singular: service
+    categories:
+      - keystone
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Service
+          type: string
+          jsonPath: .spec.name
+        - name: Type
+          type: string
+          jsonPath: .spec.type
+{{ include "keystone.crds.ready_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - name
+                - type
+              properties:
+{{ include "keystone.crds.common_spec_properties" . | indent 16 }}
+                name:
+                  description: The catalog service name, such as cinderv3.
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                type:
+                  description: The catalog service type, such as volumev3.
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                description:
+                  type: string
+                enabled:
+                  type: boolean
+                  default: true
+            status:
+{{ include "keystone.crds.status" (dict "id" "serviceID" "what" "service") | indent 14 }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: endpoints.{{ $group }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+{{ tuple . "keystone" "identity-controller" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  group: {{ $group }}
+  scope: Namespaced
+  names:
+    kind: Endpoint
+    listKind: EndpointList
+    plural: endpoints
+    singular: endpoint
+    categories:
+      - keystone
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Service
+          type: string
+          jsonPath: .spec.service.name
+        - name: Region
+          type: string
+          jsonPath: .spec.region
+{{ include "keystone.crds.ready_columns" . | indent 8 }}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - service
+                - region
+                - urls
+              properties:
+{{ include "keystone.crds.common_spec_properties" . | indent 16 }}
+                service:
+                  description: |
+                    The catalog service these endpoints belong to. Both halves
+                    identify it, which is the pair Keystone is queried with;
+                    neither alone is unique. There is deliberately no reference
+                    to a Service resource, so an Endpoint works for a service
+                    this chart did not declare.
+                  type: object
+                  required:
+                    - name
+                    - type
+                  properties:
+                    name:
+                      type: string
+                    type:
+                      type: string
+                region:
+                  description: |
+                    The region these endpoints are published in. It is created
+                    if absent.
+                  type: string
+                  minLength: 1
+                urls:
+                  description: |
+                    The URL of each interface. All three change together, are
+                    read together, and are declared together; an omitted
+                    interface is not published.
+                  type: object
+                  x-kubernetes-validations:
+                    - rule: has(self.admin) || has(self.internal) || has(self.public)
+                      message: at least one of spec.urls.admin, internal or public must be set
+                  properties:
+                    admin:
+                      type: string
+                      pattern: ^[a-zA-Z][a-zA-Z0-9+.-]*://.+
+                    internal:
+                      type: string
+                      pattern: ^[a-zA-Z][a-zA-Z0-9+.-]*://.+
+                    public:
+                      type: string
+                      pattern: ^[a-zA-Z][a-zA-Z0-9+.-]*://.+
+                enabled:
+                  type: boolean
+                  default: true
+            status:
+{{ include "keystone.crds.status" (dict "id" "endpointIDs" "what" "endpoint, per interface" "map" true) | indent 14 }}
+{{- end }}
