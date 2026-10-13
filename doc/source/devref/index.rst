@@ -9,6 +9,7 @@ Contents:
    endpoints
    identity-auth
    images
+   release-notes
    networking
    oslo-config
    pod-disruption-budgets

@@ -85,24 +85,30 @@ We welcome contributions in any form: code review, code changes, usage feedback,
 Release notes
 -------------
 
-We use `reno <https://opendev.org/openstack/reno.git>`_ for managing release notes. If you update
-a chart, please add a release note using the following command:
+Release notes are written as git trailers in the commit that makes the change. If you update a
+chart, add a ``Changelog:`` trailer to the last paragraph of the commit message, next to
+``Change-Id``:
 
-.. code-block:: bash
+.. code-block:: text
 
-    reno new <chart_name>
+    neutron: fix the health probe for the OVN agent
 
-This will create a new release note file ``releasenotes/notes/<chart_name>-<sha>.yaml``. Fill in the
-necessary information and commit the release note file.
+    <body>
 
-If you update multiple charts in a single commit use the following command:
+    Changelog: fixed
+    Change-Id: I7d940919531125e2806b18fcb6cfe245d6b31450
 
-.. code-block:: bash
+The kind is one of ``added``, ``changed``, ``deprecated``, ``removed``, ``fixed`` and ``security``,
+or ``skip`` when the change needs no release note. Without a description the commit subject is used.
 
-    reno new common
+By default the note goes to the charts whose directories the commit touches. Use a ``Charts:``
+trailer to override that, for example ``Charts: barbican, keystone`` or ``Charts: all`` when a
+change affects every chart.
 
-This will create a new release note file ``releasenotes/notes/common-<sha>.yaml``. In this case you
-can add multiple chart specific sections in this release note file.
+When building tarballs we collect the release notes belonging to the version being built and write
+them into the ``artifacthub.io/changes`` annotation of ``<chart_name>/Chart.yaml``, which
+`Artifact Hub <https://artifacthub.io/docs/topics/annotations/helm/>`_ renders as the chart's
+changelog. Run ``python3 tools/check_commit_message.py`` to validate your commit before pushing.
 
-When building tarballs, we will use the ``reno`` features to combine release notes from all files and
-generate  ``<chart_name>/CHANGELOG.md`` files.
+The full description lives in ``doc/source/devref/release-notes.rst``, including how the legacy
+``releasenotes/notes`` files are still picked up.
