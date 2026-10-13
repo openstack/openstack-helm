@@ -25,9 +25,16 @@
   shell: |-
           set -e
 
+          # get all Helm releases including pending and failed releases:
+          # Helm 3 needs --all for that, Helm 4 lists them by default and
+          # has no such flag
+          HELM_LIST_ARGS="--short"
+          if helm list --help | grep -q -- '-a, --all '; then
+                HELM_LIST_ARGS="${HELM_LIST_ARGS} --all"
+          fi
+
           for namespace in $(kubectl get namespaces --no-headers --output custom-columns=":metadata.name"); do
-                # get all Helm releases including pending and failed releases
-                for release in $(helm list --all --short --namespace $namespace); do
+                for release in $(helm list ${HELM_LIST_ARGS} --namespace $namespace); do
                         # Make respective directories only when a Helm release actually exists in the namespace
                         # to prevent uploading a bunch of empty directories for namespaces without a Helm release.
                         mkdir -p {{ logs_dir }}/helm/releases/$namespace
