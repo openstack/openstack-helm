@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.pod_rally_test }}
+{{- if .Values.manifests.pod_test }}
 {{- $envAll := . }}
 
 {{- $mounts_trove_tests := .Values.pod.mounts.trove_tests.trove_tests }}
@@ -44,25 +44,21 @@ spec:
 {{ tuple $envAll "tests" $mounts_trove_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}
   containers:
     - name: trove-tests
-{{ tuple $envAll "test" | include "helm-toolkit.snippets.image" | indent 6 }}
+{{ tuple $envAll "scripted_test" | include "helm-toolkit.snippets.image" | indent 6 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.tests | include "helm-toolkit.snippets.kubernetes_resources" | indent 6 }}
       env:
 {{- with $env := dict "ksUserSecret" .Values.secrets.identity.admin "envAll" $envAll }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 8 }}
 {{- end }}
-        - name: RALLY_ENV_NAME
-          value: {{.Release.Name | quote }}
       command:
-        - /tmp/rally-test.sh
+        - /tmp/trove-test.sh
       volumeMounts:
         - name: pod-tmp
           mountPath: /tmp
         - name: trove-bin
-          mountPath: /tmp/rally-test.sh
-          subPath: rally-test.sh
+          mountPath: /tmp/trove-test.sh
+          subPath: trove-test.sh
           readOnly: true
-        - name: rally-db
-          mountPath: /var/lib/rally
 {{ if $mounts_trove_tests.volumeMounts }}{{ toYaml $mounts_trove_tests.volumeMounts | indent 8 }}{{ end }}
   volumes:
     - name: pod-tmp
@@ -71,7 +67,5 @@ spec:
       configMap:
         name: trove-bin
         defaultMode: 0555
-    - name: rally-db
-      emptyDir: {}
 {{ if $mounts_trove_tests.volumes }}{{ toYaml $mounts_trove_tests.volumes | indent 4 }}{{ end }}
 {{- end }}
