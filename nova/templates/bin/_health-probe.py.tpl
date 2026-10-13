@@ -46,6 +46,7 @@ from oslo_db import options as oslo_db_options
 from oslo_db.sqlalchemy import utils as oslo_db_utils
 from oslo_log import log
 import oslo_messaging
+from oslo_messaging._drivers import impl_rabbit
 
 rpc_timeout = int(os.getenv('RPC_PROBE_TIMEOUT', '60'))
 rpc_retries = int(os.getenv('RPC_PROBE_RETRIES', '2'))
@@ -220,6 +221,15 @@ def test_rpc_liveness():
     cfg.CONF(sys.argv[1:], project='nova')
 
     log.logging.basicConfig(level=log.{{ .Values.health_probe.logging.level }})
+
+    # With use_queue_manager the reply queue name derives from processname, so
+    # liveness and readiness must not share one or they steal each other's replies.
+    cfg.CONF.register_opts(impl_rabbit.rabbit_opts, group=rabbit_group)
+    cfg.CONF.set_override(
+        'processname',
+        'health-probe-liveness' if cfg.CONF.liveness_probe
+        else 'health-probe-readiness',
+        group=rabbit_group)
 
     try:
         transport = oslo_messaging.get_rpc_transport(cfg.CONF)
