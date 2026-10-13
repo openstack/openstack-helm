@@ -18,9 +18,9 @@
 ---
 images:
   tags:
-    powerdns: docker.io/psitrax/powerdns:4.1.10
+    powerdns: docker.io/powerdns/pdns-auth-51:5.1.4
     db_init: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
-    db_sync: docker.io/psitrax/powerdns:4.1.10
+    db_sync: quay.io/airshipit/mariadb:latest-ubuntu_noble
     dep_check: quay.io/airshipit/kubernetes-entrypoint:latest-ubuntu_noble
     image_repo_sync: quay.io/airshipit/docker:27.5.0
   pull_policy: IfNotPresent
@@ -39,6 +39,14 @@ pod:
         default: kubernetes.io/hostname
       weight:
         default: 10
+  security_context:
+    powerdns:
+      pod:
+        # The image runs pdns_server as the unprivileged pdns user, which
+        # has to bind port 53.
+        sysctls:
+          - name: net.ipv4.ip_unprivileged_port_start
+            value: "0"
   replicas:
     server: 1
   lifecycle:
@@ -193,13 +201,13 @@ secrets:
 
 conf:
   powerdns:
-    slave: true
+    launch: gmysql
+    secondary: true
     dnsupdate: true
     api: true
     cache_ttl: 0
     query_cache_ttl: 0
     negquery_cache_ttl: 0
-    out_of_zone_additional_processing: no
     webserver: true
     webserver_address: 0.0.0.0
     webserver_allow_from: 0.0.0.0/0

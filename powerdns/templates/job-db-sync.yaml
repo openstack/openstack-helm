@@ -37,6 +37,16 @@ spec:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
 {{ tuple $envAll "db_sync" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+        # The schema ships with the server, so it always matches its version.
+        - name: powerdns-schema
+{{ tuple $envAll "powerdns" | include "helm-toolkit.snippets.image" | indent 10 }}
+          command:
+            - cp
+            - /usr/local/share/doc/pdns/schema.mysql.sql
+            - /tmp/pdns-schema/
+          volumeMounts:
+            - name: pdns-schema
+              mountPath: /tmp/pdns-schema
       containers:
         - name: powerdns-db-sync
 {{ tuple $envAll "db_sync" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -52,7 +62,12 @@ spec:
               mountPath: /etc/mysql/my.cnf
               subPath: my.cnf
               readOnly: true
+            - name: pdns-schema
+              mountPath: /tmp/pdns-schema
+              readOnly: true
       volumes:
+        - name: pdns-schema
+          emptyDir: {}
         - name: powerdns-bin
           configMap:
             name: powerdns-bin

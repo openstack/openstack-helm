@@ -16,7 +16,7 @@ limitations under the License.
 
 set -ex
 
-MYSQLCMD='mysql -r -N'
+MYSQLCMD='mariadb -r -N'
 if [ $(echo 'show tables' | $MYSQLCMD | wc -c) -eq 0 ]; then
-  $MYSQLCMD < /etc/pdns/schema.sql
+  $MYSQLCMD < /tmp/pdns-schema/schema.mysql.sql
 fi
