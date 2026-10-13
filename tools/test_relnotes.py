@@ -212,6 +212,112 @@ class UnparsedTrailersTest(unittest.TestCase):
         self.assertEqual(self.problems(message), [relnotes.CHANGELOG_TRAILER])
 
 
+class NotePrecedenceTest(unittest.TestCase):
+    """A reno note wins over whatever the commit message says.
+
+    A change carrying both would otherwise be announced twice, once in the
+    note's words and once in the subject's. The note is the one written for a
+    deployer to read.
+    """
+
+    NOTE = "magnum:\n  - |\n    The domain ks-user job now requests CPU and memory.\n"
+
+    def collect(self, message, note=None):
+        """What collect() would keep for magnum from one commit."""
+        entries, _, _, _ = relnotes.release_notes_of(message)
+        from_note = (
+            chart_annotations.note_entries(note, "magnum", "magnum", CHARTS)
+            if note else []
+        )
+        if from_note:
+            return [(e.kind, e.description) for e in from_note]
+        return [(k, d) for k, d in entries if k in relnotes.KINDS]
+
+    def test_note_wins_over_an_inferred_subject(self):
+        self.assertEqual(
+            self.collect("fix(magnum): size the domain ks-user job\n", self.NOTE),
+            [("changed", "The domain ks-user job now requests CPU and memory.")],
+        )
+
+    def test_note_wins_over_an_explicit_trailer(self):
+        message = "magnum: size the job\n\nBody.\n\nChangelog: fixed: Sized the job\n"
+        self.assertEqual(
+            self.collect(message, self.NOTE),
+            [("changed", "The domain ks-user job now requests CPU and memory.")],
+        )
+
+    def test_without_a_note_the_message_is_used(self):
+        self.assertEqual(
+            self.collect("fix(magnum): size the domain ks-user job\n"),
+            [("fixed", "size the domain ks-user job")],
+        )
+
+
+class ConventionalSubjectTest(unittest.TestCase):
+    """A Conventional Commits subject already names the kind, so a commit
+    written that way needs no Changelog: trailer to repeat it."""
+
+    def notes(self, subject, body=""):
+        message = subject + "\n\nSome body.\n" + body
+        entries, _, _, inferred = relnotes.release_notes_of(message)
+        return entries, inferred
+
+    def test_kind_is_taken_from_the_type(self):
+        self.assertEqual(
+            self.notes("fix(nova): Bla-bla-bla"),
+            ([("fixed", "Bla-bla-bla")], True),
+        )
+        self.assertEqual(
+            self.notes("feat(neutron): add a knob")[0], [("added", "add a knob")]
+        )
+        for subject, kind in (
+            ("refactor(cinder): tidy up", "changed"),
+            ("perf(glance): fewer calls", "changed"),
+            ("revert(ovn): back it out", "changed"),
+        ):
+            self.assertEqual(self.notes(subject)[0][0][0], kind)
+
+    def test_the_type_prefix_is_not_part_of_the_note(self):
+        (_, description), = self.notes("fix(nova): Bla-bla-bla")[0]
+        self.assertEqual(description, "Bla-bla-bla")
+
+    def test_a_scope_is_not_required(self):
+        self.assertEqual(self.notes("fix: a thing")[0], [("fixed", "a thing")])
+
+    def test_breaking_marker_is_a_change(self):
+        self.assertEqual(
+            self.notes("feat(nova)!: drop a value")[0], [("changed", "drop a value")]
+        )
+
+    def test_types_with_nothing_to_tell_a_deployer_are_silent(self):
+        for subject in ("ci(zuul): bump the nodeset", "docs: fix a typo",
+                        "chore: tidy", "test(nova): add a case"):
+            entries, _ = self.notes(subject)
+            self.assertEqual([kind for kind, _ in entries], [relnotes.SKIP], subject)
+
+    def test_the_repos_other_subject_style_is_not_conventional(self):
+        # "neutron: ..." has the same shape but a chart name is not a kind.
+        for subject in ("neutron: fix the health probe",
+                        "[ceph] Update image references",
+                        "Bump all charts to 2026.2.0"):
+            self.assertEqual(self.notes(subject), ([], False), subject)
+
+    def test_an_explicit_trailer_wins(self):
+        entries, inferred = self.notes(
+            "fix(nova): Bla-bla-bla", "\nChangelog: security: Base image bumped\n"
+        )
+        self.assertEqual(entries, [("security", "Base image bumped")])
+        self.assertFalse(inferred)
+
+    def test_skip_suppresses_the_inferred_note(self):
+        entries, _ = self.notes("fix(nova): Bla-bla-bla", "\nChangelog: skip\n")
+        self.assertEqual([kind for kind, _ in entries], [relnotes.SKIP])
+
+    def test_a_bare_trailer_also_drops_the_prefix(self):
+        entries, _ = self.notes("fix(nova): Bla-bla-bla", "\nChangelog: fixed\n")
+        self.assertEqual(entries, [("fixed", "Bla-bla-bla")])
+
+
 class RoutingTest(unittest.TestCase):
     def test_charts_from_files(self):
         files = [

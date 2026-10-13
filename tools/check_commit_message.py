@@ -103,7 +103,7 @@ def check(message, sha, all_charts, repo="."):
             % key.capitalize()
         )
 
-    entries, charts_spec, _ = relnotes.parse_changelog_trailers(message)
+    entries, charts_spec, _, inferred = relnotes.release_notes_of(message)
     kinds = [kind for kind, _ in entries]
 
     for kind, description in entries:
@@ -150,14 +150,24 @@ def check(message, sha, all_charts, repo="."):
         relnotes.commit_files(sha, repo=repo), all_charts
     )
 
-    if not entries and touched:
+    # A reno note is still a release note, and it wins over the message when
+    # a commit carries both, so a commit which adds one has said what it
+    # changed. Reno notes are being retired; this keeps the changes already
+    # in review from having to be rewritten to merge.
+    adds_note = any(
+        relnotes.is_note_path(path)
+        for path in relnotes.commit_files(sha, repo=repo, diff_filter="A")
+    )
+
+    if not entries and touched and not adds_note:
         errors.append(
-            "this commit changes %s but carries no Changelog: trailer; add one, "
-            "or Changelog: skip if the change needs no release note"
+            "this commit changes %s but carries no Changelog: trailer and its "
+            "subject names no Conventional Commits type; add a trailer, or "
+            "Changelog: skip if the change needs no release note"
             % ", ".join(sorted(touched))
         )
 
-    if entries and kinds != [relnotes.SKIP] and not errors:
+    if entries and not inferred and kinds != [relnotes.SKIP] and not errors:
         targets = relnotes.target_charts(sha, charts_spec, all_charts, repo=repo)
         if not targets:
             errors.append(
@@ -170,11 +180,23 @@ def check(message, sha, all_charts, repo="."):
 
 
 def describe(message, sha, all_charts, repo="."):
-    entries, charts_spec, _ = relnotes.parse_changelog_trailers(message)
+    entries, charts_spec, _, inferred = relnotes.release_notes_of(message)
+    source = " from the subject" if inferred else ""
+
+    notes = [
+        path
+        for path in relnotes.commit_files(sha, repo=repo, diff_filter="A")
+        if relnotes.is_note_path(path)
+    ]
+    if notes:
+        # The note wins over anything the message says, so report what will
+        # actually be published.
+        return "%d reno note(s), which the message does not override" % len(notes)
+
     if not entries:
         return "no release note"
     if [kind for kind, _ in entries] == [relnotes.SKIP]:
-        return "release note explicitly skipped"
+        return "release note skipped" + (source or ", explicitly")
 
     targets = relnotes.target_charts(sha, charts_spec, all_charts, repo=repo)
     if not targets:
@@ -183,7 +205,7 @@ def describe(message, sha, all_charts, repo="."):
         listed = "all %d charts" % len(all_charts)
     else:
         listed = ", ".join(sorted(targets))
-    return "%d release note(s) for %s" % (len(entries), listed)
+    return "%d release note(s)%s for %s" % (len(entries), source, listed)
 
 
 def main():

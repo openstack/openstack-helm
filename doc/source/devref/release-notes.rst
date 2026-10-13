@@ -59,6 +59,58 @@ Repeat the trailer to attach several notes to one commit::
     Changelog: added: The probes can now be tuned under pod.probes
     Changelog: fixed: The OVN agent is probed through its metadata socket
 
+Conventional Commits subjects
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A subject written in the `Conventional Commits`_ style already names the kind
+of change, so a commit written that way needs no trailer to repeat it::
+
+    fix(nova): Bla-bla-bla
+
+produces a ``fixed`` note reading ``Bla-bla-bla``. The type and scope are not
+part of the note: the annotation carries the kind in its own field, and the
+charts come from the diff, so repeating either in the description would only
+make it read worse.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Type
+     - Kind
+   * - ``feat``
+     - ``added``
+   * - ``fix``
+     - ``fixed``
+   * - ``refactor``, ``perf``, ``revert``
+     - ``changed``
+   * - any type with a ``!`` breaking marker
+     - ``changed``
+   * - ``build``, ``chore``, ``ci``, ``docs``, ``style``, ``test``
+     - no note, and no trailer needed
+
+Only those types count. This repository also writes ``neutron: fix the
+probe``, which has the same shape, and a chart name is not a change kind, so
+subjects like that still need a trailer.
+
+A ``Changelog:`` trailer always wins over the subject, which is how a
+conventional commit says something other than its subject, splits itself into
+several notes, or opts out with ``Changelog: skip``.
+
+A reno note wins over both
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A commit that adds a file under ``releasenotes/notes`` has already written
+its release note, so that note is used and the commit message is not consulted
+for the charts it reaches. Without this a change carrying both would be
+announced twice, once in the note's words and once in the subject's, and the
+subject is usually the poorer of the two.
+
+Such a commit also needs no ``Changelog:`` trailer: adding the note is the
+declaration. This is transitional. Reno notes are frozen and will be
+forbidden outright once the changes already in review have merged, after
+which the commit message is the only place a release note is written.
+
 Which charts a note reaches
 ---------------------------
 
@@ -103,6 +155,11 @@ Common failures are a ``Changelog:`` line written in the middle of the message
 rather than in the trailer block, where git does not recognise it, and a
 ``Changelog:`` trailer on a commit that touches no chart directory and names
 none with ``Charts:``, where the note would reach nothing.
+
+A commit that changes a chart passes when it carries a ``Changelog:`` trailer,
+a Conventional Commits subject, or a reno note. A subject in this
+repository's other style, ``neutron: fix the probe``, names no kind, so a
+commit with that subject and no note still needs a trailer.
 
 Which notes end up in which version
 -----------------------------------
@@ -214,3 +271,5 @@ were all removed along with ``tools/changelog.py``; ``releasenotes/notes`` is
 all that is left under that directory, and the chart build is the only thing
 that reads it. Charts no longer carry a ``CHANGELOG.md`` either: the
 annotation is the only release note metadata a chart ships.
+
+.. _Conventional Commits: https://www.conventionalcommits.org/

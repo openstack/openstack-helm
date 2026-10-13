@@ -221,6 +221,69 @@ MENTIONS_RE = re.compile(
 )
 
 
+# A Conventional Commits subject already says what kind of change it is, so a
+# commit written that way needs no Changelog: trailer to repeat it.
+CONVENTIONAL_KINDS = {
+    "feat": "added",
+    "fix": "fixed",
+    "refactor": "changed",
+    "perf": "changed",
+    "revert": "changed",
+}
+
+# Types that describe work with nothing to tell a deployer. Recognised so that
+# such a commit passes the check without a trailer, but producing no note.
+CONVENTIONAL_SILENT = frozenset(
+    ["build", "chore", "ci", "docs", "style", "test", "tests"]
+)
+
+CONVENTIONAL_RE = re.compile(
+    r"^(?P<type>[a-z]+)"
+    r"(?:\((?P<scope>[^)]*)\))?"
+    r"(?P<breaking>!)?"
+    r":[ \t]+(?P<description>.+)$"
+)
+
+
+def _conventional(subject):
+    """Parse a Conventional Commits subject, or None if it is not one.
+
+    Only the types above are recognised. That matters because this repository
+    also writes "neutron: fix the probe", which has the same shape, and a
+    chart name is not a change kind.
+    """
+    match = CONVENTIONAL_RE.match(subject.strip())
+    if not match:
+        return None
+
+    kind = match.group("type").lower()
+    if kind not in CONVENTIONAL_KINDS and kind not in CONVENTIONAL_SILENT:
+        return None
+
+    description = match.group("description").strip()
+    if not description:
+        return None
+    if match.group("breaking"):
+        # Artifact Hub has no breaking kind, and a breaking change is a
+        # change whatever the type says.
+        return "changed", description
+    if kind in CONVENTIONAL_SILENT:
+        return SKIP, description
+    return CONVENTIONAL_KINDS[kind], description
+
+
+def note_subject(message):
+    """The commit subject as a release note should read it.
+
+    A Conventional Commits prefix names the kind, which the annotation
+    already carries in its own field, so "fix(nova): sized the job" is a note
+    that reads "sized the job".
+    """
+    subject = subject_of(message)
+    conventional = _conventional(subject)
+    return conventional[1] if conventional else subject
+
+
 def parse_changelog_trailers(message):
     """Pull the release note trailers out of a commit message.
 
@@ -234,7 +297,7 @@ def parse_changelog_trailers(message):
     if not MENTIONS_RE.search(message):
         return [], None, change_id
 
-    subject = subject_of(message)
+    subject = note_subject(message)
     entries = []
     charts_spec = None
 
@@ -247,6 +310,29 @@ def parse_changelog_trailers(message):
             charts_spec = value if charts_spec is None else charts_spec + "," + value
 
     return entries, charts_spec, change_id
+
+
+def release_notes_of(message):
+    """Every release note a commit message declares.
+
+    Returns ``(entries, charts_spec, change_id, inferred)``. ``inferred`` says
+    the entries came from the subject rather than from a trailer, which the
+    check treats more leniently: an author who wrote a trailer meant it to
+    reach a chart, while a conventional subject is just how they write
+    subjects.
+
+    Both the build and the check go through here, so what the check validates
+    is what the build later collects.
+    """
+    entries, charts_spec, change_id = parse_changelog_trailers(message)
+    if entries:
+        return entries, charts_spec, change_id, False
+
+    guess = _conventional(subject_of(message))
+    if guess:
+        return [guess], charts_spec, change_id, True
+
+    return [], charts_spec, change_id, False
 
 
 def split_charts_spec(spec):
