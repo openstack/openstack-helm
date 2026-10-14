@@ -14,11 +14,18 @@ limitations under the License.
 */}}
 
 echo "Attempting to update Grafana admin user password"
-grafana-cli --homepath "/usr/share/grafana" --config /etc/grafana/grafana.ini admin reset-admin-password ${GF_SECURITY_ADMIN_PASSWORD}
+output="$(grafana-cli --homepath "/usr/share/grafana" --config /etc/grafana/grafana.ini admin reset-admin-password "${GF_SECURITY_ADMIN_PASSWORD}" 2>&1)"
+rc=$?
+echo "${output}"
 
-if [ "$?" == 1 ]; then
-  echo "The Grafana admin user does not exist yet, so no need to update password"
-  exit 0;
-else
-  exit 0;
+# grafana-cli exits 0 on some failures, so judge by its output.
+if [ "${rc}" -eq 0 ] && grep -q "Admin password changed successfully" <<< "${output}"; then
+  exit 0
 fi
+# Expected before grafana first starts; printed before a listing that may fail.
+if grep -q "Admin user cannot be found" <<< "${output}"; then
+  echo "The Grafana admin user does not exist yet, so no need to update password"
+  exit 0
+fi
+echo "ERROR: the Grafana admin password was NOT updated (exit status ${rc})" >&2
+exit 1
