@@ -21,7 +21,7 @@ values: |
       api:
         enabled: true
         tolerations:
-        - key: node-role.kubernetes.io/master
+        - key: node-role.kubernetes.io/control-plane
           operator: Exists
         - key: node-role.kubernetes.io/node
           operator: Exists
@@ -30,7 +30,7 @@ usage: |
   {{ include "helm-toolkit.snippets.kubernetes_tolerations" ( tuple . .Values.pod.tolerations.api ) }}
 return: |
   tolerations:
-  - key: node-role.kubernetes.io/master
+  - key: node-role.kubernetes.io/control-plane
     operator: Exists
   - key: node-role.kubernetes.io/node
     operator: Exists
