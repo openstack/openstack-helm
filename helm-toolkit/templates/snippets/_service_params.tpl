@@ -15,27 +15,34 @@ limitations under the License.
 */}}
 {{/*
 abstract: |
-  Inserts kubernetes service parameters from values as is.
+  Inserts kubernetes service parameters from values: the keys of service as
+  is, type NodePort when node_port.enabled is true, and externalTrafficPolicy
+  Local when external_policy_local is true. The last two take precedence over
+  the same keys under service.
 values: |
   network:
     serviceExample:
       service:
-        type: loadBalancer
-        loadBalancerIP: 1.1.1.1
+        type: LoadBalancer
+        loadBalancerSourceRanges:
+          - 192.0.2.0/24
+      external_policy_local: true
 usage: |
   ---
   apiVersion: v1
   kind: Service
   metadata:
-    name: 'serviceExample'
+    name: service-example
   spec:
     ports:
     - name: s-example
       port: 1111
   {{ .Values.network.serviceExample | include "helm-toolkit.snippets.service_params" | indent 2 }}
 return: |
-  type: loadBalancer
-  loadBalancerIP: 1.1.1.1
+  externalTrafficPolicy: Local
+  loadBalancerSourceRanges:
+  - 192.0.2.0/24
+  type: LoadBalancer
 */}}
 
 {{- define "helm-toolkit.snippets.service_params" }}
