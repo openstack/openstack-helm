@@ -14,33 +14,50 @@ limitations under the License.
 
 {{/*
 abstract: |
-  Renders seccomp annotations for a list of containers driven by values.yaml.
+  Deprecated, renders nothing. This snippet used to render seccomp
+  annotations, which Kubernetes replaced with the seccompProfile field of
+  the pod and container securityContext, set through pod.security_context.
+  It now fails the render when pod.seccomp sets a profile for one of the
+  containers, so that a deployment relying on it is not silently left
+  running without its profile.
 values: |
   pod:
     seccomp:
       myPodName:
         myContainerName: localhost/mySeccomp
-        mySecondContainerName: localhost/secondProfile # optional
-        myThirdContainerName: localhost/thirdProfile # optional
 usage: |
-  {{ dict "envAll" . "podName" "myPodName" "containerNames" (list "myContainerName" "mySecondContainerName" "myThirdContainerName") | include "helm-toolkit.snippets.kubernetes_seccomp_annotation" }}
+  {{ dict "envAll" . "podName" "myPodName" "containerNames" (list "myContainerName") | include "helm-toolkit.snippets.kubernetes_seccomp_annotation" }}
 return: |
-  container.seccomp.security.alpha.kubernetes.io/myContainerName: localhost/mySeccomp
-  container.seccomp.security.alpha.kubernetes.io/mySecondContainerName: localhost/secondProfile
-  container.seccomp.security.alpha.kubernetes.io/myThirdContainerName: localhost/thirdProfile
+  Nothing when no profile is set. Otherwise the render fails with:
+  pod.seccomp.myPodName.myContainerName: seccomp profiles can no longer be
+  set per container under pod.seccomp, set seccompProfile under
+  pod.security_context instead.
 note: |
-  The number of container underneath is a variable arguments. It loops through
-  all the container names specified.
+  This snippet is kept for backward compatibility only, so that charts still
+  calling it keep rendering and values still setting a profile are rejected
+  rather than ignored. It will be removed in a future release. Set the
+  profile through pod.security_context instead:
+
+  pod:
+    security_context:
+      myApplication:
+        container:
+          myContainerName:
+            seccompProfile:
+              type: Localhost
+              localhostProfile: mySeccomp
 */}}
 {{- define "helm-toolkit.snippets.kubernetes_seccomp_annotation" -}}
 {{- $envAll := index . "envAll" -}}
 {{- $podName := index . "podName" -}}
 {{- $containerNames := index . "containerNames" -}}
-{{- if hasKey (index $envAll.Values.pod "seccomp") $podName -}}
+{{- if hasKey $envAll.Values.pod "seccomp" -}}
+{{- if hasKey $envAll.Values.pod.seccomp $podName -}}
 {{- range $name := $containerNames -}}
 {{- $seccompProfile := index $envAll.Values.pod.seccomp $podName $name -}}
 {{- if $seccompProfile }}
-container.seccomp.security.alpha.kubernetes.io/{{ $name }}: {{ $seccompProfile }}
+{{- fail (printf "pod.seccomp.%s.%s: seccomp profiles can no longer be set per container under pod.seccomp, set seccompProfile under pod.security_context instead." $podName $name) }}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
