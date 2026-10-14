@@ -1,0 +1,17 @@
+---
+placement:
+  - |
+    The ``placement-api-init-log`` init container now takes its security
+    context from the new
+    ``pod.security_context.placement.container.placement_api_init_log`` key,
+    which runs it as root (``runAsUser: 0``) with a read-only root
+    filesystem, matching the ``glance_perms`` chown init container in the
+    glance chart. It used to reuse the ``placement_api`` key and run as the
+    placement user (42424) with ``allowPrivilegeEscalation: false``. That user
+    cannot chown the root-owned ``hostPath`` directory that
+    ``DirectoryOrCreate`` makes, so setting ``conf.placement.DEFAULT.log_dir``
+    left the pod stuck in its init container. Deployments that override the
+    security context for this container must now set it on the new key.
+    ``values_overrides/placement/apparmor.yaml`` gains the matching
+    ``appArmorProfile`` entry.
+...
