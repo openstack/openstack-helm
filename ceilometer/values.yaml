@@ -34,9 +34,6 @@ labels:
   job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
-  test:
-    node_selector_key: openstack-control-plane
-    node_selector_value: enabled
 
 images:
   tags:
@@ -1614,23 +1611,11 @@ dependencies:
           - endpoint: node
             service: local_image_registry
   static:
-    api:
-      jobs:
-        - ceilometer-db-sync
-        - ceilometer-rabbit-init
-        - ceilometer-ks-user
-        - ceilometer-ks-endpoints
-      services:
-        - endpoint: internal
-          service: identity
-        - endpoint: internal
-          service: metric
     central:
       jobs:
         - ceilometer-db-sync
         - ceilometer-rabbit-init
         - ceilometer-ks-user
-        - ceilometer-ks-endpoints
       services:
         - endpoint: internal
           service: identity
@@ -1643,7 +1628,6 @@ dependencies:
         - ceilometer-db-sync
         - ceilometer-rabbit-init
         - ceilometer-ks-user
-        - ceilometer-ks-endpoints
       services:
         - endpoint: internal
           service: identity
@@ -1656,7 +1640,6 @@ dependencies:
         - ceilometer-db-sync
         - ceilometer-rabbit-init
         - ceilometer-ks-user
-        - ceilometer-ks-endpoints
       services:
         - endpoint: internal
           service: identity
@@ -1681,20 +1664,11 @@ dependencies:
         - ceilometer-db-sync
         - ceilometer-rabbit-init
         - ceilometer-ks-user
-        - ceilometer-ks-endpoints
       services:
         - endpoint: internal
           service: identity
         - endpoint: internal
           service: oslo_db
-        - endpoint: internal
-          service: metric
-    tests:
-      services:
-        - endpoint: internal
-          service: identity
-        - endpoint: internal
-          service: metering
         - endpoint: internal
           service: metric
     image_repo_sync:
@@ -1707,7 +1681,6 @@ secrets:
   identity:
     admin: ceilometer-keystone-admin
     ceilometer: ceilometer-keystone-user
-    test: ceilometer-keystone-test
   oslo_messaging:
     admin: ceilometer-rabbitmq-admin
     ceilometer: ceilometer-rabbitmq-user
@@ -1775,14 +1748,6 @@ endpoints:
         username: ceilometer
         password: password
         project_name: service
-        user_domain_name: service
-        project_domain_name: service
-      test:
-        role: admin
-        region_name: RegionOne
-        username: ceilometer-test
-        password: password
-        project_name: test
         user_domain_name: service
         project_domain_name: service
     hosts:
@@ -1883,11 +1848,6 @@ pod:
           operator: Exists
           effect: NoSchedule
   mounts:
-    ceilometer_tests:
-      init_container: null
-      ceilometer_tests:
-        volumeMounts:
-        volumes:
     ceilometer_compute:
       init_container: null
       ceilometer_compute:
@@ -1990,13 +1950,6 @@ pod:
         limits:
           memory: "1024Mi"
           cpu: "2000m"
-      tests:
-        requests:
-          memory: "128Mi"
-          cpu: "100m"
-        limits:
-          memory: "1024Mi"
-          cpu: "2000m"
       image_repo_sync:
         requests:
           memory: "128Mi"
@@ -2020,7 +1973,6 @@ manifests:
   secret_keystone: true
   secret_rabbitmq: true
   secret_registry: true
-  service_api: true
 
 # -- Extra K8s manifests to deploy. Either a list or a map of manifests.
 ## Note: Supports use of custom Helm templates
