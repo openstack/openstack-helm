@@ -9,16 +9,16 @@
 # osh_openstack_client_tls=true.
 #
 # The cinder-api container runs uwsgi in plain HTTP on the cinder "service" port
-# (8776); the nginx sidecar terminates TLS on 443 and proxies to
-# 127.0.0.1:8776. The Service keeps port 8776 but routes to 443 (targetPort).
+# (8776); the nginx sidecar terminates TLS on 8443 and proxies to
+# 127.0.0.1:8776. The Service keeps port 8776 but routes to 8443 (targetPort).
 # The nginx sidecar, its config ConfigMap, the HTTPRoute and the BackendTLSPolicy
 # are all defined here (extraContainers + extraObjects) so the chart stays
 # independent of how the service is exposed outside the cluster.
 ---
-# Route the API Service to the in-pod nginx TLS sidecar (port 443).
+# Route the API Service to the in-pod nginx TLS sidecar (port 8443).
 network:
   api:
-    target_port: 443
+    target_port: 8443
 secrets:
   tls:
     # Outbound trust: cinder calls keystone and glance over TLS, so its pods and
@@ -88,19 +88,31 @@ conf:
     keystone_authtoken:
       cafile: /etc/ssl/certs/openstack-helm.crt
 
+# Image of the nginx sidecar below. Any nginx image that includes
+# /etc/nginx/conf.d/*.conf and writes its pid under /run or /tmp works.
+images:
+  tags:
+    nginx_tls_sidecar: docker.io/nginx:1.27-alpine
+
+# The nginx sidecar runs non-root with a read-only root filesystem, so it
+# listens on 8443 rather than a privileged port.
 pod:
   extraContainers:
     cinder_api:
       - name: nginx-tls
-        image: docker.io/nginx:1.27-alpine
-        imagePullPolicy: IfNotPresent
+        image: "{{ .Values.images.tags.nginx_tls_sidecar }}"
+        imagePullPolicy: "{{ .Values.images.pull_policy }}"
         securityContext:
-          runAsUser: 0
+          runAsUser: 65534
+          runAsNonRoot: true
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
         ports:
           - name: https
-            containerPort: 443
+            containerPort: 8443
         volumeMounts:
           - name: nginx-tls-certs
             mountPath: /etc/nginx/certs
@@ -108,6 +120,10 @@ pod:
           - name: nginx-tls-conf
             mountPath: /etc/nginx/conf.d
             readOnly: true
+          - name: nginx-tls-run
+            mountPath: /run
+          - name: nginx-tls-tmp
+            mountPath: /tmp
   extraVolumes:
     cinder_api:
       - name: nginx-tls-certs
@@ -116,6 +132,10 @@ pod:
       - name: nginx-tls-conf
         configMap:
           name: cinder-nginx-tls
+      - name: nginx-tls-run
+        emptyDir: {}
+      - name: nginx-tls-tmp
+        emptyDir: {}
 
 extraObjects:
   # Server certificate for the nginx sidecar (issued by the ca-issuer). The
@@ -160,7 +180,7 @@ extraObjects:
           backendRefs:
             - name: cinder-api
               port: 8776
-  # nginx sidecar server block (proxies TLS:443 -> uwsgi 127.0.0.1:8776). The
+  # nginx sidecar server block (proxies TLS:8443 -> uwsgi 127.0.0.1:8776). The
   # $-prefixed tokens are nginx variables, escaped so the chart's tpl pass
   # leaves them intact.
   cm_cinder_nginx_tls:
@@ -172,8 +192,18 @@ extraObjects:
     data:
       default.conf: |
         server {
-            listen 443 ssl;
+            listen 8443 ssl;
             server_name _;
+
+            # Keep request buffers on the /tmp emptyDir: the root
+            # filesystem is read-only and the compiled-in temp paths
+            # differ between nginx images. Set per server, not in the
+            # http block, where some images already set them.
+            client_body_temp_path /tmp/client_body;
+            proxy_temp_path       /tmp/proxy;
+            fastcgi_temp_path     /tmp/fastcgi;
+            uwsgi_temp_path       /tmp/uwsgi;
+            scgi_temp_path        /tmp/scgi;
 
             ssl_certificate     /etc/nginx/certs/tls.crt;
             ssl_certificate_key /etc/nginx/certs/tls.key;

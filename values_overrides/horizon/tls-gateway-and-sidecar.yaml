@@ -3,7 +3,7 @@
 # horizon pod; the gateway re-encrypts to it via a BackendTLSPolicy).
 #
 # Unlike the API charts, horizon keeps Apache httpd as the application server
-# (Django + static assets); the nginx sidecar only TERMINATES TLS on 443 and
+# (Django + static assets); the nginx sidecar only TERMINATES TLS on 8443 and
 # reverse-proxies to apache on the plain-HTTP web port (80). Apache no longer
 # terminates TLS itself. Django trusts the sidecar's X-Forwarded-Proto header
 # (SECURE_PROXY_SSL_HEADER is already set in the chart's local_settings).
@@ -11,11 +11,11 @@
 # Requires cert_manager_setup=true (ca-issuer ClusterIssuer) and
 # osh_openstack_client_tls=true.
 ---
-# Route the web Service to the in-pod nginx TLS sidecar (port 443). Apache keeps
+# Route the web Service to the in-pod nginx TLS sidecar (port 8443). Apache keeps
 # listening on the internal web port (80); only the public port becomes 443.
 network:
   dashboard:
-    target_port: 443
+    target_port: 8443
 secrets:
   tls:
     # Outbound trust: horizon calls keystone over TLS. CA-ONLY secret (just
@@ -56,19 +56,31 @@ conf:
         csrf_cookie_secure: "True"
         session_cookie_secure: "True"
 
+# Image of the nginx sidecar below. Any nginx image that includes
+# /etc/nginx/conf.d/*.conf and writes its pid under /run or /tmp works.
+images:
+  tags:
+    nginx_tls_sidecar: docker.io/nginx:1.27-alpine
+
+# The nginx sidecar runs non-root with a read-only root filesystem, so it
+# listens on 8443 rather than a privileged port.
 pod:
   extraContainers:
     horizon:
       - name: nginx-tls
-        image: docker.io/nginx:1.27-alpine
-        imagePullPolicy: IfNotPresent
+        image: "{{ .Values.images.tags.nginx_tls_sidecar }}"
+        imagePullPolicy: "{{ .Values.images.pull_policy }}"
         securityContext:
-          runAsUser: 0
+          runAsUser: 65534
+          runAsNonRoot: true
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
         ports:
           - name: https
-            containerPort: 443
+            containerPort: 8443
         volumeMounts:
           - name: nginx-tls-certs
             mountPath: /etc/nginx/certs
@@ -76,6 +88,10 @@ pod:
           - name: nginx-tls-conf
             mountPath: /etc/nginx/conf.d
             readOnly: true
+          - name: nginx-tls-run
+            mountPath: /run
+          - name: nginx-tls-tmp
+            mountPath: /tmp
   extraVolumes:
     horizon:
       - name: nginx-tls-certs
@@ -84,6 +100,10 @@ pod:
       - name: nginx-tls-conf
         configMap:
           name: horizon-nginx-tls
+      - name: nginx-tls-run
+        emptyDir: {}
+      - name: nginx-tls-tmp
+        emptyDir: {}
 
 extraObjects:
   # Server certificate for the nginx sidecar (issued by the ca-issuer). SANs must
@@ -126,7 +146,7 @@ extraObjects:
           backendRefs:
             - name: horizon-int
               port: 80
-  # nginx sidecar server block (proxies TLS:443 -> apache 127.0.0.1:80). A larger
+  # nginx sidecar server block (proxies TLS:8443 -> apache 127.0.0.1:80). A larger
   # client_max_body_size is set since the dashboard handles file uploads. The
   # $-prefixed tokens are nginx variables, escaped so the chart's tpl pass leaves
   # them intact.
@@ -139,8 +159,18 @@ extraObjects:
     data:
       default.conf: |
         server {
-            listen 443 ssl;
+            listen 8443 ssl;
             server_name _;
+
+            # Keep request buffers on the /tmp emptyDir: the root
+            # filesystem is read-only and the compiled-in temp paths
+            # differ between nginx images. Set per server, not in the
+            # http block, where some images already set them.
+            client_body_temp_path /tmp/client_body;
+            proxy_temp_path       /tmp/proxy;
+            fastcgi_temp_path     /tmp/fastcgi;
+            uwsgi_temp_path       /tmp/uwsgi;
+            scgi_temp_path        /tmp/scgi;
             client_max_body_size 0;
 
             ssl_certificate     /etc/nginx/certs/tls.crt;
