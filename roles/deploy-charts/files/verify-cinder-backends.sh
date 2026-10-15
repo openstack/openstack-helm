@@ -141,10 +141,17 @@ hdr "3. Backend pool capacity is read from the storage cluster"
 # `volume backend pool list` builds only the volume client, so unlike
 # `volume create` it does not require an image endpoint -- which matters
 # because every playbook here deploys cinder before glance.
+#
+# An empty list means the scheduler has not received the backend's
+# capabilities yet, so keep waiting. cinder-volume sends them once at
+# startup, which is lost if the scheduler starts at the same time and is
+# not subscribed yet, and then from a periodic task that first runs one to
+# two minutes after startup.
 pool_json=""
 for _ in $(seq 1 "$POOL_STATS_RETRIES"); do
   pool_json="$(openstack volume backend pool list --long -f json 2>/dev/null)"
-  if [[ -n "$pool_json" ]] && ! grep -q "unknown" <<<"$pool_json"; then
+  if [[ -n "$pool_json" && "$pool_json" != "[]" ]] &&
+      ! grep -q "unknown" <<<"$pool_json"; then
     break
   fi
   sleep "$POOL_STATS_DELAY"
