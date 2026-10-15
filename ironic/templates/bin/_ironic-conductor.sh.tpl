@@ -19,6 +19,13 @@ set -ex
 mkdir -p /var/lib/openstack-helm/ironic/images
 mkdir -p /var/lib/openstack-helm/ironic/master_images
 
+# ensure the tempdir exists, read it from the config
+ironictmpdir=$(python -c 'from configparser import ConfigParser;cfg = ConfigParser();cfg.read("/etc/ironic/ironic.conf");print(cfg.get("DEFAULT", "tempdir", fallback=""))')
+if [ -n "${ironictmpdir}" -a ! -d "${ironictmpdir}" ]; then
+  mkdir -p "${ironictmpdir}"
+  chmod 1777 "${ironictmpdir}"
+fi
+
 {{- if and (.Values.bootstrap.object_store.enabled) (.Values.bootstrap.object_store.openstack.enabled) }}
 OPTIONS=" --config-file /tmp/pod-shared/swift.conf"
 {{- end }}
