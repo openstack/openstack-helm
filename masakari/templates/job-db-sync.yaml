@@ -12,63 +12,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.job_db_sync }}
-{{- $envAll := . }}
+{{- define "metadata.annotations.job.db_sync" }}
+helm.sh/hook: post-install,post-upgrade
+helm.sh/hook-weight: "-4"
+{{- end }}
 
-{{- $serviceAccountName := "masakari-db-sync" }}
-{{ tuple $envAll "db_sync" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: masakari-db-sync
-  annotations:
-    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
-    "helm.sh/hook": "post-install,post-upgrade"
-    "helm.sh/hook-weight": "-4"
-spec:
-  template:
-    metadata:
-      labels:
-{{ tuple $envAll "masakari" "db-migrate" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-      annotations:
-{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
-    spec:
-      serviceAccountName: {{ $serviceAccountName }}
-      restartPolicy: OnFailure
-      nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
-      initContainers:
-{{ tuple $envAll "db_migrate" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-      containers:
-        - name: masakari-db-sync
-{{ tuple $envAll "db_sync" | include "helm-toolkit.snippets.image" | indent 10 }}
-{{ tuple $envAll $envAll.Values.pod.resources.jobs.db_sync | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "masakari" "container" "masakari_db_migrate" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
-          command:
-            - /tmp/manage-db.sh
-          volumeMounts:
-            - name: pod-tmp
-              mountPath: /tmp
-            - name: masakari-bin
-              mountPath: /tmp/manage-db.sh
-              subPath: manage-db.sh
-            - name: etcmasakari
-              mountPath: /etc/masakari
-            - name: masakari-etc
-              mountPath: /etc/masakari/masakari.conf
-              subPath: masakari.conf
-      volumes:
-        - name: pod-tmp
-          emptyDir: {}
-        - name: etcmasakari
-          emptyDir: {}
-        - name: masakari-etc
-          secret:
-            secretName: masakari-etc
-            defaultMode: 0444
-        - name: masakari-bin
-          configMap:
-            name: masakari-bin
-            defaultMode: 0555
+{{- if .Values.manifests.job_db_sync }}
+{{- $dbToSync := dict "configFile" "/etc/masakari/masakari.conf" "configDir" "/etc/masakari/masakari.conf.d" "logConfigFile" "/etc/masakari/logging.conf" "image" .Values.images.tags.db_sync -}}
+{{- $dbSyncJob := dict "envAll" . "serviceName" "masakari" "dbToSync" $dbToSync -}}
+{{- $_ := set $dbSyncJob "jobAnnotations" (include "metadata.annotations.job.db_sync" . | fromYaml ) }}
+{{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}
