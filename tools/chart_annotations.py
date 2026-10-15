@@ -66,8 +66,8 @@ def version_paths(chart, repo="."):
 def build_range(chart, base_version, repo=".", since=None, full=False):
     """The commit range covered by the version currently being built.
 
-    A version is bounded by the commits that produce it, the same ones
-    tools/chart_version.sh counts: the newest is this version's commit and the
+    A version is bounded by the commits which produce it, the ones
+    tools/chart_version.sh counts: the newest is this version's change and the
     one before it published the previous version. Consecutive versions
     therefore partition the history and every note is published exactly once.
 
@@ -80,14 +80,26 @@ def build_range(chart, base_version, repo=".", since=None, full=False):
     note the chart has ever had, and ``since`` replaces it with an explicit
     revision. Both are for the series bump, where the versions that would
     otherwise hold the accumulated history were published without annotations.
+
+    The boundaries are taken along the first parent, which is to say from the
+    commits on the branch itself rather than from the ones Gerrit merged into
+    it. A range is resolved by ancestry, so a boundary sitting on a side
+    branch reaches back past every change merged from a different one, and the
+    windows of two consecutive versions then overlap. That is not theoretical:
+    keystone 2026.1.43 and 2026.1.45 were both published carrying the same
+    eight notes, because the lower bound of the second was a commit which did
+    not have the first version's work behind it.
     """
     paths = version_paths(chart, repo=repo)
 
     if full or since:
-        # The upper bound is the whole history's newest commit touching the
-        # chart, which is the sha tools/chart_version.sh puts in the version.
+        # The upper bound is the newest commit on the branch which touched
+        # the chart. Where Gerrit merged the change that is the merge rather
+        # than the change itself, so it need not be the sha in the version;
+        # the two name the same change and cover the same content.
         newest = relnotes.git(
-            "log", "-1", "--format=%H", "HEAD", "--", *paths, repo=repo
+            "log", "-1", "--first-parent", "--format=%H", "HEAD",
+            "--", *paths, repo=repo
         ).strip()
         if not newest:
             return None
@@ -101,7 +113,7 @@ def build_range(chart, base_version, repo=".", since=None, full=False):
         floor = None
 
     shas = relnotes.git(
-        "log", "--format=%H", spec, "--", *paths, repo=repo
+        "log", "--first-parent", "--format=%H", spec, "--", *paths, repo=repo
     ).split()
     if not shas:
         return None

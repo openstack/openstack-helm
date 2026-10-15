@@ -5,6 +5,7 @@
 
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -369,6 +370,60 @@ class VersionPathsTest(unittest.TestCase):
 
     def test_helm_toolkit_does_not_list_itself_twice(self):
         self.assertEqual(self.paths("helm-toolkit"), ["helm-toolkit"])
+
+
+class BuildRangeTopologyTest(unittest.TestCase):
+    """Consecutive versions must not publish the same commit twice.
+
+    Gerrit merges each change from its own branch, so the commits which touch
+    a chart are not all on the branch's first-parent line. A range is resolved
+    by ancestry, so a boundary taken from a side branch reaches back past
+    anything merged from a different one.
+    """
+
+    def git(self, *args):
+        subprocess.run(["git"] + list(args), cwd=self.repo, check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def touch(self, name, text):
+        with open(os.path.join(self.repo, "mychart", name), "w") as fh:
+            fh.write(text + "\n")
+        self.git("add", "-A")
+        self.git("commit", "-m", text)
+        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo,
+                              capture_output=True, text=True).stdout.strip()
+
+    def setUp(self):
+        self.repo = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.repo)
+        os.mkdir(os.path.join(self.repo, "mychart"))
+        with open(os.path.join(self.repo, "mychart", "Chart.yaml"), "w") as fh:
+            fh.write("name: mychart\nversion: 0.1.0\n")
+        self.git("init", "-q", "-b", "master")
+        self.git("config", "user.email", "t@example.com")
+        self.git("config", "user.name", "T")
+        self.touch("values.yaml", "base")
+
+        # Two changes written from the same base, each on its own branch,
+        # merged one after the other. This is what Gerrit produces.
+        self.git("checkout", "-q", "-b", "side1")
+        self.first = self.touch("a.yaml", "first change")
+        self.git("checkout", "-q", "master")
+        self.git("checkout", "-q", "-b", "side2", "master")
+        self.touch("b.yaml", "second change")
+
+        self.git("checkout", "-q", "master")
+        self.git("merge", "--no-ff", "-q", "side1", "-m", "Merge side1")
+        self.git("merge", "--no-ff", "-q", "side2", "-m", "Merge side2")
+
+    def test_the_two_windows_do_not_overlap(self):
+        rng = chart_annotations.build_range("mychart", "0.0.0", repo=self.repo)
+        commits = relnotes.commits_in_range(rng, repo=self.repo)
+        self.assertNotIn(
+            self.first, commits,
+            "the previous version's commit is inside this version's window, "
+            "so both publish it",
+        )
 
 
 FIXTURE = """\

@@ -168,10 +168,18 @@ A chart's version counts the commits that touched it, and the commits that
 touched ``helm-toolkit`` when it depends on it, since helm-toolkit is vendored
 into the tarball. A version is bounded by two of those commits: the newest is
 the version's own, and the one before it produced the previous version.
-Consecutive versions therefore partition the history, and since Artifact Hub
-concatenates the annotations of every published version, each note appears
-exactly once. ``tools/chart_version.sh`` and ``tools/chart_annotations.py``
-have to agree on those boundaries, so they derive them the same way.
+Consecutive versions therefore partition the history, and since a reader
+assembles a chart's changelog from the versions in the index, each note
+appears exactly once.
+
+The boundaries are taken along the branch's first parent. Gerrit merges each
+change from its own branch, so the commits which touched a chart are not all
+on that line, and a git range is resolved by ancestry rather than by date. A
+boundary taken from a side branch therefore reaches back past every change
+merged from a different one, and the windows of two consecutive versions
+overlap. Taking the merge instead keeps them apart. This also means the end
+of a window is usually the merge rather than the change itself, so it need
+not be the sha that appears in the version; the two name the same change.
 
 A note routed to a chart the commit did not touch, through ``Charts: all`` for
 instance, does not bump that chart's version. It is carried by the next
