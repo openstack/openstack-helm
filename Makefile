@@ -26,14 +26,6 @@ UNAME_ARCH := $(shell uname -m)
 # make all SKIP_ANNOTATIONS=1
 SKIP_ANNOTATIONS ?= 0
 
-# A build normally carries only the release notes of the version it builds.
-# At a series bump the earlier versions were published without annotations,
-# so that history has no version left to ride on and the charts are rebuilt
-# once carrying all of it:
-# make all FULL_ANNOTATIONS=1
-FULL_ANNOTATIONS ?= 0
-ANNOTATE_ARGS = $(if $(filter 1,$(FULL_ANNOTATIONS)),--full)
-
 PKG_ARGS =
 ifdef VERSION
 	PKG_ARGS += --version $(VERSION)
@@ -43,7 +35,7 @@ ifdef PACKAGE_DIR
 	PKG_ARGS += --destination $(PACKAGE_DIR)
 endif
 
-BASE_VERSION ?= 2026.1.0
+BASE_VERSION ?= 2026.2.0
 
 CHART_DIRS := $(subst /,,$(dir $(wildcard */Chart.yaml)))
 CHARTS := $(sort helm-toolkit $(CHART_DIRS))
@@ -88,7 +80,7 @@ build-%: lint-%
 		trap 'cp "$$BACKUP" $*/Chart.yaml; rm -f "$$BACKUP"' EXIT; \
 		[ "$(SKIP_ANNOTATIONS)" = "1" ] || \
 			$(PYTHON) tools/chart_annotations.py --charts $* \
-				--base-version $(BASE_VERSION) $(ANNOTATE_ARGS); \
+				--base-version $(BASE_VERSION); \
 		$(HELM) package $* --version $$(tools/chart_version.sh $* $(BASE_VERSION)) $(PKG_ARGS); \
 	fi
 
