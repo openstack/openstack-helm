@@ -21,7 +21,6 @@ COMMAND="${@:-start}"
 function start () {
   exec cyborg-api \
         --config-file /etc/cyborg/cyborg.conf \
-        --log-config-append  /tmp/logging-cyborg.conf \
         ${OPTIONS}
 }
 
