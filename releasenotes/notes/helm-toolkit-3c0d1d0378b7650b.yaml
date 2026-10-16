@@ -1,0 +1,15 @@
+---
+helm-toolkit:
+  fixes:
+    - |
+      The ``keystone_domain_user`` script in helm-toolkit previously set the
+      domain service user password unconditionally on every reconciliation.
+      Keystone invalidates all active tokens for a user on every password
+      update, which caused unnecessary disruption to long-lived service tokens
+      (for example the heat stack domain user) in environments with frequent
+      reconciliation (e.g. GitOps loops). The script now probes authentication
+      with the candidate password first and skips the update if it succeeds,
+      matching the ``keystone_user`` script. Unexpected probe failures
+      (non-HTTP-401 errors) cause the job to abort rather than proceeding
+      blindly.
+...
