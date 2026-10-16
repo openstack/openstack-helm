@@ -18,13 +18,16 @@
         replicas:
           server: {{ osh_rabbitmq_replicas }}
       volume:
-        # With Ceph the broker claims a PersistentVolume from the Rook
-        # StorageClass; without it there is no StorageClass at all, so the
-        # mnesia directory is a host path instead. See osh_ceph_storage.
-        enabled: {{ osh_ceph_storage | bool | ternary('true', 'false') }}
+        # "pvc" claims a PersistentVolume from the Rook StorageClass, "local"
+        # puts the mnesia directory on a host path. Without Ceph there is no
+        # StorageClass at all, so it follows osh_ceph_storage unless a
+        # playbook pins osh_rabbitmq_storage.
+        enabled: {{ (_rabbitmq_storage == 'pvc') | ternary('true', 'false') }}
         class_name: {{ osh_ceph_storage_class }}
         use_local_path:
-          enabled: {{ osh_ceph_storage | bool | ternary('false', 'true') }}
+          enabled: {{ (_rabbitmq_storage == 'pvc') | ternary('false', 'true') }}
+  vars:
+    _rabbitmq_storage: "{{ osh_rabbitmq_storage | default(osh_ceph_storage | bool | ternary('pvc', 'local')) }}"
 
 - name: Deploy rabbitmq
   include_tasks: _install.yaml

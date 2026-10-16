@@ -79,6 +79,11 @@
         name: deploy-charts
         tasks_from: rabbitmq
       when: not (rabbitmq_operator_enabled | default(false))
+      # A host path even with Ceph. The OSDs sit on loop devices, and on slow
+      # nodes their commits stall for tens of seconds; RabbitMQ on an RBD
+      # volume then loses vhosts and quorum queues for the rest of the job.
+      vars:
+        osh_rabbitmq_storage: local
 
     # Skipped when the database is provided by mariadb-operator instead, which
     # playbooks/deploy-mariadb-operator.yaml has already set up.
