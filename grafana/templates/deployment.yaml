@@ -62,6 +62,12 @@ spec:
               port: {{ tuple "grafana" "image_rendering" "grafana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             initialDelaySeconds: 15
             periodSeconds: 10
+          env:
+            - name: AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-renderer-creds
+                  key: AUTH_TOKEN
 {{- end }}
       containers:
 {{- if and .Values.conf.grafana.image_rendering_sidecar.enabled (not .Values.conf.grafana.image_rendering_sidecar.k8s_sidecar_feature_enabled) }}
@@ -74,6 +80,12 @@ spec:
               port: {{ tuple "grafana" "image_rendering" "grafana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
             initialDelaySeconds: 15
             periodSeconds: 10
+          env:
+            - name: AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-renderer-creds
+                  key: AUTH_TOKEN
 {{- end }}
         - name: grafana
 {{ tuple $envAll "grafana" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -116,6 +128,11 @@ spec:
               value: "http://localhost:{{ tuple "grafana" "image_rendering" "grafana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}/render"
             - name: GF_RENDERING_CALLBACK_URL
               value: "http://localhost:{{ tuple "grafana" "internal" "grafana" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}"
+            - name: GF_RENDERING_RENDERER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-renderer-creds
+                  key: AUTH_TOKEN
 {{- end }}
 {{- if .Values.manifests.mariadb_db }}
             - name: GF_DATABASE_URL

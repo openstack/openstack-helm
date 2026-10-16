@@ -14,11 +14,11 @@ limitations under the License.
 */}}
 
 echo "Attempting to update Grafana admin user password"
-output="$(grafana-cli --homepath "/usr/share/grafana" --config /etc/grafana/grafana.ini admin reset-admin-password "${GF_SECURITY_ADMIN_PASSWORD}" 2>&1)"
+output="$(grafana cli --homepath "/usr/share/grafana" --config /etc/grafana/grafana.ini admin reset-admin-password "${GF_SECURITY_ADMIN_PASSWORD}" 2>&1)"
 rc=$?
 echo "${output}"
 
-# grafana-cli exits 0 on some failures, so judge by its output.
+# grafana cli exits 0 on some failures, so judge by its output.
 if [ "${rc}" -eq 0 ] && grep -q "Admin password changed successfully" <<< "${output}"; then
   exit 0
 fi
