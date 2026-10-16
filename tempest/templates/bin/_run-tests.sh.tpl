@@ -16,6 +16,16 @@ limitations under the License.
 
 set -ex
 
+{{- $imgFile := (.Values.conf.tempest.scenario | default dict).img_file }}
+{{- if $imgFile }}
+
+if [ ! -f "{{ $imgFile }}" ]; then
+  curl --fail --silent --show-error --location --retry 3 \
+    --output "{{ $imgFile }}.part" "{{ .Values.conf.tempest.image.http_qcow2_image }}"
+  mv "{{ $imgFile }}.part" "{{ $imgFile }}"
+fi
+{{- end }}
+
 {{ if .Values.conf.cleanup.enabled }}
 tempest cleanup --init-saved-state
 
