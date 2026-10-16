@@ -46,6 +46,9 @@ reserved in a URI therefore needs the osh group.
 {{- end }}
 {{- $apiVersion := printf "%s/v1alpha1" $apiGroup }}
 {{- $mariadbHost := index .Values.endpoints.oslo_db.hosts "default" }}
+{{- /* The MariaDB resources to attach to. Their names need not match the services
+clients connect through, which is what $mariadbHost and $sessionHost are. */}}
+{{- $mariadbRef := .Values.mariadb_db.mariadb_ref | default $mariadbHost }}
 
 {{- /*
 grafana owns two databases, grafana and grafana_session, each behind its own
@@ -57,18 +60,28 @@ GF_DATABASE_URL environment variable, which grafana gives precedence over
 DB_CONNECTION environment variable.
 */}}
 {{- $grafanaAuth := .Values.endpoints.oslo_db.auth.user }}
+{{- $passwordSecret := .Values.mariadb_db.password_secret }}
+{{- $sessionPasswordSecret := .Values.mariadb_db.session_password_secret }}
 
-{{- /* One account for the grafana database. */}}
+{{- /*
+One account for the grafana database. Its password is read from a secret. By
+default the chart renders that secret from endpoints.oslo_db.auth.user, which
+puts the password in the Helm values. Set mariadb_db.password_secret.create to
+false to reference a secret that already exists, such as one synced from an
+external secret store, so the password never passes through Helm.
+*/}}
+{{- if $passwordSecret.create }}
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: grafana-db-password
+  name: {{ $passwordSecret.name }}
   labels:
 {{ tuple $envAll "grafana" "db-password" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 type: Opaque
 data:
-  password: {{ $grafanaAuth.password | b64enc }}
+  {{ $passwordSecret.key }}: {{ $grafanaAuth.password | b64enc }}
+{{- end }}
 ---
 apiVersion: {{ $apiVersion }}
 kind: User
@@ -78,13 +91,13 @@ metadata:
 {{ tuple $envAll "grafana" "db-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
     waitForIt: true
   name: {{ $grafanaAuth.username | quote }}
   host: "%"
   passwordSecretKeyRef:
-    name: grafana-db-password
-    key: password
+    name: {{ $passwordSecret.name }}
+    key: {{ $passwordSecret.key }}
   {{- /* 0 means unlimited. Anything else throttles the service. */}}
   maxUserConnections: 0
 {{- if .Values.tls.oslo_db }}
@@ -104,7 +117,7 @@ metadata:
 {{ tuple $envAll "grafana" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
     waitForIt: true
   {{- /* spec.name carries the schema name: it may contain an underscore, which
   metadata.name may not. */}}
@@ -121,7 +134,7 @@ metadata:
 {{ tuple $envAll "grafana" "db-grant" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
     waitForIt: true
   privileges:
     - ALL
@@ -140,14 +153,14 @@ metadata:
 {{ tuple $envAll "grafana" "db-connection" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
   serviceName: {{ $mariadbHost | quote }}
   host: {{ tuple "oslo_db" "internal" $envAll | include "helm-toolkit.endpoints.endpoint_host_lookup" | quote }}
   port: {{ tuple "oslo_db" "internal" "mysql" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
   username: {{ $grafanaAuth.username | quote }}
   passwordSecretKeyRef:
-    name: grafana-db-password
-    key: password
+    name: {{ $passwordSecret.name }}
+    key: {{ $passwordSecret.key }}
   database: {{ $grafanaName | quote }}
   secretName: grafana-db-conn
   secretTemplate:
@@ -170,19 +183,25 @@ spec:
   retryInterval: 10s
 {{- end }}
 {{- $sessionHost := index .Values.endpoints.oslo_db_session.hosts "default" }}
+{{- $sessionRef := .Values.mariadb_db.session_mariadb_ref | default $sessionHost }}
 {{- $sessionAuth := .Values.endpoints.oslo_db_session.auth.user }}
 
-{{- /* One account for the grafana_session database. */}}
+{{- /*
+One account for the grafana_session database. Its password secret follows
+mariadb_db.session_password_secret, which works like mariadb_db.password_secret.
+*/}}
+{{- if $sessionPasswordSecret.create }}
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: grafana-session-db-password
+  name: {{ $sessionPasswordSecret.name }}
   labels:
 {{ tuple $envAll "grafana" "db-password" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 type: Opaque
 data:
-  password: {{ $sessionAuth.password | b64enc }}
+  {{ $sessionPasswordSecret.key }}: {{ $sessionAuth.password | b64enc }}
+{{- end }}
 ---
 apiVersion: {{ $apiVersion }}
 kind: User
@@ -192,13 +211,13 @@ metadata:
 {{ tuple $envAll "grafana" "db-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $sessionHost | quote }}
+    name: {{ $sessionRef | quote }}
     waitForIt: true
   name: {{ $sessionAuth.username | quote }}
   host: "%"
   passwordSecretKeyRef:
-    name: grafana-session-db-password
-    key: password
+    name: {{ $sessionPasswordSecret.name }}
+    key: {{ $sessionPasswordSecret.key }}
   {{- /* 0 means unlimited. Anything else throttles the service. */}}
   maxUserConnections: 0
 {{- if .Values.tls.oslo_db_session }}
@@ -218,7 +237,7 @@ metadata:
 {{ tuple $envAll "grafana" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $sessionHost | quote }}
+    name: {{ $sessionRef | quote }}
     waitForIt: true
   {{- /* spec.name carries the schema name: it may contain an underscore, which
   metadata.name may not. */}}
@@ -235,7 +254,7 @@ metadata:
 {{ tuple $envAll "grafana" "db-grant" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $sessionHost | quote }}
+    name: {{ $sessionRef | quote }}
     waitForIt: true
   privileges:
     - ALL
@@ -254,14 +273,14 @@ metadata:
 {{ tuple $envAll "grafana" "db-connection" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $sessionHost | quote }}
+    name: {{ $sessionRef | quote }}
   serviceName: {{ $sessionHost | quote }}
   host: {{ tuple "oslo_db_session" "internal" $envAll | include "helm-toolkit.endpoints.endpoint_host_lookup" | quote }}
   port: {{ tuple "oslo_db_session" "internal" "mysql" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
   username: {{ $sessionAuth.username | quote }}
   passwordSecretKeyRef:
-    name: grafana-session-db-password
-    key: password
+    name: {{ $sessionPasswordSecret.name }}
+    key: {{ $sessionPasswordSecret.key }}
   database: {{ $sessionName | quote }}
   secretName: grafana-session-db-conn
   secretTemplate:

@@ -43,6 +43,9 @@ reserved in a URI therefore needs the osh group.
 {{- end }}
 {{- $apiVersion := printf "%s/v1alpha1" $apiGroup }}
 {{- $mariadbHost := index .Values.endpoints.oslo_db.hosts "default" }}
+{{- /* The MariaDB resource to attach to. Its name need not match the service
+clients connect through, which is what $mariadbHost is. */}}
+{{- $mariadbRef := .Values.mariadb_db.mariadb_ref | default $mariadbHost }}
 
 {{- /*
 All three nova databases are reached with the same MariaDB account, so there
@@ -55,18 +58,27 @@ job-db-sync to consume as the DB_CONNECTION_CELL0 environment variable rather
 than an oslo.config snippet.
 */}}
 {{- $novaAuth := .Values.endpoints.oslo_db.auth.nova }}
+{{- $passwordSecret := .Values.mariadb_db.password_secret }}
 
-{{- /* One account for all three nova databases. */}}
+{{- /*
+One account for all three nova databases. Its password is read from a secret. By
+default the chart renders that secret from endpoints.oslo_db.auth.nova, which
+puts the password in the Helm values. Set mariadb_db.password_secret.create to
+false to reference a secret that already exists, such as one synced from an
+external secret store, so the password never passes through Helm.
+*/}}
+{{- if $passwordSecret.create }}
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: nova-db-password
+  name: {{ $passwordSecret.name }}
   labels:
 {{ tuple $envAll "nova" "db-password" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 type: Opaque
 data:
-  password: {{ $novaAuth.password | b64enc }}
+  {{ $passwordSecret.key }}: {{ $novaAuth.password | b64enc }}
+{{- end }}
 ---
 apiVersion: {{ $apiVersion }}
 kind: User
@@ -76,13 +88,13 @@ metadata:
 {{ tuple $envAll "nova" "db-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
     waitForIt: true
   name: {{ $novaAuth.username | quote }}
   host: "%"
   passwordSecretKeyRef:
-    name: nova-db-password
-    key: password
+    name: {{ $passwordSecret.name }}
+    key: {{ $passwordSecret.key }}
   {{- /* 0 means unlimited. Anything else throttles the service. */}}
   maxUserConnections: 0
 {{- if .Values.tls.oslo_db }}
@@ -102,7 +114,7 @@ metadata:
 {{ tuple $envAll "nova" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
     waitForIt: true
   {{- /* spec.name carries the schema name: it may contain an underscore, which
   metadata.name may not. */}}
@@ -119,7 +131,7 @@ metadata:
 {{ tuple $envAll "nova" "db-grant" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
     waitForIt: true
   privileges:
     - ALL
@@ -138,14 +150,14 @@ metadata:
 {{ tuple $envAll "nova" "db-connection" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
   serviceName: {{ $mariadbHost | quote }}
   host: {{ tuple "oslo_db" "internal" $envAll | include "helm-toolkit.endpoints.endpoint_host_lookup" | quote }}
   port: {{ tuple "oslo_db" "internal" "mysql" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
   username: {{ $novaAuth.username | quote }}
   passwordSecretKeyRef:
-    name: nova-db-password
-    key: password
+    name: {{ $passwordSecret.name }}
+    key: {{ $passwordSecret.key }}
   database: {{ $novaName | quote }}
   secretName: nova-db-conn
   secretTemplate:
@@ -179,7 +191,7 @@ metadata:
 {{ tuple $envAll "nova" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
     waitForIt: true
   {{- /* spec.name carries the schema name: it may contain an underscore, which
   metadata.name may not. */}}
@@ -196,7 +208,7 @@ metadata:
 {{ tuple $envAll "nova" "db-grant" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
     waitForIt: true
   privileges:
     - ALL
@@ -215,14 +227,14 @@ metadata:
 {{ tuple $envAll "nova" "db-connection" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
   serviceName: {{ $mariadbHost | quote }}
   host: {{ tuple "oslo_db_cell1" "internal" $envAll | include "helm-toolkit.endpoints.endpoint_host_lookup" | quote }}
   port: {{ tuple "oslo_db_cell1" "internal" "mysql" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
   username: {{ $novaAuth.username | quote }}
   passwordSecretKeyRef:
-    name: nova-db-password
-    key: password
+    name: {{ $passwordSecret.name }}
+    key: {{ $passwordSecret.key }}
   database: {{ $novacell1Name | quote }}
   secretName: nova-cell1-db-conn
   secretTemplate:
@@ -256,7 +268,7 @@ metadata:
 {{ tuple $envAll "nova" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
     waitForIt: true
   {{- /* spec.name carries the schema name: it may contain an underscore, which
   metadata.name may not. */}}
@@ -273,7 +285,7 @@ metadata:
 {{ tuple $envAll "nova" "db-grant" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
     waitForIt: true
   privileges:
     - ALL
@@ -292,14 +304,14 @@ metadata:
 {{ tuple $envAll "nova" "db-connection" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
-    name: {{ $mariadbHost | quote }}
+    name: {{ $mariadbRef | quote }}
   serviceName: {{ $mariadbHost | quote }}
   host: {{ tuple "oslo_db_cell0" "internal" $envAll | include "helm-toolkit.endpoints.endpoint_host_lookup" | quote }}
   port: {{ tuple "oslo_db_cell0" "internal" "mysql" $envAll | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
   username: {{ $novaAuth.username | quote }}
   passwordSecretKeyRef:
-    name: nova-db-password
-    key: password
+    name: {{ $passwordSecret.name }}
+    key: {{ $passwordSecret.key }}
   database: {{ $novacell0Name | quote }}
   secretName: nova-cell0-db-conn
   secretTemplate:
