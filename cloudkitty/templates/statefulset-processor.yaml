@@ -12,7 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_processor }}
+{{/*
+manifests.deployment_processor defaulted to true, so an override that set it
+to false to disable the processor would otherwise be silently ignored after
+the rename and the processor would start.
+*/}}
+{{- if hasKey .Values.manifests "deployment_processor" }}
+{{- fail "manifests.deployment_processor has been renamed to manifests.statefulset_processor" }}
+{{- end }}
+
+{{- if .Values.manifests.statefulset_processor }}
 {{- $envAll := . }}
 
 {{- $mounts_cloudkitty_processor := .Values.pod.mounts.cloudkitty_processor.cloudkitty_processor }}
@@ -26,7 +35,7 @@ limitations under the License.
 {{- tuple $envAll "cloudkitty_processor" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: cloudkitty-processor
   annotations:
@@ -34,11 +43,13 @@ metadata:
   labels:
 {{ tuple $envAll "cloudkitty" "processor" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
+  serviceName: cloudkitty-processor
   replicas: {{ .Values.pod.replicas.cloudkitty_processor }}
   selector:
     matchLabels:
 {{ tuple $envAll "cloudkitty" "processor" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  podManagementPolicy: Parallel
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
   template:
     metadata:
       labels:
