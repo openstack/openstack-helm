@@ -46,6 +46,7 @@ spec:
 {{ tuple "designate_worker" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
 {{ tuple "designate_worker" . | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
+{{ dict "envAll" $envAll "application" "designate" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       affinity:
 {{ tuple $envAll "designate" "worker" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
@@ -55,11 +56,14 @@ spec:
         - name: designate-worker-init
 {{ tuple $envAll "designate_worker" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.worker | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+{{ dict "envAll" $envAll "application" "designate" "container" "designate_worker_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
             - bash
             - -c
             - 'eval "echo \"$(cat /tmp/designate_pools.template)\"" > /etc/designate/pools.yaml && designate-manage pool update'
           volumeMounts:
+            - name: oslo-lock-path
+              mountPath: {{ .Values.conf.designate.oslo_concurrency.lock_path }}
             - name: designate-etc
               mountPath: /tmp/designate_pools.template
               subPath: pools.yaml
