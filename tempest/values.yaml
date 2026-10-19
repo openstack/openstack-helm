@@ -38,6 +38,24 @@ jobs:
   run_tests:
     backoffLimit: 6
     restartPolicy: OnFailure
+  # -- Periodic tempest run, rendered when manifests.cron_job_run_tests
+  ## is enabled. Uses the same conf.script as the run_tests hook Job.
+  cron_run_tests:
+    cron: "0 0 * * *"
+    starting_deadline: 600
+    backoffLimit: 1
+    restartPolicy: OnFailure
+    history:
+      success: 3
+      failed: 1
+    # Separate PVC for reports, so that the CronJob does not share the
+    # ReadWriteOnce volume with the run_tests hook Job. Created together
+    # with the CronJob.
+    pvc:
+      name: pvc-tempest-cron
+      requests:
+        storage: 2Gi
+      storage_class: general
 
 pod:
   user:
@@ -53,6 +71,12 @@ pod:
         limits:
           memory: "1024Mi"
       run_tests:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+      cron_run_tests:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -80,6 +104,12 @@ dependencies:
       - service: identity
         endpoint: internal
     run_tests:
+      jobs:
+      - tempest-ks-user
+      services:
+      - service: identity
+        endpoint: internal
+    cron_run_tests:
       jobs:
       - tempest-ks-user
       services:
@@ -386,6 +416,7 @@ tls:
 manifests:
   configmap_bin: true
   configmap_etc: true
+  cron_job_run_tests: false
   job_image_repo_sync: true
   job_ks_user: true
   job_run_tests: true
