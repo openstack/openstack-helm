@@ -36,6 +36,7 @@ images:
     scripted_test: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
     db_init: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
     barbican_db_sync: quay.io/airshipit/barbican:2026.1-ubuntu_noble
+    barbican_db_purge: quay.io/airshipit/barbican:2026.1-ubuntu_noble
     db_drop: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
     ks_user: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
     ks_service: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
@@ -50,8 +51,23 @@ images:
       - dep_check
       - image_repo_sync
 
+jobs:
+  db_purge:
+    cron: "0 0 * * *"
+    starting_deadline: 600
+    history:
+      success: 3
+      failed: 1
+
 pod:
   security_context:
+    db_purge:
+      pod:
+        runAsUser: 42424
+      container:
+        barbican_db_purge:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
     barbican:
       pod:
         runAsUser: 42424
@@ -101,12 +117,18 @@ pod:
       barbican_db_sync:
         volumeMounts:
         volumes:
+    barbican_db_purge:
+      init_container: null
+      barbican_db_purge:
+        volumeMounts:
+        volumes:
   # -- This allows users to add Kubernetes Projected Volumes to be mounted at /etc/barbican/barbican.conf.d/
   ## This is a list of projected volume source objects for each deployment/statefulset/daemonset/cronjob
   ## https://kubernetes.io/docs/concepts/storage/projected-volumes/
   etcSources:
     barbican_api: []
     barbican_db_sync: []
+    barbican_db_purge: []
   replicas:
     api: 1
   lifecycle:
@@ -159,6 +181,12 @@ pod:
         limits:
           memory: "1024Mi"
       db_sync:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "1024Mi"
+      db_purge:
         requests:
           memory: "128Mi"
           cpu: "100m"
@@ -264,6 +292,12 @@ dependencies:
       services:
         - endpoint: internal
           service: oslo_db
+    db_purge:
+      jobs:
+        - barbican-db-sync
+      services:
+        - endpoint: internal
+          service: oslo_db
     image_repo_sync:
       services:
         - endpoint: internal
@@ -294,6 +328,10 @@ dependencies:
           service: key_manager
 
 conf:
+  db_purge:
+    min_days: 90
+    clean_unassociated_projects: false
+    soft_delete_expired_secrets: false
   paste:
     composite:main:
       use: egg:Paste#urlmap
@@ -764,6 +802,7 @@ manifests:
   certificates: false
   configmap_bin: true
   configmap_etc: true
+  cron_db_purge: false
   deployment_api: true
   job_bootstrap: true
   job_db_init: true
