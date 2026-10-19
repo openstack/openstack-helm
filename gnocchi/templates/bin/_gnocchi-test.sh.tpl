@@ -49,7 +49,9 @@ gnocchi measures show --aggregation min ${METRIC_UUID}
 echo "Test: delete metric"
 gnocchi metric delete ${METRIC_UUID}
 
-RESOURCE_UUID={{ uuidv4 }}
+# Generated when the test runs: a uuidv4 rendered into this ConfigMap changed
+# gnocchi-bin, and with it the pods' configmap-bin-hash, on every upgrade.
+RESOURCE_UUID=$(cat /proc/sys/kernel/random/uuid)
 
 echo "Test: create resource type"
 gnocchi resource-type create --attribute name:string --attribute host:string test
