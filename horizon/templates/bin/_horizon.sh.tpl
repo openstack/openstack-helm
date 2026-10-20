@@ -81,7 +81,9 @@ function start () {
     # if there are extra panels and the image has support for it, compile the translations
     {{- range .Values.conf.horizon.extra_panels }}
     PANEL_DIR="${SITE_PACKAGES_ROOT}/{{ . }}"
-    if [ -d ${PANEL_DIR} ]; then
+    # compilemessages fails when it finds no locale directory, which
+    # would abort the start-up for panels that ship no translations.
+    if [ -n "$(find ${PANEL_DIR} -type d -name locale 2>/dev/null)" ]; then
       cd ${PANEL_DIR}; /tmp/manage.py compilemessages
     fi
     {{- end }}
