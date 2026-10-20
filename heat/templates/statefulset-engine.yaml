@@ -12,7 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if or ( .Values.manifests.deployment_engine ) ( .Values.manifests.statefulset_engine ) }}
+{{/*
+manifests.deployment_engine defaulted to true, so an override that set it to
+false to disable the engine would otherwise be silently ignored after the
+rename and the engine would start.
+*/}}
+{{- if hasKey .Values.manifests "deployment_engine" }}
+{{- fail "manifests.deployment_engine has been removed, the engine always runs as a StatefulSet under manifests.statefulset_engine" }}
+{{- end }}
+
+{{- if .Values.manifests.statefulset_engine }}
 {{- $envAll := . }}
 
 {{- $mounts_heat_engine := .Values.pod.mounts.heat_engine.heat_engine }}
@@ -30,16 +39,10 @@ metadata:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
   labels:
 {{ tuple $envAll "heat" "engine" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
-{{- if .Values.manifests.deployment_engine }}
-kind: Deployment
-spec:
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
-{{- else if .Values.manifests.statefulset_engine }}
 kind: StatefulSet
 spec:
   serviceName: heat-engine
 {{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
-{{- end }}
   replicas: {{ .Values.pod.replicas.engine }}
   selector:
     matchLabels:
@@ -48,13 +51,11 @@ spec:
     metadata:
       labels:
 {{ tuple $envAll "heat" "engine" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
-{{- if .Values.manifests.deployment_engine }}
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
         configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
         configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 {{ tuple "heat_engine" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
-{{- end }}
     spec:
 {{ tuple "heat_engine" . | include "helm-toolkit.snippets.kubernetes_pod_priority_class" | indent 6 }}
 {{ tuple "heat_engine" . | include "helm-toolkit.snippets.kubernetes_pod_runtime_class" | indent 6 }}
