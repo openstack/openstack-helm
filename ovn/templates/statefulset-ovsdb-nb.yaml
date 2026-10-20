@@ -98,10 +98,12 @@ spec:
             - name: data
               mountPath: {{ $envAll.Values.volume.ovn_ovsdb_nb.path }}
       volumes:
+        # Runtime directory of this database server only (control socket,
+        # unix socket, pidfile). It must not be the host's /run/openvswitch:
+        # two NB members on one node would share ovnnb_db.ctl, .sock
+        # and .pid. Clients reach the database over TCP.
         - name: run-openvswitch
-          hostPath:
-            path: /run/openvswitch
-            type: DirectoryOrCreate
+          emptyDir: {}
 {{- if not .Values.volume.ovn_ovsdb_nb.enabled }}
         - name: data
           emptyDir: {}
