@@ -1,0 +1,25 @@
+---
+# Target the upstream mariadb-operator instead of the mariadb chart's own db
+# controller. This file is layered on top of mariadb-crd.yaml and changes
+# only the API group, so the two deployments differ only in who reconciles the
+# custom resources -- everything else is whatever mariadb-crd.yaml says.
+#
+# On its own this file provisions nothing: manifests.mariadb_db stays false
+# without mariadb-crd.yaml.
+mariadb_db:
+  api_group: k8s.mariadb.com
+
+# Restated rather than merged: Helm replaces lists across -f files, so the
+# entry from mariadb-crd.yaml would be dropped whatever this file said. It has
+# to be repeated anyway, because the dependency names the API group and this
+# override is what changes it.
+dependencies:
+  static:
+    db_sync:
+      custom_resources:
+        - apiVersion: k8s.mariadb.com/v1alpha1
+          kind: Connection
+          name: skyline-db-conn
+          conditions:
+            - type: Ready
+...

@@ -649,12 +649,42 @@ network_policy:
     egress:
       - {}
 
+mariadb_db:
+  # -- API group of the MariaDB custom resources this chart renders when
+  ## manifests.mariadb_db is enabled. Either group works: the resources are
+  ## the same, only who reconciles them differs.
+  ##   mariadb.osh.openstack.org -- the mariadb chart's own db controller
+  ##                                (manifests.deployment_db_controller)
+  ##   k8s.mariadb.com           -- the upstream mariadb-operator, which must
+  ##                                then be deployed separately
+  api_group: mariadb.osh.openstack.org
+  # -- Name of the MariaDB resource the Database, User, Grant and Connection
+  ## attach to through mariaDbRef. When empty it is the oslo_db default host,
+  ## which only works if the MariaDB resource shares its name with the service
+  ## clients connect through. Set it when they differ, such as a MariaDB named
+  ## mariadb served by a mariadb-primary service.
+  mariadb_ref: ""
+  # -- Secret holding the password of the magnum database account.
+  ## The User and Connection resources read it from here.
+  password_secret:
+    # -- Render the secret from endpoints.oslo_db.auth.magnum.password. Set
+    ## to false to use a secret that already exists. The service config is
+    ## still rendered from endpoints.oslo_db.auth.magnum.password, so the
+    ## secret must hold the same password.
+    create: true
+    name: magnum-db-password
+    key: password
+
 manifests:
   configmap_bin: true
   configmap_etc: true
   deployment_api: true
   job_bootstrap: true
   job_db_init: true
+  # -- Render the MariaDB Database/User/Grant/Connection custom resources
+  ## reconciled by the mariadb chart's db controller, instead of running the
+  ## db-init job. Mutually exclusive with job_db_init.
+  mariadb_db: false
   job_db_sync: true
   job_db_drop: false
   job_image_repo_sync: true

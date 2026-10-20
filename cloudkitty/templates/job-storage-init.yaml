@@ -14,6 +14,7 @@ limitations under the License.
 
 {{- if .Values.manifests.job_storage_init }}
 {{- $envAll := . }}
+{{- $etcSources := .Values.pod.etcSources.cloudkitty_storage_init }}
 
 {{- $serviceAccountName := "cloudkitty-storage-init" }}
 {{ tuple $envAll "storage_init" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -61,6 +62,9 @@ spec:
             - name: cloudkitty-etc
               mountPath: /etc/cloudkitty/logging.conf
               subPath: logging.conf
+            - name: cloudkitty-etc-snippets
+              mountPath: /etc/cloudkitty/cloudkitty.conf.d/
+              readOnly: true
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -74,4 +78,12 @@ spec:
           configMap:
             name: cloudkitty-bin
             defaultMode: 0555
+        - name: cloudkitty-etc-snippets
+{{- if $etcSources }}
+          projected:
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{- end }}
 {{- end }}

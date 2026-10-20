@@ -1,0 +1,36 @@
+---
+# Provision this chart's database declaratively: the chart renders MariaDB
+# Database/User/Grant/Connection custom resources (templates/mariadb-db.yaml)
+# which the mariadb chart's db controller reconciles, instead of running the
+# db-init job.
+#
+# PowerDNS is not an oslo.config service and renders pdns.conf itself, so the
+# service config keeps the connection string the chart generates from
+# endpoints.oslo_db -- the same account, password and database the custom
+# resources provision. Nothing then holds db-sync and the PowerDNS server
+# until the database exists the way a projected secret would, so each waits
+# on the Connection instead. Waiting on its Ready condition rather than on
+# the secret means each starts only once the reconciler has logged in with
+# those credentials.
+
+manifests:
+  job_db_init: false
+  mariadb_db: true
+
+dependencies:
+  static:
+    db_sync:
+      custom_resources:
+        - apiVersion: mariadb.osh.openstack.org/v1alpha1
+          kind: Connection
+          name: powerdns-db-conn
+          conditions:
+            - type: Ready
+    powerdns:
+      custom_resources:
+        - apiVersion: mariadb.osh.openstack.org/v1alpha1
+          kind: Connection
+          name: powerdns-db-conn
+          conditions:
+            - type: Ready
+...

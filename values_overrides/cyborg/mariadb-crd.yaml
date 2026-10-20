@@ -1,0 +1,28 @@
+---
+# Provision this chart's database declaratively: the chart renders MariaDB
+# Database/User/Grant/Connection custom resources (templates/mariadb-db.yaml)
+# which the mariadb chart's db controller reconciles, instead of running the
+# db-init job.
+#
+# None of the cyborg workloads supports pod.etcSources, so the service config
+# keeps the connection string the chart generates from endpoints.oslo_db --
+# the same account, password and database the custom resources provision.
+# Nothing then holds db-sync until the database exists the way a projected
+# secret would, so it waits on the Connection instead. Waiting on its Ready
+# condition rather than on the secret means it starts only once the
+# reconciler has logged in with those credentials.
+
+manifests:
+  job_db_init: false
+  mariadb_db: true
+
+dependencies:
+  static:
+    db_sync:
+      custom_resources:
+        - apiVersion: mariadb.osh.openstack.org/v1alpha1
+          kind: Connection
+          name: cyborg-db-conn
+          conditions:
+            - type: Ready
+...
