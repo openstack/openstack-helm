@@ -15,7 +15,7 @@
 set -ex
 
 # Get IDs for filtering
-OS_PROJECT_ID=$(openstack project show -f value -c id ${OS_PROJECT_NAME})
+OS_PROJECT_ID=$(openstack project show -f value -c id --domain ${OS_PROJECT_DOMAIN_NAME} ${OS_PROJECT_NAME})
 OS_USER_ID=$(openstack user show -f value -c id ${OS_USERNAME})
 SERVICE_OS_TRUSTEE_ID=$(openstack user show -f value -c id --domain ${SERVICE_OS_TRUSTEE_DOMAIN} ${SERVICE_OS_TRUSTEE})
 
