@@ -424,6 +424,8 @@ pod:
           enabled: true
           min_ready_seconds: 0
           max_unavailable: 1
+      statefulsets:
+        pod_replacement_strategy: RollingUpdate
     disruption_budget:
       masakari_api:
         min_available: 0
@@ -667,7 +669,15 @@ manifests:
   job_ks_endpoints: true
   job_ks_service: true
   deployment_api: true
-  deployment_engine: true
+  # NOTE: The engine runs as a StatefulSet because masakari's RPC service
+  # consumes from a per-server `<topic>.<host>` queue named after its host,
+  # which defaults to the hostname. Under a Deployment that is the pod name,
+  # so it changed on every rollout, and quorum queues cannot be declared
+  # `auto_delete`, which left the previous queues behind each time. The
+  # StatefulSet gives each pod a stable hostname (masakari-engine-0,
+  # masakari-engine-1, ...) that is reused across restarts. This also renders
+  # the headless service those DNS names are published through.
+  statefulset_engine: true
   configmap_bin: true
   configmap_etc: true
   secret_db: true
