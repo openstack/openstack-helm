@@ -12,6 +12,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- define "manilaApiReadinessProbeTemplate" }}
+httpGet:
+  scheme: HTTP
+  path: {{ tuple "sharev2" "healthcheck" "" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+  port: {{ tuple "sharev2" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
+{{- define "manilaApiLivenessProbeTemplate" }}
+httpGet:
+  scheme: HTTP
+  path: {{ tuple "sharev2" "healthcheck" "" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
+  port: {{ tuple "sharev2" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{- end }}
+
 {{- if .Values.manifests.deployment_api }}
 {{- $envAll := . }}
 
@@ -77,11 +91,8 @@ spec:
           ports:
             - name: m-api
               containerPort: {{ tuple "sharev2" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-          readinessProbe:
-            httpGet:
-              scheme: HTTP
-              path: {{ tuple "sharev2" "healthcheck" "" . | include "helm-toolkit.endpoints.keystone_endpoint_path_lookup" }}
-              port: {{ tuple "sharev2" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
+{{ dict "envAll" $envAll "component" "api" "container" "manila-api" "type" "readiness" "probeTemplate" (include "manilaApiReadinessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
+{{ dict "envAll" $envAll "component" "api" "container" "manila-api" "type" "liveness" "probeTemplate" (include "manilaApiLivenessProbeTemplate" $envAll | fromYaml) | include "helm-toolkit.snippets.kubernetes_probe" | indent 10 }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
