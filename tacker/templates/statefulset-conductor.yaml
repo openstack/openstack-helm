@@ -12,23 +12,37 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-{{- if .Values.manifests.deployment_conductor }}
+{{/*
+manifests.deployment_conductor defaulted to true, so an override that set it
+to false to disable the conductor would otherwise be silently ignored after
+the rename and the conductor would start.
+*/}}
+{{- if hasKey .Values.manifests "deployment_conductor" }}
+{{- fail "manifests.deployment_conductor has been renamed to manifests.statefulset_conductor" }}
+{{- end }}
+
+{{- if .Values.manifests.statefulset_conductor }}
 {{- $envAll := . }}
 {{- $serviceAccountName := "tacker-conductor" }}
 {{ tuple $envAll "conductor" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: tacker-conductor
   labels:
 {{ tuple $envAll "tacker" "conductor" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
+  # Not tacker-conductor, as neutron's naming would have it: the chart used to
+  # render a ClusterIP service of that name, and a service's clusterIP cannot
+  # be changed to None in place, so reusing the name would fail the upgrade.
+  serviceName: tacker-conductor-headless
   selector:
     matchLabels:
 {{ tuple $envAll "tacker" "conductor" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
   replicas: {{ .Values.pod.replicas.conductor }}
-{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  podManagementPolicy: Parallel
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
   template:
     metadata:
       labels:
@@ -95,9 +109,6 @@ spec:
             readOnly: true
           - name: oslo-lock-path
             mountPath: {{ .Values.conf.tacker.oslo_concurrency.lock_path }}
-          ports:
-          - name: conductor
-            containerPort: 5672
       initContainers:
 {{ tuple $envAll "conductor" tuple | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       volumes:
