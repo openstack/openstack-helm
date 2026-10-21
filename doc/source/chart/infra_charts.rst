@@ -33,8 +33,6 @@ Infra charts options
     local-storage
     local-volume-provisioner
     mariadb
-    mariadb-backup
-    mariadb-cluster
     memcached
     nagios
     namespace-config
