@@ -260,34 +260,15 @@ merged into the published one. The repository at
 one set of release notes per chart version, which is what any consumer of the
 convention reads.
 
-The 2026.2.0 rebuild renders the whole history
-----------------------------------------------
+Each version carries only its own notes
+---------------------------------------
 
-Every version already in the published index carries no annotation, so the
-notes that belong to those versions have no version left to ride on.
-Publishing only new notes from now on would leave the accumulated history
-unreachable.
-
-The bump to ``2026.2.0`` is therefore also a migration. When all 80 charts are
-bumped to ``2026.2.0`` and re-published, each chart is built with the full
-range rather than an incremental one, and its annotation carries **every**
-release note that has ever applied to it: the trailers of the 2026.2 series
-and the legacy reno notes that precede them. Version ``2026.2.0`` of each
-chart is the version that carries the complete changelog.
-
-This is a one-off, driven by an explicit range passed to the build tool as
-part of the release procedure rather than by a rule the tool infers. It
-happens once, at this series boundary, because this is the boundary at which
-annotations begin. Later series bumps are ordinary: ``2027.1.0`` continues
-from the last version published in 2026.2 and does not repeat its history.
-
-Later builds render only what the version adds
-----------------------------------------------
-
-After ``2026.2.0``, a build renders only the notes belonging to the version
-being built: the commits between the previous version of the chart and this
-one. In the normal case that is exactly the one commit that triggered the
-build, so the annotation holds the one or two entries that commit declared.
+A build renders only the notes belonging to the version being built: the
+commits between the previous version of the chart and this one. In the normal
+case that is exactly the one commit that triggered the build, so the
+annotation holds the one or two entries that commit declared. The series bump
+is no exception. Version ``2026.2.0`` carries the notes of the bump commit and
+nothing more.
 
 Stating the boundaries the same way the version does is what makes this
 correct. A version is bounded by two of the commits ``tools/chart_version.sh``
@@ -302,6 +283,31 @@ A note routed to a chart the commit did not touch, through ``Charts: all`` for
 instance, does not bump that chart's version and does not by itself cause the
 chart to be rebuilt. It is carried by the next version of that chart, which is
 the first version that can hold it.
+
+The whole history is a generated document
+-----------------------------------------
+
+A tarball holds the notes of one version. To read a chart's whole history, a
+reader would have to collect the annotations of every version from the
+repository index, or use a service such as Artifact Hub that does it for
+them. Versions published before annotations existed carry nothing, so their
+notes would not be found that way at all.
+
+``tools/chart_changelog.py`` renders a chart's whole history as one Markdown
+document, newest version first. It uses the same collector as the build, so
+it includes both the legacy reno notes and the notes from commit messages, and
+its version sections follow the same boundaries as the published versions.
+Anyone with a clone of the repository can run it.
+
+The documentation build runs it for every chart, so docs.openstack.org has
+one changelog page per chart, current after every merge. The build adds an
+``artifacthub.io/links`` annotation to each chart pointing at its page, so a
+reader who has only the tarball can find the history from it.
+
+The changelog is not committed to git. A committed file would have to change
+with every release note, so two changes to the same chart would conflict on
+it, which is the problem this design avoids. A file updated by a periodic job
+would be out of date between runs.
 
 The legacy reno notes
 ---------------------
@@ -392,9 +398,13 @@ Work Items
    untouched.
 #. Rewrite the release notes section of ``README.rst`` around the trailer
    format and add a contributor document describing it.
-#. At the 2026.2.0 bump, set every ``Chart.yaml`` to ``2026.2.0``, tag the
-   repository and re-publish all 80 charts with the full range so that each
-   carries its complete history.
+#. Add ``tools/chart_changelog.py``, render a changelog page per chart in the
+   documentation build, and link each chart to its page with the
+   ``artifacthub.io/links`` annotation.
+#. At the 2026.2.0 bump, set ``version``, ``appVersion`` and the default
+   images of every chart in one commit, together with ``BASE_VERSION`` and
+   ``base_version``, and tag that commit ``2026.2.0``. The charts are
+   published from it as from any other commit.
 
 Alternatives
 ------------
@@ -420,6 +430,16 @@ nothing would distinguish a fix from a removal.
 ``fix(neutron): ...``. Compact and widely understood, but it rewrites the
 subject line convention of the whole project, carries one entry per commit,
 and expresses a multi-chart change awkwardly.
+
+**Carry the whole history in the first version of the series.** An earlier
+revision of this spec rebuilt every chart at ``2026.2.0`` with every release
+note it had ever had in its annotation. It was dropped. Charts were published
+with annotations from before the bump, so their notes would have been
+published a second time, and Artifact Hub does not remove duplicates. The
+first version of a series would also have been unlike every other one, with
+around two hundred entries for nova. And a reader would still have needed the
+newest tarball to see the history. The generated changelog solves the same
+problem without these costs.
 
 **Publish a full changelog with every version** rather than partitioning the
 history. A reader assembling the changelog across versions would see every

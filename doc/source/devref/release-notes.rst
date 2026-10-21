@@ -189,31 +189,31 @@ At the series bump
 ------------------
 
 Chart versions are raised once per OpenStack release, for every chart at
-once, by a single commit that sets ``version:`` in all of the ``Chart.yaml``
-files and ``BASE_VERSION`` in the ``Makefile``. That commit is then tagged
-with the new version, as ``2026.1.0`` tags the commit that introduced it.
+once, by a single commit. It sets ``version:`` and ``appVersion:`` in all of
+the ``Chart.yaml`` files, moves the default images in ``values.yaml`` to the
+new release, and sets ``BASE_VERSION`` in the ``Makefile`` and
+``base_version`` in ``zuul.d/project.yaml``. That commit is then tagged with
+the new version, as ``2026.1.0`` tags the commit that introduced it.
 
-Because every chart's version changes in that one commit, every chart is
-republished from it, and that is the only moment at which the whole history
-can be attached to a version. The same commit therefore also sets::
+The bump is published like any other commit. Each chart's first version in
+the new series carries only the notes of its own window, usually just the
+bump commit's. The history before it is not repeated: it is already in the
+versions published earlier.
 
-    chart_full_annotations: 1
+The tag can only be pushed once the bump commit has merged, so the first
+publish happens without it. The version is the same either way, because the
+patch number is ``0`` with or without the tag. The tag matters from the next
+commit onward, when it starts the patch count for the series.
 
-in the ``vars`` of ``zuul.d/project.yaml``. The publish job passes it through
-to ``make`` as ``FULL_ANNOTATIONS``, and each chart's first version in the new
-series carries every release note it has ever had, the frozen reno notes
-included, rather than only the notes of that version. A follow-up commit sets
-it back to ``0`` so that later versions carry only their own notes again.
+Push the tag after the publish job for the bump commit has finished. A build
+at the tagged commit itself finds no commits since the tag and writes no
+annotation, so if that publish failed and ran again after tagging, the first
+version of the series would ship without its notes.
 
-The full render does not depend on the tag, so it is correct on the publish
-run that follows the bump commit even though the tag can only be pushed once
-that commit has merged. The tag matters from the next commit onward, when it
-starts the patch count for the series.
-
-To see what a chart would ship before committing to any of this::
+To see what a chart's first version of the series would carry::
 
     python3 tools/chart_annotations.py --charts neutron \
-        --base-version 2026.2.0 --full --dry-run
+        --base-version 2026.2.0 --dry-run
 
 Legacy reno notes
 -----------------
