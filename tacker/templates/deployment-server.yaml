@@ -14,6 +14,8 @@ limitations under the License.
 
 {{- if .Values.manifests.deployment_server }}
 {{- $envAll := . }}
+{{- $mounts_tacker_server := .Values.pod.mounts.tacker_server.tacker_server }}
+{{- $mounts_tacker_server_init := .Values.pod.mounts.tacker_server.init_container }}
 {{- $serviceAccountName := "tacker-server" }}
 {{ tuple $envAll "server" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -52,6 +54,7 @@ spec:
             - -c
             - /tmp/tacker-server.sh
           volumeMounts:
+{{ if $mounts_tacker_server.volumeMounts }}{{ toYaml $mounts_tacker_server.volumeMounts | indent 10 }}{{ end }}
           - name: localtime
             mountPath: "/etc/localtime"
             readOnly: yes
@@ -86,8 +89,9 @@ spec:
           - name: t-api
             containerPort: 9890
       initContainers:
-{{ tuple $envAll "server" tuple | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "server" $mounts_tacker_server_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       volumes:
+{{ if $mounts_tacker_server.volumes }}{{ toYaml $mounts_tacker_server.volumes | indent 8 }}{{ end }}
         - name: localtime
           hostPath:
             path: "/etc/localtime"

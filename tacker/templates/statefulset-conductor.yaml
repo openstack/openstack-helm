@@ -23,6 +23,8 @@ the rename and the conductor would start.
 
 {{- if .Values.manifests.statefulset_conductor }}
 {{- $envAll := . }}
+{{- $mounts_tacker_conductor := .Values.pod.mounts.tacker_conductor.tacker_conductor }}
+{{- $mounts_tacker_conductor_init := .Values.pod.mounts.tacker_conductor.init_container }}
 {{- $serviceAccountName := "tacker-conductor" }}
 {{ tuple $envAll "conductor" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -80,6 +82,7 @@ spec:
             - -c
             - /tmp/tacker-conductor.sh
           volumeMounts:
+{{ if $mounts_tacker_conductor.volumeMounts }}{{ toYaml $mounts_tacker_conductor.volumeMounts | indent 10 }}{{ end }}
           - name: localtime
             mountPath: "/etc/localtime"
             readOnly: yes
@@ -111,8 +114,9 @@ spec:
           - name: oslo-lock-path
             mountPath: {{ .Values.conf.tacker.oslo_concurrency.lock_path }}
       initContainers:
-{{ tuple $envAll "conductor" tuple | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{ tuple $envAll "conductor" $mounts_tacker_conductor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       volumes:
+{{ if $mounts_tacker_conductor.volumes }}{{ toYaml $mounts_tacker_conductor.volumes | indent 8 }}{{ end }}
         - name: localtime
           hostPath:
             path: "/etc/localtime"
