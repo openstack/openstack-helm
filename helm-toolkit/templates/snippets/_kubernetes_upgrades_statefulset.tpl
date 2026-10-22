@@ -14,7 +14,8 @@ limitations under the License.
 
 {{/*
 abstract: |
-  Renders upgradeStrategy configuration for Kubernetes statefulsets.
+  Renders revisionHistoryLimit and upgradeStrategy configuration for
+  Kubernetes statefulsets.
   See: https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
   Types:
     - RollingUpdate (default)
@@ -27,11 +28,13 @@ values: |
     lifecycle:
       upgrades:
         statefulsets:
+          revision_history: 3
           pod_replacement_strategy: RollingUpdate
           partition: 2
 usage: |
   {{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_statefulset" | indent 2 }}
 return: |
+  revisionHistoryLimit: 3
   updateStrategy:
     type: RollingUpdate
     rollingUpdate:
@@ -41,6 +44,7 @@ return: |
 {{- define "helm-toolkit.snippets.kubernetes_upgrades_statefulset" -}}
 {{- $envAll := index . 0 -}}
 {{- with $envAll.Values.pod.lifecycle.upgrades.statefulsets -}}
+revisionHistoryLimit: {{ .revision_history }}
 updateStrategy:
   type: {{ .pod_replacement_strategy }}
   {{ if .partition -}}

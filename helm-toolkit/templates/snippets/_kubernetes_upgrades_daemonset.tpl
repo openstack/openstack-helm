@@ -17,8 +17,10 @@ limitations under the License.
 {{- $component := index . 1 -}}
 {{- $upgradeMap := index $envAll.Values.pod.lifecycle.upgrades.daemonsets $component -}}
 {{- $pod_replacement_strategy := $envAll.Values.pod.lifecycle.upgrades.daemonsets.pod_replacement_strategy -}}
+{{- $revision_history := $envAll.Values.pod.lifecycle.upgrades.daemonsets.revision_history -}}
 {{- with $upgradeMap -}}
 {{- if .enabled }}
+revisionHistoryLimit: {{ $revision_history }}
 minReadySeconds: {{ .min_ready_seconds }}
 updateStrategy:
   type: {{ $pod_replacement_strategy }}
