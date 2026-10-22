@@ -72,14 +72,18 @@ data:
 apiVersion: {{ $apiVersion }}
 kind: User
 metadata:
-  name: heat
+  name: {{ $heatAuth.username | replace "_" "-" | lower }}
   labels:
 {{ tuple $envAll "heat" "db-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
     name: {{ $mariadbRef | quote }}
     waitForIt: true
+  {{- /* Only set spec.name when the MariaDB name is not a valid object
+  name, such as one with an underscore. It defaults to metadata.name. */}}
+  {{- if ne ($heatAuth.username | replace "_" "-" | lower) $heatAuth.username }}
   name: {{ $heatAuth.username | quote }}
+  {{- end }}
   host: "%"
   passwordSecretKeyRef:
     name: {{ $passwordSecret.name }}
@@ -98,16 +102,18 @@ spec:
 apiVersion: {{ $apiVersion }}
 kind: Database
 metadata:
-  name: heat
+  name: {{ $heatName | replace "_" "-" | lower }}
   labels:
 {{ tuple $envAll "heat" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
     name: {{ $mariadbRef | quote }}
     waitForIt: true
-  {{- /* spec.name carries the schema name: it may contain an underscore, which
-  metadata.name may not. */}}
+  {{- /* Only set spec.name when the MariaDB name is not a valid object
+  name, such as one with an underscore. It defaults to metadata.name. */}}
+  {{- if ne ($heatName | replace "_" "-" | lower) $heatName }}
   name: {{ $heatName | quote }}
+  {{- end }}
   characterSet: utf8
   collate: utf8_general_ci
   retryInterval: 10s

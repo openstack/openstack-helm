@@ -86,14 +86,18 @@ data:
 apiVersion: {{ $apiVersion }}
 kind: User
 metadata:
-  name: grafana
+  name: {{ $grafanaAuth.username | replace "_" "-" | lower }}
   labels:
 {{ tuple $envAll "grafana" "db-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
     name: {{ $mariadbRef | quote }}
     waitForIt: true
+  {{- /* Only set spec.name when the MariaDB name is not a valid object
+  name, such as one with an underscore. It defaults to metadata.name. */}}
+  {{- if ne ($grafanaAuth.username | replace "_" "-" | lower) $grafanaAuth.username }}
   name: {{ $grafanaAuth.username | quote }}
+  {{- end }}
   host: "%"
   passwordSecretKeyRef:
     name: {{ $passwordSecret.name }}
@@ -112,16 +116,18 @@ spec:
 apiVersion: {{ $apiVersion }}
 kind: Database
 metadata:
-  name: grafana
+  name: {{ $grafanaName | replace "_" "-" | lower }}
   labels:
 {{ tuple $envAll "grafana" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
     name: {{ $mariadbRef | quote }}
     waitForIt: true
-  {{- /* spec.name carries the schema name: it may contain an underscore, which
-  metadata.name may not. */}}
+  {{- /* Only set spec.name when the MariaDB name is not a valid object
+  name, such as one with an underscore. It defaults to metadata.name. */}}
+  {{- if ne ($grafanaName | replace "_" "-" | lower) $grafanaName }}
   name: {{ $grafanaName | quote }}
+  {{- end }}
   characterSet: utf8
   collate: utf8_general_ci
   retryInterval: 10s
@@ -206,14 +212,18 @@ data:
 apiVersion: {{ $apiVersion }}
 kind: User
 metadata:
-  name: grafana-session
+  name: {{ $sessionAuth.username | replace "_" "-" | lower }}
   labels:
 {{ tuple $envAll "grafana" "db-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
     name: {{ $sessionRef | quote }}
     waitForIt: true
+  {{- /* Only set spec.name when the MariaDB name is not a valid object
+  name, such as one with an underscore. It defaults to metadata.name. */}}
+  {{- if ne ($sessionAuth.username | replace "_" "-" | lower) $sessionAuth.username }}
   name: {{ $sessionAuth.username | quote }}
+  {{- end }}
   host: "%"
   passwordSecretKeyRef:
     name: {{ $sessionPasswordSecret.name }}
@@ -232,16 +242,18 @@ spec:
 apiVersion: {{ $apiVersion }}
 kind: Database
 metadata:
-  name: grafana-session
+  name: {{ $sessionName | replace "_" "-" | lower }}
   labels:
 {{ tuple $envAll "grafana" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
     name: {{ $sessionRef | quote }}
     waitForIt: true
-  {{- /* spec.name carries the schema name: it may contain an underscore, which
-  metadata.name may not. */}}
+  {{- /* Only set spec.name when the MariaDB name is not a valid object
+  name, such as one with an underscore. It defaults to metadata.name. */}}
+  {{- if ne ($sessionName | replace "_" "-" | lower) $sessionName }}
   name: {{ $sessionName | quote }}
+  {{- end }}
   characterSet: utf8
   collate: utf8_general_ci
   retryInterval: 10s
