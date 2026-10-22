@@ -83,14 +83,18 @@ data:
 apiVersion: {{ $apiVersion }}
 kind: User
 metadata:
-  name: nova
+  name: {{ $novaAuth.username | replace "_" "-" | lower }}
   labels:
 {{ tuple $envAll "nova" "db-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
     name: {{ $mariadbRef | quote }}
     waitForIt: true
+  {{- /* Only set spec.name when the MariaDB name is not a valid object
+  name, such as one with an underscore. It defaults to metadata.name. */}}
+  {{- if ne ($novaAuth.username | replace "_" "-" | lower) $novaAuth.username }}
   name: {{ $novaAuth.username | quote }}
+  {{- end }}
   host: "%"
   passwordSecretKeyRef:
     name: {{ $passwordSecret.name }}
@@ -109,16 +113,18 @@ spec:
 apiVersion: {{ $apiVersion }}
 kind: Database
 metadata:
-  name: nova
+  name: {{ $novaName | replace "_" "-" | lower }}
   labels:
 {{ tuple $envAll "nova" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
     name: {{ $mariadbRef | quote }}
     waitForIt: true
-  {{- /* spec.name carries the schema name: it may contain an underscore, which
-  metadata.name may not. */}}
+  {{- /* Only set spec.name when the MariaDB name is not a valid object
+  name, such as one with an underscore. It defaults to metadata.name. */}}
+  {{- if ne ($novaName | replace "_" "-" | lower) $novaName }}
   name: {{ $novaName | quote }}
+  {{- end }}
   characterSet: utf8
   collate: utf8_general_ci
   retryInterval: 10s
@@ -186,16 +192,18 @@ spec:
 apiVersion: {{ $apiVersion }}
 kind: Database
 metadata:
-  name: nova-cell1
+  name: {{ $novacell1Name | replace "_" "-" | lower }}
   labels:
 {{ tuple $envAll "nova" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
     name: {{ $mariadbRef | quote }}
     waitForIt: true
-  {{- /* spec.name carries the schema name: it may contain an underscore, which
-  metadata.name may not. */}}
+  {{- /* Only set spec.name when the MariaDB name is not a valid object
+  name, such as one with an underscore. It defaults to metadata.name. */}}
+  {{- if ne ($novacell1Name | replace "_" "-" | lower) $novacell1Name }}
   name: {{ $novacell1Name | quote }}
+  {{- end }}
   characterSet: utf8
   collate: utf8_general_ci
   retryInterval: 10s
@@ -263,16 +271,18 @@ spec:
 apiVersion: {{ $apiVersion }}
 kind: Database
 metadata:
-  name: nova-cell0
+  name: {{ $novacell0Name | replace "_" "-" | lower }}
   labels:
 {{ tuple $envAll "nova" "db-database" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 spec:
   mariaDbRef:
     name: {{ $mariadbRef | quote }}
     waitForIt: true
-  {{- /* spec.name carries the schema name: it may contain an underscore, which
-  metadata.name may not. */}}
+  {{- /* Only set spec.name when the MariaDB name is not a valid object
+  name, such as one with an underscore. It defaults to metadata.name. */}}
+  {{- if ne ($novacell0Name | replace "_" "-" | lower) $novacell0Name }}
   name: {{ $novacell0Name | quote }}
+  {{- end }}
   characterSet: utf8
   collate: utf8_general_ci
   retryInterval: 10s

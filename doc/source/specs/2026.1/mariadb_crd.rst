@@ -79,10 +79,11 @@ which legitimately uses those fields -- is left alone.
 
 Two intentional divergences from upstream:
 
-* ``spec.name`` on ``Database`` and ``User`` carries the MariaDB object name,
-  independently of ``metadata.name``. This is required, not cosmetic: Nova's
-  cell databases are called ``nova_cell0`` and ``nova_cell1``, and an
-  underscore is not valid in a Kubernetes object name.
+* ``spec.name`` on ``Database`` and ``User`` may carry the MariaDB object name
+  independently of ``metadata.name``, as upstream allows. It is omitted
+  whenever the two would be equal, and set only when the name is not a valid
+  Kubernetes object name: Nova's cell databases are called ``nova_cell0`` and
+  ``nova_cell1``, and an underscore is not valid in an object name.
 * ``spec.maxUserConnections`` defaults to ``0`` (unlimited) rather than
   upstream's ``10``. A limit of ten connections would throttle every OpenStack
   service.
@@ -217,8 +218,9 @@ template declares one password secret and one ``User`` alongside three
 resources for the same account would have them fight over the password.
 
 Because ``metadata.name`` may not contain an underscore, the schema name is
-carried in ``spec.name``: the resource for ``nova_cell0`` is named
-``nova-cell0``.
+carried in ``spec.name`` for those two: the resource for ``nova_cell0`` is
+named ``nova-cell0``. Resources whose names are valid, such as ``nova``, set
+only ``metadata.name``.
 
 Connection secret consumption
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
