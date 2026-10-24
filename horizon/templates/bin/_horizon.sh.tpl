@@ -75,16 +75,20 @@ function start () {
   unset PANEL_DIR
   {{- end }}
 
-  # If the image has support for it, compile the translations
+  # If the image has support for it, compile the translations. Each in a
+  # subshell: the server below starts in the current directory, which is on
+  # its sys.path, and a panel directory with a local/ package of its own
+  # (watcher_dashboard) shadows openstack_dashboard's local.local_settings,
+  # so Horizon starts without its settings and rejects every Host header.
   if type -p gettext >/dev/null 2>/dev/null; then
-    cd ${SITE_PACKAGES_ROOT}/openstack_dashboard; /tmp/manage.py compilemessages
+    (cd ${SITE_PACKAGES_ROOT}/openstack_dashboard; /tmp/manage.py compilemessages)
     # if there are extra panels and the image has support for it, compile the translations
     {{- range .Values.conf.horizon.extra_panels }}
     PANEL_DIR="${SITE_PACKAGES_ROOT}/{{ . }}"
     # compilemessages fails when it finds no locale directory, which
     # would abort the start-up for panels that ship no translations.
     if [ -n "$(find ${PANEL_DIR} -type d -name locale 2>/dev/null)" ]; then
-      cd ${PANEL_DIR}; /tmp/manage.py compilemessages
+      (cd ${PANEL_DIR}; /tmp/manage.py compilemessages)
     fi
     {{- end }}
     unset PANEL_DIR
