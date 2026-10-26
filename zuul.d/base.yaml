@@ -125,6 +125,29 @@
       - openstack/openstack-helm
 
 - job:
+    name: openstack-helm-publish-charts-oci
+    description: |
+      Build the charts whose current version is missing from the
+      quay.io/osh-charts/<chart> OCI repositories and push them there.
+      Repositories that do not exist yet are created as public ones.
+    timeout: 3600
+    nodeset: openstack-helm-1node-ubuntu_noble
+    roles:
+      - zuul: openstack/openstack-helm
+      - zuul: zuul/zuul-jobs
+    required-projects:
+      - openstack/openstack-helm
+    pre-run:
+      - playbooks/prepare-hosts.yaml
+    run: playbooks/charts-publish-oci.yaml
+    secrets:
+      - name: charts_registry_credentials
+        secret: openstack-helm_charts_registry_credentials
+    vars:
+      osh_charts_oci_registry: quay.io
+      osh_charts_oci_namespace: osh-charts
+
+- job:
     name: openstack-helm-build-charts
     timeout: 10800
     nodeset: openstack-helm-1node-ubuntu_noble
