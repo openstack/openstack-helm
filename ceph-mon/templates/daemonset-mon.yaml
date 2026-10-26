@@ -24,7 +24,7 @@ exec:
     - /tmp/mon-check.sh
 {{- end -}}
 
-{{- if and .Values.manifests.daemonset_mon .Values.deployment.ceph }}
+{{- if and .Values.manifests.daemonset_mon .Values.deployment.ceph .Values.mon_release_owner }}
 {{- $envAll := . }}
 
 {{- $serviceAccountName := (printf "%s" .Release.Name) }}
@@ -45,6 +45,18 @@ rules:
     verbs:
       - get
       - list
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - patch
+    resourceNames:
+      - {{ $envAll.Values.secrets.keyrings.mon | quote }}
+      - {{ $envAll.Values.secrets.keyrings.mds | quote }}
+      - {{ $envAll.Values.secrets.keyrings.osd | quote }}
+      - {{ $envAll.Values.secrets.keyrings.mgr | quote }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -286,7 +298,7 @@ spec:
 {{- end }}
 {{- end }}
 
-{{- if .Values.manifests.daemonset_mon }}
+{{- if and .Values.manifests.daemonset_mon .Values.mon_release_owner }}
 {{- $daemonset := .Values.daemonset.prefix_name }}
 {{- $configMapName := (printf "%s-%s" .Release.Name "etc") }}
 {{- $serviceAccountName := (printf "%s" .Release.Name) }}

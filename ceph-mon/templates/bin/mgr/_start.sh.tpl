@@ -6,6 +6,22 @@ set -ex
 : "${ADMIN_KEYRING:=/etc/ceph/${CLUSTER}.client.admin.keyring}"
 : "${CEPH_CONF:="/etc/ceph/${CLUSTER}.conf"}"
 
+{{ include "helm-toolkit.snippets.ceph_key_rotation" . }}
+
+# Best-effort: if the manager's existing key length does not match the
+# cluster's service cipher, rotate it. Never blocks manager startup and is
+# skipped for a brand-new manager (the `auth get-or-create` below creates
+# the key with the service cipher, and re-fetches the rotated key into the
+# local keyring on every start).
+function check_mgr_key_type () {
+  local key_type=""
+  key_type=$(get_monmap_cipher auth_service_cipher)
+  if [[ -z "${key_type}" ]]; then
+    return 0
+  fi
+  check_cluster_entity_key_type "mgr.${MGR_NAME}" "${key_type}"
+}
+
 {{ include "helm-toolkit.snippets.mon_host_from_k8s_ep" . }}
 
 if [[ ! -e ${CEPH_CONF}.template ]]; then
@@ -26,6 +42,9 @@ if [ ${CEPH_GET_ADMIN_KEY} -eq 1 ]; then
         exit 1
     fi
 fi
+
+# Best effort: rotate the MGR key to match the cluster's service cipher.
+check_mgr_key_type || echo "WARNING- MGR key type check failed, continuing"
 
 # Create a MGR keyring
 rm -rf $MGR_KEYRING

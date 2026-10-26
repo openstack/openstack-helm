@@ -1,0 +1,108 @@
+---
+ceph-mon:
+  - |
+    Move the monmap auth cipher and storage key reconciliation out of the
+    post-apply job and into a new ``aes-storage-keys`` job, so that the two can
+    be configured, rescheduled and debugged independently of the post-apply
+    upgrade work. The new job pushes the ``conf.auth_ciphers`` values to the
+    running cluster with ``ceph mon set`` and reconciles the storage
+    (``client.admin``) key with ``conf.keyring.storage.key_type``, replacing a
+    key of any other type and restarting the mon, mgr and ceph-mon-check pods
+    which mount it. It is configured like the post-apply job -- same RBAC,
+    image, volumes, security context and resources -- and is enabled with
+    ``manifests.aes_storage_keys`` (``true`` by default). Like the post-apply
+    job, it is only rendered when
+    ``pod.lifecycle.upgrades.daemonsets.pod_replacement_strategy`` is
+    ``OnDelete``. The behaviour of both tasks, including that they are best
+    effort and retried on the next run, is unchanged; the post-apply job no
+    longer performs either.
+  - |
+    Note that the ``aes-storage-keys`` job and the post-apply job are not
+    ordered with respect to each other, where previously the cipher
+    reconciliation and the storage key replacement ran between the post-apply
+    job's mon upgrade pass and its bootstrap key rotation pass. Both jobs are
+    best effort and idempotent, so a cluster converges over repeated runs, but
+    during the first upgrade of a release carrying this change the storage key
+    may be reconciled before the mon upgrade pass has completed.
+  - |
+    Make the CephX key types reconciled by the ceph-mon chart configurable.
+    The ``conf.keyring.bootstrap.key_type`` and
+    ``conf.keyring.storage.key_type`` values are consumed by the mon start
+    script, the post-apply job and the ``aes-storage-keys`` job, which rotate
+    the mon, bootstrap and storage keys when their type does not match the
+    configured value. The keyring manager jobs are intentionally not affected:
+    they keep generating keys with the ``ceph-authtool`` default key type. The
+    values default to ``aes256k`` for the bootstrap keyrings and ``aes`` for
+    the storage keyring, and can be omitted for older Ceph releases by setting
+    them to ``null``.
+  - |
+    Configure the Ceph auth ciphers consumed by the monitor and
+    ``aes-storage-keys`` scripts. The ``conf.auth_ciphers`` values map supplies
+    the desired ciphers (``auth-allowed-ciphers``, ``auth-preferred-cipher`` and
+    ``auth-service-cipher``), which the monitor start script writes into the
+    monmap it bootstraps with ``monmaptool --create`` and which the
+    ``aes-storage-keys`` job pushes to the running cluster with ``ceph mon
+    set``. The arguments required for Ceph Tentacle (20.2.x) compatibility
+    (``auth-allowed-ciphers``, ``auth-preferred-cipher`` and
+    ``auth-service-cipher``) are provided by default in ``values.yaml`` and
+    may be overridden or removed as needed. Setting ``auth_ciphers`` to
+    ``null`` (for example with ``--set conf.auth_ciphers=null``) skips
+    passing ciphers to ``monmaptool`` and pushing them to the running
+    cluster.
+  - |
+    The ``aes-storage-keys`` job checks the storage key -- the ``client.admin``
+    key published in the admin keyring Secret and in the rbd storageclass
+    Secrets by the storage keyring manager job -- against the type configured
+    via ``conf.keyring.storage.key_type`` (``aes`` by default, since Ceph CSI
+    fails to map RBDs on pre-7.0 kernels with aes256k), and replaces a key of
+    any other type with a newly generated one of the configured type. The
+    ciphers from ``conf.auth_ciphers`` are applied to the running cluster and
+    verified to allow the configured type first, so a key is never installed on
+    a monmap which would reject it. The new keyring is published in the admin
+    keyring Secret and both rbd storageclass Secrets before it is imported into
+    the cluster, keeping the previous keyring in the admin keyring Secret so an
+    interrupted run is repaired on the next one. The mon, mgr and
+    ceph-mon-check pods, which all mount the admin keyring, are then restarted
+    one at a time to pick up the new key. All of this is best effort: it is
+    skipped when no storage key type is configured, when the key already
+    matches, or when the monmap auth ciphers cannot be confirmed.
+  - |
+    Check the mon key for consistency on mon startup. If the mon key in the
+    mon store differs from the mon keyring Secret, the store is updated from
+    the Secret (or the Secret from the store, when only the store key has the
+    type configured via ``conf.keyring.bootstrap.key_type``). The mon start
+    script never rotates the key itself: the shared ``mon.`` key is held in
+    the auth database of every mon and used by the mons to authenticate to
+    each other, so rotating it while the mon is down leaves that mon with the
+    old key in its own database, and the quorum and the mon reject each
+    other's authorizers (``could not decrypt ticket info``) so the mon can
+    neither rejoin nor sync. The key is rotated by the post-apply job instead,
+    with ``ceph auth rotate --key-type``, while every mon is up and in quorum
+    and without restarting any mon; the rotated keyring is patched into the
+    mon keyring Secret. Bootstrap keys (mgr, mds, osd) whose key length does
+    not match the configured bootstrap key type are rotated by the post-apply
+    job as well and their Secrets updated. All checks are best effort and
+    never block monitor startup. The post-apply Role allows ``get`` and
+    ``patch`` on the keyring Secrets.
+  - |
+    Pass the desired key type to ``ceph auth rotate`` (``--key-type``, Ceph
+    20.2.4 and later) from the shared key rotation helpers, so a rotated key
+    has the configured type even when the monmap ``auth_preferred_cipher`` has
+    not been reconciled yet, and stop echoing the rotated key to the job and
+    pod logs.
+  - |
+    Check the ``mgr.<hostname>`` entity key on manager startup and rotate it
+    with ``ceph auth rotate`` when its key length does not match the
+    cluster's service cipher (``auth_service_cipher``, taken from the monmap
+    and ``aes256k`` by default). This lets managers created with legacy
+    ``aes`` keys converge on the configured service cipher without new chart
+    values; the local keyring is refreshed from the rotated key by the usual
+    ``auth get-or-create`` that follows. The check is best effort and never
+    blocks manager startup; it is skipped when the admin keyring is
+    unavailable or the service cipher cannot be determined.
+  - |
+    Add a ``mon_release_owner`` value to the ceph-mon chart, defaulting to
+    ``true``. When set to ``false``, the release no longer renders the
+    ceph-mon DaemonSet or its RBAC, allowing a single release to own the mon
+    DaemonSet.
+...

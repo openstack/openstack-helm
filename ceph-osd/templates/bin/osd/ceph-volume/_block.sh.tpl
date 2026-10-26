@@ -72,6 +72,21 @@ ceph-volume lvm -v \
 
 # NOTE(stevetaylor): Set the OSD's crush weight (use noin flag to prevent rebalancing if necessary)
 OSD_WEIGHT=$(get_osd_crush_weight_from_device ${OSD_DEVICE})
+
+# NOTE(stevetaylor): The key check/repair must run before any command that
+# authenticates as osd.${OSD_ID}, the first of which is the CRUSH update in
+# crush_location() below. Rotate the OSD key to match the desired key type when
+# it does not already match (best effort), then validate the local keyring
+# against the monitor auth DB, repairing it from the cluster when it has
+# drifted. A keyring that cannot be repaired aborts startup with a specific
+# error instead of crash-looping on the first CRUSH update.
+check_osd_key_type "${OSD_ID}" "${OSD_KEYRING}" || \
+  echo "WARNING- osd.${OSD_ID} key type check failed, continuing"
+if ! ensure_osd_keyring "${OSD_ID}" "${OSD_KEYRING}"; then
+  echo "ERROR- osd.${OSD_ID} keyring ${OSD_KEYRING} could not be verified against the monitor auth DB"
+  exit 1
+fi
+
 # NOTE(supamatt): add or move the OSD's CRUSH location
 crush_location
 

@@ -24,6 +24,21 @@ export LC_ALL=C
 : "${RGW_KEYRING:=/var/lib/ceph/radosgw/${RGW_NAME}/keyring}"
 : "${RGW_BOOTSTRAP_KEYRING:=/var/lib/ceph/bootstrap-rgw/${CLUSTER}.keyring}"
 
+{{ include "helm-toolkit.snippets.ceph_key_rotation" . }}
+
+# Best-effort: if the gateway's existing key length does not match the
+# cluster's preferred client cipher, rotate it and refresh the local keyring.
+# Never blocks gateway startup and is skipped for a brand-new gateway (the
+# `auth get-or-create` below creates the key with the preferred cipher).
+function check_rgw_key_type () {
+  local key_type=""
+  key_type=$(get_monmap_cipher auth_preferred_cipher)
+  if [[ -z "${key_type}" ]]; then
+    return 0
+  fi
+  check_cluster_entity_key_type "client.rgw.${RGW_NAME}" "${key_type}" "${RGW_KEYRING}"
+}
+
 if [[ ! -e "/etc/ceph/${CLUSTER}.conf" ]]; then
   echo "ERROR- /etc/ceph/${CLUSTER}.conf must exist; get it from your existing mon"
   exit 1
@@ -35,6 +50,9 @@ if [ "${CEPH_GET_ADMIN_KEY}" -eq 1 ]; then
       exit 1
   fi
 fi
+
+# Best effort: rotate the RGW key to match the cluster's preferred cipher.
+check_rgw_key_type || echo "WARNING- RGW key type check failed, continuing"
 
 # Check to see if our RGW has been initialized
 if [ ! -e "${RGW_KEYRING}" ]; then

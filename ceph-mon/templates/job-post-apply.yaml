@@ -40,6 +40,7 @@ rules:
       - 'apps'
     resources:
       - daemonsets
+      - deployments
     verbs:
       - get
       - list
@@ -50,6 +51,21 @@ rules:
     verbs:
       - get
       - list
+  - apiGroups:
+      - ''
+    resources:
+      - secrets
+    verbs:
+      - get
+      - patch
+    resourceNames:
+      - {{ $envAll.Values.secrets.keyrings.mon | quote }}
+      - {{ $envAll.Values.secrets.keyrings.mds | quote }}
+      - {{ $envAll.Values.secrets.keyrings.osd | quote }}
+      - {{ $envAll.Values.secrets.keyrings.mgr | quote }}
+      - {{ $envAll.Values.secrets.keyrings.admin | quote }}
+      - {{ $envAll.Values.storageclass.rbd.parameters.adminSecretName | quote }}
+      - {{ $envAll.Values.storageclass.rbd.parameters.adminSecretNameNode | quote }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -97,12 +113,19 @@ spec:
               value: "ceph"
             - name: CEPH_NAMESPACE
               value: {{ .Release.Namespace }}
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
             - name: RELEASE_GROUP_NAME
               value: {{ .Release.Name }}
             - name: UNCONDITIONAL_MON_RESTART
               value: {{ .Values.conf.storage.unconditional_mon_restart | quote }}
             - name: DISRUPTIVE_MON_RESTART
               value: {{ .Values.conf.storage.disruptive_mon_restart | quote }}
+            - name: QUORUM_WAIT_TIMEOUT
+              value: {{ .Values.conf.storage.mon_quorum_wait_timeout | quote }}
           command:
             - /tmp/post-apply.sh
           volumeMounts:

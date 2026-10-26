@@ -29,8 +29,159 @@ source /tmp/utils-resolveLocations.sh
 : "${OSD_JOURNAL_UUID:=$(uuidgen)}"
 : "${OSD_JOURNAL_SIZE:=$(awk '/^osd_journal_size/{print $3}' ${CEPH_CONF}.template)}"
 : "${OSD_WEIGHT:=1.0}"
+: "${ADMIN_KEYRING:=/etc/ceph/${CLUSTER}.client.admin.keyring}"
 
-{{ include "helm-toolkit.snippets.mon_host_from_k8s_ep" . }}
+# Desired OSD key type for the CephX key rotation check below. Comes from the
+# `conf.keyring.osd.key_type` value in values.yaml. An empty value means the
+# check is skipped (e.g. `--key-type` does not exist on Ceph releases
+# predating 20.2.4).
+DESIRED_OSD_KEY_TYPE="{{ .Values.conf.keyring.osd.key_type | default "" }}"
+{{ include "helm-toolkit.snippets.ceph_key_rotation" . }}
+
+# Ensure the OSD's key matches the desired key type, rotating it via
+# `ceph auth rotate` when its length does not match. The local OSD keyring is
+# refreshed from `ceph auth get` so the daemon starts with the rotated key.
+# This check is best effort and never blocks OSD startup.
+# Usage: check_osd_key_type <osd-id> <osd-keyring-file>
+function check_osd_key_type () {
+  check_local_entity_key_type "osd.$1" "${DESIRED_OSD_KEY_TYPE}" "$2"
+}
+
+# Fetch a CephX entity keyring from the monitors into a file, trying the admin
+# keyring first and falling back to the bootstrap-osd keyring (both are mounted
+# into the osd pods). Retries a bounded number of times while the monitors are
+# unreachable and never leaves a partial keyring behind. Key material is never
+# traced. Returns 0 (echoing the credential that was used) on success and 1
+# when the entity cannot be fetched with either credential.
+# Usage: fetch_entity_keyring_from_cluster <entity> <output-keyring-file>
+function fetch_entity_keyring_from_cluster () {
+  local entity="$1"
+  local output_keyring="$2"
+  local credential="" name="" keyring="" attempt="" error="" xtrace=0
+
+  [[ "${-}" == *x* ]] && xtrace=1
+  # Set +x for the key handling below: key material must never leak through
+  # tracing. Tracing is restored before every return path.
+  { set +x; } 2>/dev/null
+
+  for credential in "client.admin:${ADMIN_KEYRING}" \
+                    "client.bootstrap-osd:${OSD_BOOTSTRAP_KEYRING}"; do
+    name="${credential%%:*}"
+    keyring="${credential#*:}"
+    if [[ -z "${keyring}" || ! -e "${keyring}" ]]; then
+      echo "WARNING- ${name} keyring ${keyring} not found, cannot use it to fetch ${entity}"
+      continue
+    fi
+    for attempt in 1 2 3 4 5 6; do
+      rm -f "${output_keyring}"
+      # Only stderr is captured (and never echoed): key material must not end
+      # up in the logs.
+      if error=$(ceph --cluster "${CLUSTER}" --name "${name}" \
+          --keyring "${keyring}" auth get "${entity}" \
+          -o "${output_keyring}" 2>&1 >/dev/null); then
+        [[ "${xtrace}" -eq 1 ]] && set -x
+        echo "${entity} keyring fetched from the monitor auth DB using ${name}"
+        return 0
+      fi
+      # A missing entity or a credential the monitors reject will not be
+      # resolved by retrying: move on to the next credential right away.
+      # Only connectivity failures are worth retrying.
+      if [[ "${error}" == *"does not exist"* || "${error}" == *ENOENT* ||
+            "${error}" == *EACCES* || "${error}" == *"access denied"* ||
+            "${error}" == *"permission denied"* ]]; then
+        break
+      fi
+      if [[ "${attempt}" -lt 6 ]]; then
+        sleep 10
+      fi
+    done
+  done
+
+  [[ "${xtrace}" -eq 1 ]] && set -x
+  return 1
+}
+
+# Validate that the local OSD keyring holds the same key the monitors hold for
+# osd.<id> in their auth DB (rather than only checking its type/length) and
+# repair it from the monitor auth DB when it has drifted. Unlike
+# check_osd_key_type() this check is blocking: it runs before any command that
+# authenticates as osd.<id> (the CRUSH update is the first one), so a stale
+# keyring is repaired up front and a keyring that cannot be repaired aborts OSD
+# startup with a specific error instead of crash-looping on the first CRUSH
+# update. Returns 0 when the keyring matches or was repaired, and 1 (after
+# echoing the reason) when it cannot be validated against, or repaired from,
+# the cluster.
+# Usage: ensure_osd_keyring <osd-id> <osd-keyring-file>
+function ensure_osd_keyring () {
+  local osd_id="$1"
+  local keyring_file="$2"
+  local entity="osd.${osd_id}"
+  local tmpdir="" fetched="" local_key="" cluster_key="" xtrace=0
+
+  tmpdir=$(mktemp -d) || {
+    echo "ERROR- unable to create a temporary directory to verify ${entity} keyring"
+    return 1
+  }
+  [[ "${-}" == *x* ]] && xtrace=1
+  # Self-clearing: fires on this function's return, then removes itself so
+  # it never runs again inside a later function with stale locals.
+  trap '[[ -n "${tmpdir:-}" ]] && rm -rf "${tmpdir}" || true; [[ "${xtrace:-0}" -eq 1 ]] && set -x || true; trap - RETURN' RETURN
+
+  # Set +x for the key handling below: key material must never leak through
+  # tracing. The RETURN trap above restores tracing on every return path.
+  set +x
+
+  fetched="${tmpdir}/${entity}.keyring"
+  if ! fetch_entity_keyring_from_cluster "${entity}" "${fetched}"; then
+    echo "ERROR- unable to fetch ${entity} from the monitor auth DB using client.admin or client.bootstrap-osd"
+    echo "ERROR- refusing to start ${entity} with a keyring that cannot be verified against the cluster"
+    return 1
+  fi
+
+  cluster_key=$(keyring_key "${fetched}" "${entity}" || true)
+  if [[ -z "${cluster_key}" ]]; then
+    echo "ERROR- unable to read the ${entity} key from the keyring fetched from the monitor auth DB"
+    echo "ERROR- refusing to start ${entity} with a keyring that cannot be verified against the cluster"
+    return 1
+  fi
+
+  local_key=""
+  if [[ -e "${keyring_file}" ]]; then
+    local_key=$(keyring_key "${keyring_file}" "${entity}" || true)
+  fi
+
+  if [[ "${local_key}" == "${cluster_key}" ]]; then
+    echo "${keyring_file} matches ${entity} in the monitor auth DB"
+    return 0
+  fi
+
+  if [[ -z "${local_key}" ]]; then
+    echo "${entity} key is missing from ${keyring_file}, repairing it from the monitor auth DB"
+  else
+    echo "${entity} key in ${keyring_file} does not match the monitor auth DB, repairing it"
+  fi
+
+  if ! mkdir -p "$(dirname "${keyring_file}")" ||
+     ! cp -f "${fetched}" "${keyring_file}.repair" ||
+     ! mv -f "${keyring_file}.repair" "${keyring_file}" ||
+     ! chown ceph. "${keyring_file}" ||
+     ! chmod 0600 "${keyring_file}"; then
+    rm -f "${keyring_file}.repair"
+    echo "ERROR- failed to rewrite ${keyring_file} from the monitor auth DB"
+    echo "ERROR- refusing to start ${entity} with a keyring that does not match the cluster"
+    return 1
+  fi
+
+  local_key=$(keyring_key "${keyring_file}" "${entity}" || true)
+  if [[ "${local_key}" != "${cluster_key}" ]]; then
+    echo "ERROR- repaired ${keyring_file} still does not match ${entity} in the monitor auth DB"
+    echo "ERROR- refusing to start ${entity} with a keyring that does not match the cluster"
+    return 1
+  fi
+
+  echo "repaired ${keyring_file} from the monitor auth DB"
+  return 0
+}
 
 # Obtain a global lock on /var/lib/ceph/tmp/init-osd.lock
 function lock() {
@@ -135,6 +286,8 @@ if [ -z "${HOSTNAME}" ]; then
   echo "HOSTNAME not set; This will prevent to add an OSD into the CRUSH map"
   exit 1
 fi
+
+{{ include "helm-toolkit.snippets.mon_host_from_k8s_ep" . }}
 
 if [[ ! -e ${CEPH_CONF}.template ]]; then
   echo "ERROR- ${CEPH_CONF}.template must exist; get it from your existing mon"
