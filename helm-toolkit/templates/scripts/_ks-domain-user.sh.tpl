@@ -43,7 +43,6 @@ openstack domain show "${SERVICE_OS_DOMAIN_ID}"
 SERVICE_OS_USERID=$(openstack user create --or-show --enable -f value -c id \
     --domain="${SERVICE_OS_DOMAIN_ID}" \
     --description "Service User for ${SERVICE_OS_REGION_NAME}/${SERVICE_OS_DOMAIN_NAME}" \
-    --password="${SERVICE_OS_PASSWORD}" \
     "${SERVICE_OS_USERNAME}")
 
 # Manage user password in a separate step so the password can be conditionally updated.
