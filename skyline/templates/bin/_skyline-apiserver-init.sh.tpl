@@ -19,6 +19,14 @@ set -ex
 GENERATOR_ARGS="--output-file /etc/nginx/nginx.conf"
 skyline-nginx-generator ${GENERATOR_ARGS}
 
+{{- if .Values.conf.nginx.worker_processes }}
+# Override nginx worker_processes. skyline-apiserver generates nginx.conf with
+# "worker_processes auto;", which spawns one worker per visible host CPU. Inside
+# a container/Kubernetes the cgroup CPU limit is not respected, so "auto" can
+# spawn far more workers than intended and drive the pod into the OOMKiller.
+sed -i 's/^worker_processes .*;/worker_processes {{ .Values.conf.nginx.worker_processes }};/' /etc/nginx/nginx.conf
+{{- end }}
+
 {{- if .Values.conf.nginx.default_language }}
 # Set default language via cookie so the SPA doesn't fall back to Chinese.
 # The skyline-console JS checks: localStorage -> URL -> cookie -> navigator.language,
