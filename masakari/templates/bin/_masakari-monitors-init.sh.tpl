@@ -17,6 +17,9 @@ limitations under the License.
 set -ex
 
 nova_compute_hostname="$COMPUTE_NODE_NAME"
+{{- if .Values.conf.monitors.hostname_domain }}
+nova_compute_hostname="${nova_compute_hostname}.{{ .Values.conf.monitors.hostname_domain }}"
+{{- end }}
 cat <<EOF>/tmp/pod-shared/masakarimonitors.conf
 [DEFAULT]
 hostname=$nova_compute_hostname
