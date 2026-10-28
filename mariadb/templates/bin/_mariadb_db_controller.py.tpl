@@ -299,15 +299,19 @@ def list_resources(klass):
 
 def read_secret_key(name, key):
     """Read and decode one key of a secret in the watched namespace."""
-    try:
-        secret = (
-            pykube.Secret.objects(api)
-            .filter(namespace=MARIADB_DB_CONTROLLER_NAMESPACE)
-            .get(name=name)
-        )
-    except pykube.exceptions.ObjectDoesNotExist:
+    if name not in secrets:
+        try:
+            secret = (
+                pykube.Secret.objects(api)
+                .filter(namespace=MARIADB_DB_CONTROLLER_NAMESPACE)
+                .get(name=name)
+            )
+            secrets[name] = secret.obj.get("data") or {}
+        except pykube.exceptions.ObjectDoesNotExist:
+            secrets[name] = None
+    if secrets[name] is None:
         raise ReconcileError(f"secret {name} does not exist")
-    data = secret.obj.get("data") or {}
+    data = secrets[name]
     if key not in data:
         raise ReconcileError(f"secret {name} has no key {key}")
     return base64.b64decode(data[key]).decode("utf-8")
@@ -684,15 +688,20 @@ def render_format(template, context):
     return TEMPLATE_RE.sub(substitute, template)
 
 
-def connection_context(spec):
-    """Build the substitution context for a Connection resource."""
-    username = spec.get("username")
+def connection_password(spec):
+    """Return the password a Connection resource renders."""
     password_ref = spec.get("passwordSecretKeyRef") or {}
     if not password_ref.get("name"):
         raise ReconcileError("passwordSecretKeyRef.name is required")
-    password = read_secret_key(
+    return read_secret_key(
         password_ref["name"], password_ref.get("key") or DEFAULT_CREDS_KEY
     )
+
+
+def connection_context(spec):
+    """Build the substitution context for a Connection resource."""
+    username = spec.get("username")
+    password = connection_password(spec)
     database = spec.get("database") or ""
     host = spec.get("host")
     if not host:
@@ -847,6 +856,9 @@ HANDLERS = (
 applied = {}
 # uid -> timestamp before which the resource is not retried
 backoff = {}
+# secret name -> data, or None if it does not exist; read once per sweep, as
+# the User and the Connection of a service usually share one password secret
+secrets = {}
 
 
 def desired_hash(obj, spec, extra=""):
@@ -970,11 +982,18 @@ def reconcile(obj, handler, finalizer):
         # finalizer behind that would wedge a later deletion.
         remove_finalizer(obj)
 
-    # For a User the password lives in a secret, so the secret's content is
-    # part of the desired state even when the spec has not changed.
-    extra = ""
+    # A User sets, and a Connection renders, a password that lives in a
+    # secret, so the secret's content is part of the desired state even when
+    # the spec has not changed. Leaving it out of the Connection's digest
+    # rotates the account on the next sweep but the rendered secret only on
+    # the full resync, and every consumer that connects in between is denied.
+    password = None
     if obj.kind == "User":
         password, _ = user_password(spec)
+    elif obj.kind == "Connection":
+        password = connection_password(spec)
+    extra = ""
+    if password is not None:
         extra = hashlib.sha256(password.encode("utf-8")).hexdigest()
 
     digest = desired_hash(obj, spec, extra)
@@ -995,6 +1014,7 @@ def reconcile(obj, handler, finalizer):
 
 
 def sweep():
+    secrets.clear()
     live = set()
     for klass, handler, finalizer in HANDLERS:
         for obj in list_resources(klass):
