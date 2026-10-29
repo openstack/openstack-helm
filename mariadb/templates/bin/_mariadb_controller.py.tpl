@@ -39,7 +39,7 @@ MARIADB_MASTER_SERVICE_NAME = os.getenv(
     "MARIADB_MASTER_SERVICE_NAME", "mariadb"
 )
 
-log_level = "DEBUG" if MARIADB_CONTROLLER_DEBUG else "INFO"
+log_level = "DEBUG" if MARIADB_CONTROLLER_DEBUG == "1" else "INFO"
 logging.basicConfig(
     stream=sys.stdout,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
