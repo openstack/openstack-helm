@@ -15,6 +15,18 @@ limitations under the License.
 {{- if .Values.manifests.service_master }}
 
 {{- $envAll := . }}
+{{- /*
+The service has no selector here: mariadb-controller sets all of it, the
+server pods' labels plus the pod name of the elected primary. A Service
+selector is an atomic map, so a selector rendered here would be owned by Helm
+and every server-side apply of it would conflict with the controller's key,
+and forcing it would send writes to every galera node until the controller
+relinked it. Until the controller's first link the service has no endpoints,
+and without the controller it never gets any.
+*/}}
+{{- if not .Values.manifests.deployment_controller }}
+{{- fail "manifests.service_master needs manifests.deployment_controller: mariadb-controller sets the selector of the master service" }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -24,7 +36,5 @@ spec:
   ports:
     - name: mysql
       port: {{ tuple "oslo_db" "direct" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
-  selector:
-{{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
 {{ .Values.network.mariadb_master | include "helm-toolkit.snippets.service_params" | indent 2 }}
 {{- end }}

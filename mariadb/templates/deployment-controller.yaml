@@ -102,6 +102,13 @@ spec:
               value: {{ $envAll.Release.Namespace }}
             - name: MARIADB_MASTER_SERVICE_NAME
               value: {{ tuple "oslo_db" "internal" . | include "helm-toolkit.endpoints.hostname_short_endpoint_lookup" }}
+            {{/*
+            The same labels the server StatefulSet gives its pods, so the
+            selector the controller writes matches them however
+            release_group and pod.labels are set.
+            */}}
+            - name: MARIADB_MASTER_SERVICE_SELECTOR
+              value: {{ tuple $envAll "mariadb" "server" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | fromYaml | toJson | quote }}
           volumeMounts:
             - name: pod-tmp
               mountPath: /tmp
