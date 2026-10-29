@@ -21,6 +21,20 @@
       when: overlay_network_setup
       shell: sed -i '/CALICO_IPV4POOL_IPIP/{n;s/Always/Never/}' {{ calico_config.dest }}
 
+    # Without encapsulation Calico routes pod traffic over the overlay bridge,
+    # but its MTU auto-detection reads the underlay NIC and gives pods a
+    # larger MTU than the overlay carries. Pods then advertise an MSS the
+    # overlay can not carry, and traffic to them depends on path MTU
+    # discovery, which does not work for a client on a node that reaches a
+    # pod on another node through an IPVS service address.
+    - name: Match the Calico MTU to the overlay bridge
+      when: overlay_network_setup
+      shell: |
+        set -e
+        mtu=$(cat /sys/class/net/{{ overlay_network_bridge_name }}/mtu)
+        sed -i "s/veth_mtu: \"0\"/veth_mtu: \"${mtu}\"/" {{ calico_config.dest }}
+        grep -q "veth_mtu: \"${mtu}\"" {{ calico_config.dest }}
+
 - name: Download Calico images on K8s nodes beforehand
   when: inventory_hostname in (groups['k8s_cluster'] | default([]))
   shell: |
