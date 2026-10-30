@@ -19,6 +19,41 @@
     opts: size=1g
     state: mounted
 
+# kubeadm init applies these patches to the kube-apiserver static pod and to
+# the kubelet configuration of this node only. The eviction thresholds other
+# than memory.available are the kubelet defaults: setting evictionHard
+# replaces the default thresholds as a whole.
+- name: Create the kubeadm patches directory
+  file:
+    path: /etc/kubernetes/patches
+    state: directory
+    mode: "0755"
+
+- name: Write the kubeadm patches
+  copy:
+    dest: "/etc/kubernetes/patches/{{ item.file }}"
+    content: "{{ item.patch | to_nice_yaml(indent=2) }}"
+    mode: "0644"
+  loop:
+    - file: kube-apiserver+strategic.yaml
+      patch:
+        spec:
+          containers:
+            - name: kube-apiserver
+              resources:
+                requests:
+                  memory: "{{ kubeadm_control_plane_apiserver_memory_request }}"
+    - file: kubeletconfiguration+merge.yaml
+      patch:
+        evictionHard:
+          memory.available: "{{ kubeadm_control_plane_eviction_memory_available }}"
+          nodefs.available: "10%"
+          nodefs.inodesFree: "5%"
+          imagefs.available: "15%"
+          imagefs.inodesFree: "5%"
+  loop_control:
+    label: "{{ item.file }}"
+
 - name: Prepare kubeadm config
   template:
     src: files/kubeadm_config.yaml.j2
