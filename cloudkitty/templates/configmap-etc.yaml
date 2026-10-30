@@ -32,6 +32,12 @@ limitations under the License.
 {{- $_ := set .Values.conf.cloudkitty.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
 {{- end -}}
 
+{{- /* With manifests.mariadb_db the connection comes from the secret the
+Connection resource writes, projected into the config directory. */}}
+{{- if .Values.manifests.mariadb_db -}}
+{{- $_ := unset .Values.conf.cloudkitty.database "connection" -}}
+{{- end -}}
+
 {{- if and (not (kindIs "invalid" .Values.conf.cloudkitty.database.connection)) (empty .Values.conf.cloudkitty.database.connection) -}}
 {{- $connection := tuple "oslo_db" "internal" "cloudkitty" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
 {{- if .Values.manifests.certificates -}}

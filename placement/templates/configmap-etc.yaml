@@ -17,6 +17,12 @@ limitations under the License.
 {{- if .Values.manifests.configmap_etc }}
 {{- $envAll := . }}
 
+{{- /* With manifests.mariadb_db the connection comes from the secret the
+Connection resource writes, projected into the config directory. */}}
+{{- if .Values.manifests.mariadb_db -}}
+{{- $_ := unset .Values.conf.placement.placement_database "connection" -}}
+{{- end -}}
+
 {{- if and (not (kindIs "invalid" .Values.conf.placement.placement_database.connection)) (empty .Values.conf.placement.placement_database.connection) -}}
 {{- $connection := tuple "oslo_db" "internal" "placement" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
 {{- if .Values.tls.oslo_db -}}

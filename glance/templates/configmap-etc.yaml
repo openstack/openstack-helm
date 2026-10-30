@@ -62,6 +62,12 @@ limitations under the License.
 {{- $_ := set .Values.conf.glance.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
 {{- end -}}
 
+{{- /* With manifests.mariadb_db the connection comes from the secret the
+Connection resource writes, projected into the config directory. */}}
+{{- if .Values.manifests.mariadb_db -}}
+{{- $_ := unset .Values.conf.glance.database "connection" -}}
+{{- end -}}
+
 {{- if and (not (kindIs "invalid" .Values.conf.glance.database.connection)) (empty .Values.conf.glance.database.connection) -}}
 {{- $connection := tuple "oslo_db" "internal" "glance" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
 {{- if .Values.tls.oslo_db -}}

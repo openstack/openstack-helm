@@ -34,6 +34,12 @@ limitations under the License.
 {{- $_ := tuple "identity" "internal" "api" . | include "helm-toolkit.endpoints.keystone_endpoint_uri_lookup"| set $envAll.Values.conf.cinder.nova "auth_url" -}}
 {{- end }}
 
+{{- /* With manifests.mariadb_db the connection comes from the secret the
+Connection resource writes, projected into the config directory. */}}
+{{- if .Values.manifests.mariadb_db -}}
+{{- $_ := unset .Values.conf.cinder.database "connection" -}}
+{{- end -}}
+
 {{- if and (not (kindIs "invalid" .Values.conf.cinder.database.connection)) (empty .Values.conf.cinder.database.connection) -}}
 {{- $connection := tuple "oslo_db" "internal" "cinder" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
 {{- if .Values.tls.oslo_db -}}

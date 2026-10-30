@@ -22,6 +22,10 @@ helm.sh/hook-weight: "-4"
 {{- $podVolMounts = append $podVolMounts (dict "name" "db-sync-conf" "mountPath" "/tmp/old_keks" "subPath" "old_keks" "readOnly" true) }}
 
 {{- if .Values.manifests.job_db_sync }}
+{{- /* job_db_sync reads pod.etcSources itself, so add to the values. */}}
+{{- if .Values.manifests.mariadb_db }}
+{{- $_ := set .Values.pod.etcSources "barbican_db_sync" (append .Values.pod.etcSources.barbican_db_sync (dict "secret" (dict "name" "barbican-db-conn"))) }}
+{{- end }}
 {{- $dbSyncJob := dict
   "envAll" .
   "serviceName" "barbican"
