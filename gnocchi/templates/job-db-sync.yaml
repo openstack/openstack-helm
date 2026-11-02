@@ -13,6 +13,12 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_db_sync }}
+{{- /* Wait for the Connection to report Ready. The dependency resolver reads
+the values, so add it there. */}}
+{{- if .Values.manifests.mariadb_db }}
+{{- $connection := dict "apiVersion" (printf "%s/v1alpha1" .Values.mariadb_db.api_group) "kind" "Connection" "name" "gnocchi-db-conn" "conditions" (list (dict "type" "Ready")) }}
+{{- $_ := set .Values.dependencies.static.db_sync "custom_resources" (append (.Values.dependencies.static.db_sync.custom_resources | default list) $connection) }}
+{{- end }}
 {{- $envAll := . }}
 
 {{- $serviceAccountName := "gnocchi-db-sync" }}

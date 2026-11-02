@@ -76,6 +76,10 @@ volumes:
 {{- end }}
 
 {{- if .Values.manifests.job_db_sync }}
+{{- /* job_db_sync reads pod.etcSources itself, so add to the values. */}}
+{{- if .Values.manifests.mariadb_db }}
+{{- $_ := set .Values.pod.etcSources "keystone_db_sync" (append .Values.pod.etcSources.keystone_db_sync (dict "secret" (dict "name" "keystone-db-conn"))) }}
+{{- end }}
 {{- $local := dict "podVolMounts" false "podVols" false -}}
 {{- if eq .Values.conf.keystone.token.provider "fernet" }}
 {{- $_ := set $local "podVolMounts" ( index ( tuple . | include "keystone.templates._job_db_sync.pod_vol_mounts" | toString | fromYaml ) "volumeMounts" ) }}

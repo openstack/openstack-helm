@@ -18,6 +18,10 @@ helm.sh/hook-weight: "-4"
 {{- end }}
 
 {{- if .Values.manifests.job_db_sync }}
+{{- /* job_db_sync reads pod.etcSources itself, so add to the values. */}}
+{{- if .Values.manifests.mariadb_db }}
+{{- $_ := set .Values.pod.etcSources "glance_db_sync" (append .Values.pod.etcSources.glance_db_sync (dict "secret" (dict "name" "glance-db-conn"))) }}
+{{- end }}
 {{- $dbToSync := index . "dbToSync" | default ( dict "configFile" (printf "/etc/%s/%s.conf" "glance" "glance-api" ) "configDir" (printf "/etc/%s/%s.conf.d" "glance" "glance") "logConfigFile" (printf "/etc/%s/logging.conf" "glance" ) "image" ( index .Values.images.tags ( printf "%s_db_sync" "glance" )) ) -}}
 {{- $dbSyncJob := dict
   "envAll" .

@@ -57,6 +57,12 @@ limitations under the License.
 {{- $_ := set .Values.conf.aodh.keystone_authtoken "memcache_secret_key" ( default ( randAlphaNum 64 ) .Values.endpoints.oslo_cache.auth.memcache_secret_key ) -}}
 {{- end -}}
 
+{{- /* With manifests.mariadb_db the connection comes from the secret the
+Connection resource writes, projected into the config directory. */}}
+{{- if .Values.manifests.mariadb_db -}}
+{{- $_ := unset .Values.conf.aodh.database "connection" -}}
+{{- end -}}
+
 {{- if and (not (kindIs "invalid" .Values.conf.aodh.database.connection)) (empty .Values.conf.aodh.database.connection) -}}
 {{- $_ := tuple "oslo_db" "internal" "aodh" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" | set .Values.conf.aodh.database "connection" -}}
 {{- end -}}

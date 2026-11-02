@@ -19,15 +19,33 @@ helm.sh/hook-weight: "-4"
 
 {{- define "nova.templates._job_db_sync.env_vars" -}}
 {{- $envAll := index . 0 }}
+{{- /* With manifests.mariadb_db the cell0 Connection resource writes the URI
+under the same key. Nothing in nova.conf points at cell0, so it is not
+projected like the other connections. */}}
+{{- $cell0Secret := $envAll.Values.secrets.oslo_db_cell0.nova }}
+{{- if $envAll.Values.manifests.mariadb_db }}
+{{- $cell0Secret = "nova-cell0-db-conn" }}
+{{- end }}
 env:
   - name: DB_CONNECTION_CELL0
     valueFrom:
       secretKeyRef:
-        name: {{ $envAll.Values.secrets.oslo_db_cell0.nova }}
+        name: {{ $cell0Secret }}
         key: DB_CONNECTION
 {{- end }}
 
 {{- if .Values.manifests.job_db_sync }}
+{{- /* job_db_sync reads pod.etcSources itself, so add to the values. */}}
+{{- if .Values.manifests.mariadb_db }}
+{{- $_ := set .Values.pod.etcSources "nova_db_sync" (append .Values.pod.etcSources.nova_db_sync (dict "secret" (dict "name" "nova-db-conn"))) }}
+{{- $_ := set .Values.pod.etcSources "nova_db_sync" (append .Values.pod.etcSources.nova_db_sync (dict "secret" (dict "name" "nova-cell1-db-conn"))) }}
+{{- end }}
+{{- /* Wait for the Connection to report Ready. The dependency resolver reads
+the values, so add it there. */}}
+{{- if .Values.manifests.mariadb_db }}
+{{- $connection := dict "apiVersion" (printf "%s/v1alpha1" .Values.mariadb_db.api_group) "kind" "Connection" "name" "nova-cell0-db-conn" "conditions" (list (dict "type" "Ready")) }}
+{{- $_ := set .Values.dependencies.static.db_sync "custom_resources" (append (.Values.dependencies.static.db_sync.custom_resources | default list) $connection) }}
+{{- end }}
 {{- $podEnvVars := include "nova.templates._job_db_sync.env_vars" (tuple .) | toString | fromYaml }}
 {{- $dbSyncJob := dict
   "envAll" .

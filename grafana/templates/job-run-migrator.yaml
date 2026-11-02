@@ -13,6 +13,12 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_run_migrator }}
+{{- /* Wait for the Connection to report Ready. The dependency resolver reads
+the values, so add it there. */}}
+{{- if .Values.manifests.mariadb_db }}
+{{- $connection := dict "apiVersion" (printf "%s/v1alpha1" .Values.mariadb_db.api_group) "kind" "Connection" "name" "grafana-db-conn" "conditions" (list (dict "type" "Ready")) }}
+{{- $_ := set .Values.dependencies.static.run_migrator "custom_resources" (append (.Values.dependencies.static.run_migrator.custom_resources | default list) $connection) }}
+{{- end }}
 {{- $envAll := . }}
 
 {{- $mounts_grafana := .Values.pod.mounts.grafana.grafana }}

@@ -13,6 +13,12 @@ limitations under the License.
 */}}
 
 {{- if .Values.manifests.job_set_admin_user }}
+{{- /* Wait for the Connection to report Ready. The dependency resolver reads
+the values, so add it there. */}}
+{{- if .Values.manifests.mariadb_db }}
+{{- $connection := dict "apiVersion" (printf "%s/v1alpha1" .Values.mariadb_db.api_group) "kind" "Connection" "name" "grafana-db-conn" "conditions" (list (dict "type" "Ready")) }}
+{{- $_ := set .Values.dependencies.static.set_admin_user "custom_resources" (append (.Values.dependencies.static.set_admin_user.custom_resources | default list) $connection) }}
+{{- end }}
 {{- $envAll := . }}
 
 {{- $serviceAccountName := "grafana-set-admin-user" }}
