@@ -1,0 +1,188 @@
+---
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Builds the charts which the registry is missing and pushes them to
+# oci://<osh_charts_oci_registry>/<osh_charts_oci_namespace>/<chart>. Like
+# charts-publish.yaml this deliberately doesn't look at the range of the Zuul
+# event, since the post pipeline drops queue items when changes land faster
+# than this job runs. The registry is the source of truth instead: a chart is
+# missing when no tag of its repository carries the <major>.<minor>.<patch> of
+# the version tools/chart_version.sh gives it. helm push stores the version
+# <major>.<minor>.<patch>+<commit_sha> as the tag <major>.<minor>.<patch>_<commit_sha>.
+#
+# The repository of a chart is created (public) when it doesn't exist yet,
+# because a repository which quay.io creates implicitly on push is private.
+
+- hosts: all
+  roles:
+    - ensure-pip
+    - ensure-helm
+
+  vars:
+    package_dir: "{{ ansible_user_dir }}/chart-packages"
+    registry_credentials: "{{ charts_registry_credentials[osh_charts_oci_registry] }}"
+    quay_api: "https://{{ osh_charts_oci_registry }}/api/v1"
+    oci_repo: "{{ osh_charts_oci_registry }}/{{ osh_charts_oci_namespace }}"
+    charts_to_build: []
+    # A chart which fails at any step is left for the next run instead of
+    # being held against the other charts.
+    failed_lookups: "{{ chart_tags.results | default([]) | rejectattr('status', 'in', [200, 404]) | list }}"
+    failed_builds: "{{ chart_builds.results | default([]) | selectattr('failed') | map(attribute='item.name') | list }}"
+    built_charts: "{{ charts_to_build | rejectattr('name', 'in', failed_builds) | list }}"
+    failed_creates: "{{ repo_creates.results | default([]) | rejectattr('status', 'in', [200, 201]) | list }}"
+    charts_to_push: "{{ built_charts | rejectattr('name', 'in', failed_creates | map(attribute='item.name') | list) | list }}"
+    failed_pushes: "{{ chart_pushes.results | default([]) | selectattr('failed') | map(attribute='item.name') | list }}"
+
+  tasks:
+    # Needed by tools/chart_annotations.py, which make runs through the
+    # PYTHON parameter below to generate the artifacthub.io/changes
+    # annotation.
+    - name: Install PyYAML
+      pip:
+        name: PyYAML
+        virtualenv: "{{ virtualenv }}"
+        virtualenv_command: python3 -m venv
+
+    - name: Work out the version of every chart
+      command: tools/chart_publish_plan.sh {{ base_version }}
+      args:
+        chdir: "{{ zuul.project.src_dir }}"
+      register: chart_versions
+      changed_when: false
+
+    - name: Look up the tags of every chart version
+      uri:
+        url: >-
+          {{ quay_api }}/repository/{{ osh_charts_oci_namespace }}/{{ item.split() | first }}/tag/?onlyActiveTags=true&limit=100&filter_tag_name=like:{{ (item.split() | last).split('+') | first }}
+        method: GET
+        headers:
+          Authorization: "Bearer {{ registry_credentials.api_token }}"
+        status_code: [200, 404]
+      register: chart_tags
+      failed_when: false
+      no_log: true
+      loop: "{{ chart_versions.stdout_lines }}"
+
+    - name: Report charts whose tags could not be looked up
+      debug:
+        msg: >-
+          Looking up the tags of {{ osh_charts_oci_namespace }}/{{ item.item.split() | first }}
+          returned HTTP {{ item.status }}: {{ item.json | default(item.msg) }}
+      loop: "{{ failed_lookups }}"
+      loop_control:
+        label: "{{ item.item.split() | first }}"
+
+    # The tag filter of the quay API is a substring match, so the result is
+    # checked for a tag which starts with <major>.<minor>.<patch>.
+    - name: Work out which charts the registry is missing
+      set_fact:
+        charts_to_build: >-
+          {{ charts_to_build + [{'name': _name, 'version': _version, 'create_repo': item.status == 404}] }}
+      vars:
+        _name: "{{ item.item.split() | first }}"
+        _version: "{{ item.item.split() | last }}"
+        _tag_pattern: "{{ _version.split('+') | first | regex_escape }}(_|$)"
+      when: >-
+        item.status == 404 or
+        item.status == 200 and item.json.tags | map(attribute='name') | select('match', _tag_pattern) | list | length == 0
+      loop: "{{ chart_tags.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Display charts to build
+      debug:
+        msg: "Charts to build: {{ charts_to_build | map(attribute='name') | list }}"
+
+    - name: Build each chart the registry is missing
+      make:
+        chdir: "{{ zuul.project.src_dir }}"
+        target: "{{ item.name }}"
+        params:
+          PYTHON: "{{ virtualenv }}/bin/python"
+          BASE_VERSION: "{{ base_version }}"
+          PACKAGE_DIR: "{{ package_dir }}/{{ item.name }}"
+      loop: "{{ charts_to_build }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: chart_builds
+      ignore_errors: true
+
+    - name: Create missing chart repositories
+      uri:
+        url: "{{ quay_api }}/repository"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ registry_credentials.api_token }}"
+        body_format: json
+        body:
+          namespace: "{{ osh_charts_oci_namespace }}"
+          repository: "{{ item.name }}"
+          visibility: public
+          repo_kind: image
+          description: "OpenStack-Helm {{ item.name }} chart"
+        status_code: [200, 201]
+      register: repo_creates
+      failed_when: false
+      no_log: true
+      loop: "{{ built_charts | selectattr('create_repo') | list }}"
+
+    - name: Report charts whose repository could not be created
+      debug:
+        msg: >-
+          Creating {{ osh_charts_oci_namespace }}/{{ item.item.name }}
+          returned HTTP {{ item.status }}: {{ item.json | default(item.msg) }}
+      loop: "{{ failed_creates }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: Push the built charts
+      when: charts_to_push | length > 0
+      block:
+        - name: Log in to the registry
+          command: >-
+            helm registry login {{ osh_charts_oci_registry }}
+            --username {{ registry_credentials.username }}
+            --password-stdin
+          args:
+            stdin: "{{ registry_credentials.password }}"
+          no_log: true
+
+        - name: Push each built chart
+          command: >-
+            helm push {{ package_dir }}/{{ item.name }}/{{ item.name }}-{{ item.version }}.tgz
+            oci://{{ oci_repo }}
+          loop: "{{ charts_to_push }}"
+          loop_control:
+            label: "{{ item.name }} {{ item.version }}"
+          register: chart_pushes
+          ignore_errors: true
+      always:
+        - name: Log out of the registry
+          command: helm registry logout {{ osh_charts_oci_registry }}
+          failed_when: false
+
+    # Unlike charts-publish.yaml nothing is uploaded after this playbook, so
+    # failing the job here holds no chart back. It only makes the failed
+    # charts visible.
+    - name: Fail when a chart could not be published
+      fail:
+        msg: >-
+          Charts left for the next run.
+          Tag lookup failed: {{ failed_lookups | map(attribute='item') | map('split') | map('first') | join(', ') or 'none' }}.
+          Build failed: {{ failed_builds | join(', ') or 'none' }}.
+          Repository creation failed: {{ failed_creates | map(attribute='item.name') | join(', ') or 'none' }}.
+          Push failed: {{ failed_pushes | join(', ') or 'none' }}.
+      when: >-
+        failed_lookups | length > 0 or failed_builds | length > 0 or
+        failed_creates | length > 0 or failed_pushes | length > 0
+...
