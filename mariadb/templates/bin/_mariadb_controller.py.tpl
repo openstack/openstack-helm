@@ -12,12 +12,17 @@ MARIADB_CONTROLLER_CHECK_PODS_DELAY: The delay between check pod attempts.
 MARIADB_CONTROLLER_PYKUBE_REQUEST_TIMEOUT: The timeout for kubernetes http session
 MARIADB_CONTROLLER_PODS_NAMESPACE: The namespace to look for mariadb pods.
 MARIADB_MASTER_SERVICE_NAME: The name of master service for mariadb.
+MARIADB_MASTER_SERVICE_SELECTOR: The labels of the mariadb server pods as a
+    JSON object. The master service's selector is set to these plus the pod
+    name of the elected primary.
 
 Changelog:
 0.1.0: Initial varsion
+0.1.1: Own the whole selector of the master service
 """
 
 
+import json
 import logging
 import os
 import sys
@@ -38,6 +43,13 @@ MARIADB_CONTROLLER_PODS_NAMESPACE = os.getenv(
 MARIADB_MASTER_SERVICE_NAME = os.getenv(
     "MARIADB_MASTER_SERVICE_NAME", "mariadb"
 )
+MARIADB_MASTER_SERVICE_SELECTOR = json.loads(
+    os.getenv(
+        "MARIADB_MASTER_SERVICE_SELECTOR",
+        '{"application": "mariadb", "component": "server"}',
+    )
+)
+POD_NAME_LABEL = "statefulset.kubernetes.io/pod-name"
 
 log_level = "DEBUG" if MARIADB_CONTROLLER_DEBUG == "1" else "INFO"
 logging.basicConfig(
@@ -83,13 +95,22 @@ def get_mariadb_master_service(namespace):
 
 
 def link_master_service(pod):
+    # The chart renders the service without a selector and leaves all of it
+    # to this controller: a Service selector is an atomic map, so one key
+    # added to a selector Helm applies server-side would conflict with every
+    # upgrade. Until the first link the service has no endpoints.
     svc = get_mariadb_master_service(MARIADB_CONTROLLER_PODS_NAMESPACE)
     svc.reload()
-    if svc.obj['spec']['selector'].get('statefulset.kubernetes.io/pod-name') == pod.name:
+    selector = dict(MARIADB_MASTER_SERVICE_SELECTOR)
+    selector[POD_NAME_LABEL] = pod.name
+    current = svc.obj["spec"].get("selector") or {}
+    if current == selector:
         LOG.debug(f"Nothing to do, master service points to {pod.name}")
     else:
-        svc.obj['spec']['selector']['statefulset.kubernetes.io/pod-name'] = pod.name
-        svc.update()
+        # A merge patch keeps every key it does not mention, so a label
+        # dropped from the chart has to be removed explicitly with null.
+        removed = {key: None for key in current if key not in selector}
+        svc.patch({"spec": {"selector": dict(removed, **selector)}})
         LOG.info(f"Link master service with {pod.name}")
 
 

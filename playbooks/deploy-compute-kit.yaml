@@ -93,6 +93,20 @@
         tasks_from: mariadb
       when: not (mariadb_operator_enabled | default(false))
 
+    # Upgrades the release it just installed, once mariadb-controller has
+    # edited the master service, which no later step does. Self-skipping
+    # without the release or the controller.
+    - name: Verify MariaDB upgrades in place
+      include_role:
+        name: deploy-charts
+        tasks_from: _script
+      vars:
+        osh_script: verify-mariadb-upgrade.sh
+        osh_script_args: "{{ osh_namespace | default('osh') }} {{ osh_helm_repo }}/mariadb"
+        osh_script_env:
+          HELM_TIMEOUT: "{{ osh_helm_timeout }}s"
+      when: not (mariadb_operator_enabled | default(false))
+
     - name: Deploy Memcached
       include_role:
         name: deploy-charts
