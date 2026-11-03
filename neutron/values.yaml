@@ -2753,6 +2753,38 @@ endpoints:
       dns:
         default: 53
         protocol: UDP
+  # The OVN northbound and southbound databases of the ovn chart. By default
+  # the OVN clients of neutron connect to the ClusterIP of each database's
+  # Service, taken from the Service environment variables. With a clustered
+  # OVN that address lands on any RAFT member, and neutron's northbound
+  # connections are leader only, so they are turned away by followers and
+  # retried until they reach the leader. Setting statefulset (name and
+  # replicas, equal to the ovn chart's pod.replicas.ovn_ovsdb_nb and
+  # pod.replicas.ovn_ovsdb_sb) gives the clients every member instead, which
+  # also lets the databases live in another namespace. The members are host
+  # names, and python-ovs resolves host names only with the python unbound
+  # module (python3-unbound); without it neutron fails to start with "DNS
+  # support requires the python unbound library".
+  ovn_ovsdb_nb:
+    namespace: null
+    hosts:
+      default: ovn-ovsdb-nb
+    host_fqdn_override:
+      default: null
+    statefulset: null
+    port:
+      ovsdb:
+        default: 6641
+  ovn_ovsdb_sb:
+    namespace: null
+    hosts:
+      default: ovn-ovsdb-sb
+    host_fqdn_override:
+      default: null
+    statefulset: null
+    port:
+      ovsdb:
+        default: 6642
 
 network_policy:
   neutron:

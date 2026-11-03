@@ -20,6 +20,16 @@ set -ex
 mkdir -p /tmp/pod-shared
 tee > /tmp/pod-shared/ovn.ini << EOF
 [ovn]
+{{- if .Values.endpoints.ovn_ovsdb_nb.statefulset }}
+{{- $nb := tuple "ovn_ovsdb_nb" "internal" "ovsdb" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | splitList "," }}
+ovn_nb_connection={{ coalesce .Values.conf.plugins.ml2_conf.ovn.ovn_nb_connection (printf "tcp:%s" (join ",tcp:" $nb)) }}
+{{- else }}
 ovn_nb_connection={{ coalesce .Values.conf.plugins.ml2_conf.ovn.ovn_nb_connection "tcp:$OVN_OVSDB_NB_SERVICE_HOST:$OVN_OVSDB_NB_SERVICE_PORT_OVSDB" }}
+{{- end }}
+{{- if .Values.endpoints.ovn_ovsdb_sb.statefulset }}
+{{- $sb := tuple "ovn_ovsdb_sb" "internal" "ovsdb" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" | splitList "," }}
+ovn_sb_connection={{ coalesce .Values.conf.plugins.ml2_conf.ovn.ovn_sb_connection (printf "tcp:%s" (join ",tcp:" $sb)) }}
+{{- else }}
 ovn_sb_connection={{ coalesce .Values.conf.plugins.ml2_conf.ovn.ovn_sb_connection "tcp:$OVN_OVSDB_SB_SERVICE_HOST:$OVN_OVSDB_SB_SERVICE_PORT_OVSDB" }}
+{{- end }}
 EOF
