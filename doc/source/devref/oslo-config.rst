@@ -35,13 +35,13 @@ snippet for an imaginary Keystone configuration is described here:
             - "123"
             - "456"
 
-This will be consumed by the templated ``configmap-etc.yaml`` manifest to
+This will be consumed by the templated ``secret-etc.yaml`` manifest to
 produce the following config file:
 
 ::
 
     ---
-    # Source: keystone/templates/configmap-etc.yaml
+    # Source: keystone/templates/secret-etc.yaml
     apiVersion: v1
     kind: ConfigMap
     metadata:

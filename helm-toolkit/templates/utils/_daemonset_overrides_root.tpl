@@ -16,7 +16,7 @@ limitations under the License.
 
 The helm-toolkit.utils.daemonset_overrides function have some limitations:
 
- * it allows to override only conf values specifid in configmap-etc
+ * it allows to override only conf values specifid in secret-etc
  * it doesn't allow to override values for daemonsets passed via env variables
    or via damoenset definition. As result it is impossible to have mixed
    deployment when one compute is configured with dpdk while other not.
@@ -258,7 +258,7 @@ This implementation is intended to handle those limitations:
     {{- $cmap_bin := list (printf "%s-bin" $current_dict.dns_1123_name) $current_dict.nodeData | include $configbin_include }}
     {{- $values_cmap_hash := $cmap | quote | sha256sum }}
     {{- $values_cmap_bin_hash := $cmap_bin | quote | sha256sum }}
-    {{- $_ := set $context.Values.__daemonset_yaml.spec.template.metadata.annotations "configmap-etc-hash" $values_cmap_hash }}
+    {{- $_ := set $context.Values.__daemonset_yaml.spec.template.metadata.annotations "secret-etc-hash" $values_cmap_hash }}
     {{- $_ := set $context.Values.__daemonset_yaml.spec.template.metadata.annotations "configmap-bin-hash" $values_cmap_bin_hash }}
 
     {{/* Do not set override for default daemonset */}}

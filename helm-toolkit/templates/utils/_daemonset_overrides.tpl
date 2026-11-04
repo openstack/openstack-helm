@@ -257,7 +257,7 @@ limitations under the License.
     {{- if not $context.Values.__daemonset_yaml.spec.template.metadata.annotations }}{{- $_ := set $context.Values.__daemonset_yaml.spec.template.metadata "annotations" dict }}{{- end }}
     {{- $cmap := list $current_dict.dns_1123_name $current_dict.nodeData | include $configmap_include }}
     {{- $values_hash := $cmap | quote | sha256sum }}
-    {{- $_ := set $context.Values.__daemonset_yaml.spec.template.metadata.annotations "configmap-etc-hash" $values_hash }}
+    {{- $_ := set $context.Values.__daemonset_yaml.spec.template.metadata.annotations "secret-etc-hash" $values_hash }}
 
     {{/* generate configmap */}}
 ---

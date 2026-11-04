@@ -37,11 +37,11 @@ This is accomplished with the following annotation:
           ...
           annotations:
             configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
-            configmap-etc-hash: {{ tuple "configmap-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+            secret-etc-hash: {{ tuple "secret-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 
 The ``hash`` function defined in the ``helm-toolkit`` chart ensures that
 any change to any file referenced by configmap-bin.yaml or
-configmap-etc.yaml results in a new hash, which will then trigger a
+secret-etc.yaml results in a new hash, which will then trigger a
 rolling update.
 
 All ``Deployment`` chart components are outfitted by default
