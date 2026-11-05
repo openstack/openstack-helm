@@ -1,0 +1,49 @@
+---
+# Declare this chart's keystone user and roles declaratively: the chart renders
+# Keystone custom resources (templates/identity-entities.yaml) which the
+# keystone chart's identity controller reconciles, instead of running the
+# ks_user job.
+#
+# Turning that job off is what removes this chart's copy of the keystone
+# administrative credentials from the pod that provisioned the user.
+
+manifests:
+  identity_entities: true
+  job_ks_user: false
+
+# The ks_user job was a dependency of every component that authenticates as
+# this user, and helm-toolkit.utils.dependency_jobs_filter drops a disabled job
+# from those lists. The custom resources replace it, so the same components
+# wait for the same work to finish -- now on the readiness of the resources
+# themselves rather than on a job having run.
+dependencies:
+  static:
+    central:
+      custom_resources:
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: User
+          name: ceilometer-ceilometer
+          conditions:
+            - type: Ready
+    compute:
+      custom_resources:
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: User
+          name: ceilometer-ceilometer
+          conditions:
+            - type: Ready
+    ipmi:
+      custom_resources:
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: User
+          name: ceilometer-ceilometer
+          conditions:
+            - type: Ready
+    notification:
+      custom_resources:
+        - apiVersion: keystone.osh.openstack.org/v1alpha1
+          kind: User
+          name: ceilometer-ceilometer
+          conditions:
+            - type: Ready
+...

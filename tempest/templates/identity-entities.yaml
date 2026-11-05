@@ -1,0 +1,178 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- /*
+Keystone custom resources declaring the identity objects this chart owns: the
+service user it authenticates as and the domain, project and roles it needs.
+This chart publishes no catalog entry. They are reconciled by the keystone
+chart's identity controller, which replaces the ks-user job and keeps the
+administrative credentials in the chart that owns keystone.
+
+Enable this instead of that job. See
+values_overrides/tempest/identity-entities.yaml.
+
+Every name and credential is read from the values the chart already declares,
+so nothing is duplicated: endpoints.identity.auth.<userClass> carries the
+username, domains, project and roles, and secrets.identity.<userClass> names
+the secret holding the password.
+*/}}
+{{- if .Values.manifests.identity_entities }}
+{{- $envAll := . }}
+{{- if .Values.manifests.job_ks_user }}
+{{- fail "manifests.identity_entities is mutually exclusive with the ks_user job, set manifests.job_ks_user to false" }}
+{{- end }}
+
+{{- $apiVersion := "keystone.osh.openstack.org/v1alpha1" }}
+{{- $keystoneRef := index .Values.endpoints.identity.hosts "default" }}
+
+{{- /* The same service user the ks-user job declares. */}}
+{{- $serviceUsers := (tuple "tempest") -}}
+
+{{- /*
+Collect the domains, projects and roles the users need. Several users share
+them, and a chart may not render two resources with the same name, so they are
+deduplicated into maps first. Across charts they are not deduplicated at all:
+each chart declares its own resource for the objects it needs, because a single
+owner would be a cross-chart dependency Helm cannot express, and reconciliation
+is find-or-create.
+*/}}
+{{- $domains := dict }}
+{{- $projects := dict }}
+{{- $roles := dict "member" true }}
+{{- range $userClass := $serviceUsers }}
+{{- $auth := index $envAll.Values.endpoints.identity.auth $userClass }}
+{{- if ne (lower $auth.user_domain_name) "default" }}
+{{- $_ := set $domains $auth.user_domain_name true }}
+{{- end }}
+{{- if ne (lower $auth.project_domain_name) "default" }}
+{{- $_ := set $domains $auth.project_domain_name true }}
+{{- end }}
+{{- /*
+The administrative project is created by keystone-manage bootstrap and belongs
+to the keystone chart. A user scoped to it needs no Project resource, and one
+would let the controller rewrite that project's description.
+*/}}
+{{- $adminAuth := $envAll.Values.endpoints.identity.auth.admin }}
+{{- if not (and (eq $auth.project_name $adminAuth.project_name) (eq (lower $auth.project_domain_name) (lower $adminAuth.project_domain_name))) }}
+{{- $_ := set $projects $auth.project_name $auth.project_domain_name }}
+{{- end }}
+{{- $roleList := $auth.role }}
+{{- if not (kindIs "slice" $roleList) }}
+{{- $roleList = splitList "," $auth.role }}
+{{- end }}
+{{- range $role := $roleList }}
+{{- $_ := set $roles (trim $role) true }}
+{{- end }}
+{{- end }}
+
+{{- range $domain, $_ := $domains }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Domain
+metadata:
+  name: {{ printf "tempest-%s" $domain | lower | replace "_" "-" | quote }}
+  labels:
+{{ tuple $envAll "tempest" "identity-domain" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  keystoneRef:
+    name: {{ $keystoneRef | quote }}
+  name: {{ $domain | quote }}
+  description: {{ printf "Domain for %s" $domain | quote }}
+{{- end }}
+
+{{- range $project, $projectDomain := $projects }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Project
+metadata:
+  name: {{ printf "tempest-%s" $project | lower | replace "_" "-" | quote }}
+  labels:
+{{ tuple $envAll "tempest" "identity-project" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  keystoneRef:
+    name: {{ $keystoneRef | quote }}
+  name: {{ $project | quote }}
+  domain: {{ $projectDomain | quote }}
+  description: {{ printf "Service Project for %s" $projectDomain | quote }}
+{{- end }}
+
+{{- range $role, $_ := $roles }}
+---
+apiVersion: {{ $apiVersion }}
+kind: Role
+metadata:
+  name: {{ printf "tempest-%s" $role | lower | replace "_" "-" | quote }}
+  labels:
+{{ tuple $envAll "tempest" "identity-role" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  keystoneRef:
+    name: {{ $keystoneRef | quote }}
+  name: {{ $role | quote }}
+{{- end }}
+
+{{- range $userClass := $serviceUsers }}
+{{- $auth := index $envAll.Values.endpoints.identity.auth $userClass }}
+{{- $userName := printf "tempest-%s" $userClass | lower | replace "_" "-" }}
+---
+apiVersion: {{ $apiVersion }}
+kind: User
+metadata:
+  name: {{ $userName | quote }}
+  labels:
+{{ tuple $envAll "tempest" "identity-user" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  keystoneRef:
+    name: {{ $keystoneRef | quote }}
+  name: {{ $auth.username | quote }}
+  domain: {{ $auth.user_domain_name | quote }}
+  description: {{ printf "Service User for %s/%s/tempest" $auth.region_name $auth.user_domain_name | quote }}
+  {{- /* The project a token is scoped to, as the ks-user job's --project. */}}
+  defaultProject:
+    name: {{ $auth.project_name | quote }}
+    domain: {{ $auth.project_domain_name | quote }}
+  {{- /*
+  The openrc secret the chart already renders for this user, so adopting this
+  path adds no secret and the two halves cannot disagree.
+  */}}
+  passwordSecret:
+    name: {{ index $envAll.Values.secrets.identity $userClass | quote }}
+    key: OS_PASSWORD
+{{- $roleList := $auth.role }}
+{{- if not (kindIs "slice" $roleList) }}
+{{- $roleList = splitList "," $auth.role }}
+{{- end }}
+{{- /* The service roles, plus the member role the ks-user job always adds. */}}
+{{- range $role := append $roleList "member" | uniq }}
+{{- $role = trim $role }}
+---
+apiVersion: {{ $apiVersion }}
+kind: RoleAssignment
+metadata:
+  name: {{ printf "%s-%s" $userName $role | lower | replace "_" "-" | quote }}
+  labels:
+{{ tuple $envAll "tempest" "identity-role-assignment" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  keystoneRef:
+    name: {{ $keystoneRef | quote }}
+  role:
+    name: {{ $role | quote }}
+  user:
+    name: {{ $auth.username | quote }}
+    domain: {{ $auth.user_domain_name | quote }}
+  project:
+    name: {{ $auth.project_name | quote }}
+    domain: {{ $auth.project_domain_name | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
