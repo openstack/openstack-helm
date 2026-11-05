@@ -20,6 +20,7 @@ Changelog:
 0.1.0: Initial varsion
 0.1.1: Own the whole selector of the master service
 0.1.2: Keep the current primary while it is ready
+0.1.3: Retry a failed check instead of exiting
 """
 
 
@@ -122,14 +123,19 @@ def is_ready(pod):
 
 def main():
     while True:
-        ready = [pod for pod in get_mariadb_pods() if is_ready(pod)]
-        if ready:
-            svc = get_mariadb_master_service(MARIADB_CONTROLLER_PODS_NAMESPACE)
-            current = (svc.obj["spec"].get("selector") or {}).get(POD_NAME_LABEL)
-            # Keep the current primary while it is ready, so a recovered pod
-            # does not take the service back and drop connections twice.
-            pod = next((p for p in ready if p.name == current), ready[0])
-            link_master_service(pod)
+        # Retry on the next check rather than exit, so the controller is
+        # back as soon as the API is, not after a CrashLoopBackOff delay.
+        try:
+            ready = [pod for pod in get_mariadb_pods() if is_ready(pod)]
+            if ready:
+                svc = get_mariadb_master_service(MARIADB_CONTROLLER_PODS_NAMESPACE)
+                current = (svc.obj["spec"].get("selector") or {}).get(POD_NAME_LABEL)
+                # Keep the current primary while it is ready, so a recovered pod
+                # does not take the service back and drop connections twice.
+                pod = next((p for p in ready if p.name == current), ready[0])
+                link_master_service(pod)
+        except Exception as error:
+            LOG.exception(f"Check failed, retrying: {error}")
         LOG.debug(f"Sleeping for {MARIADB_CONTROLLER_CHECK_PODS_DELAY}")
         time.sleep(MARIADB_CONTROLLER_CHECK_PODS_DELAY)
 

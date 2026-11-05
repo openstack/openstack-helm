@@ -101,7 +101,8 @@ class initalClusterState:
         existed environment. So we assume the cluster was initialy bootstrapped.
         This is needed to avoid manual actions.
         """
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc).replace(
+            tzinfo=None)
         created_at = datetime.datetime.strptime(
             self.cm.obj["metadata"]["creationTimestamp"], "%Y-%m-%dT%H:%M:%SZ"
         )
