@@ -26,7 +26,7 @@ import sys
 import tempfile
 import time
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import configparser
 import iso8601
@@ -57,9 +57,19 @@ logger.info("This instance IP address: {0}".format(local_ip))
 instance_number = local_hostname.split("-")[-1]
 logger.info("This instance number: {0}".format(instance_number))
 
+
+def utcnow():
+    """Naive UTC now, which datetime.utcnow() is deprecated for."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 # Setup k8s client credentials and check api version
+# Every API call takes this (connect, read) timeout: without one a call on
+# a connection the apiserver no longer answers waits for TCP to give up.
+K8S_API_TIMEOUT = (10, 60)
 kubernetes.config.load_incluster_config()
-kubernetes_version = kubernetes.client.VersionApi().get_code().git_version
+kubernetes_version = kubernetes.client.VersionApi().get_code(
+    _request_timeout=K8S_API_TIMEOUT).git_version
 logger.info("Kubernetes API Version: {0}".format(kubernetes_version))
 k8s_api_instance = kubernetes.client.CoreV1Api()
 
@@ -141,11 +151,13 @@ def ensure_state_configmap(pod_namespace, configmap_name, configmap_body):
     """
     try:
         k8s_api_instance.read_namespaced_config_map(
-            name=configmap_name, namespace=pod_namespace)
+            name=configmap_name, namespace=pod_namespace,
+            _request_timeout=K8S_API_TIMEOUT)
         return True
     except:
         k8s_api_instance.create_namespaced_config_map(
-            namespace=pod_namespace, body=configmap_body)
+            namespace=pod_namespace, body=configmap_body,
+            _request_timeout=K8S_API_TIMEOUT)
 
         return False
 
@@ -365,7 +377,8 @@ def safe_update_configmap(configmap_dict, configmap_patch):
         api_response = k8s_api_instance.patch_namespaced_config_map(
             name=state_configmap_name,
             namespace=pod_namespace,
-            body=configmap_patch)
+            body=configmap_patch,
+            _request_timeout=K8S_API_TIMEOUT)
         return True
     except kubernetes.client.rest.ApiException as error:
         if error.status == 409:
@@ -392,7 +405,8 @@ def set_configmap_annotation(key, value):
     logger.debug("Setting configmap annotation key={0} value={1}".format(
         key, value))
     configmap_dict = k8s_api_instance.read_namespaced_config_map(
-        name=state_configmap_name, namespace=pod_namespace).to_dict()
+        name=state_configmap_name, namespace=pod_namespace,
+        _request_timeout=K8S_API_TIMEOUT).to_dict()
     configmap_patch = {'metadata': {'annotations': {}}}
     configmap_patch['metadata']['annotations'][key] = value
     return safe_update_configmap(
@@ -408,7 +422,8 @@ def set_configmap_data(key, value):
     """
     logger.debug("Setting configmap data key={0} value={1}".format(key, value))
     configmap_dict = k8s_api_instance.read_namespaced_config_map(
-        name=state_configmap_name, namespace=pod_namespace).to_dict()
+        name=state_configmap_name, namespace=pod_namespace,
+        _request_timeout=K8S_API_TIMEOUT).to_dict()
     configmap_patch = {'data': {}, 'metadata': {}}
     configmap_patch['data'][key] = value
     return safe_update_configmap(
@@ -424,7 +439,8 @@ def get_configmap_value(key, type='data'):
             or an 'annotation'. (default data)
     """
     state_configmap = k8s_api_instance.read_namespaced_config_map(
-        name=state_configmap_name, namespace=pod_namespace)
+        name=state_configmap_name, namespace=pod_namespace,
+        _request_timeout=K8S_API_TIMEOUT)
     state_configmap_dict = state_configmap.to_dict()
     if type == 'data':
         state_configmap_data = state_configmap_dict['data']
@@ -457,7 +473,7 @@ def get_cluster_state():
             logger.info("The cluster configmap \"{0}\" does not exist.".format(
                 state_configmap_name))
             time.sleep(default_sleep)
-            leader_expiry_raw = datetime.utcnow() + timedelta(
+            leader_expiry_raw = utcnow() + timedelta(
                 seconds=cluster_leader_ttl)
             leader_expiry = "{0}Z".format(leader_expiry_raw.isoformat("T"))
             if check_for_active_nodes():
@@ -499,9 +515,13 @@ def get_cluster_state():
 
 
 def declare_myself_cluster_leader():
-    """Declare the current pod as the cluster leader."""
-    logger.info("Declaring myself current cluster leader")
-    leader_expiry_raw = datetime.utcnow() + timedelta(
+    """Take the lease that decides which pod bootstraps a new cluster.
+
+    This is not the primary that clients write to: mariadb-controller
+    picks that, from the ready pods.
+    """
+    logger.info("Holding the cluster bootstrap lease")
+    leader_expiry_raw = utcnow() + timedelta(
         seconds=cluster_leader_ttl)
     leader_expiry = "{0}Z".format(leader_expiry_raw.isoformat("T"))
     set_configmap_annotation(
@@ -517,11 +537,11 @@ def deadmans_leader_election():
     leader_expiry = get_configmap_value(
         type='annotation', key='openstackhelm.openstack.org/leader.expiry')
     if iso8601.parse_date(leader_expiry).replace(
-            tzinfo=None) < datetime.utcnow().replace(tzinfo=None):
-        logger.info("Current cluster leader has expired")
+            tzinfo=None) < utcnow().replace(tzinfo=None):
+        logger.info("The cluster bootstrap lease has expired")
         declare_myself_cluster_leader()
     elif local_hostname == leader_node:
-        logger.info("Renewing cluster leader lease")
+        logger.info("Renewing the cluster bootstrap lease")
         declare_myself_cluster_leader()
 
 
@@ -583,7 +603,7 @@ def update_grastate_configmap():
     grastate['uuid'] = get_grastate_val(key='uuid')
     grastate['seqno'] = get_grastate_val(key='seqno')
     grastate['safe_to_bootstrap'] = get_grastate_val(key='safe_to_bootstrap')
-    grastate['sample_time'] = "{0}Z".format(datetime.utcnow().isoformat("T"))
+    grastate['sample_time'] = "{0}Z".format(utcnow().isoformat("T"))
     for grastate_key, grastate_value in list(grastate.items()):
         configmap_key = "{0}.{1}".format(grastate_key, local_hostname)
         if get_configmap_value(type='data', key=configmap_key) != grastate_value:
@@ -629,7 +649,8 @@ def update_grastate_on_restart():
 
             set_grastate_val(key='seqno', value=recover_wsrep_position())
         else:
-            logger.info("Node shutdown was clean, using grastate.dat")
+            logger.info("Node shutdown was clean, using grastate.dat: "
+                        "seqno {0}".format(get_grastate_val(key='seqno')))
 
         update_grastate_configmap()
 
@@ -648,7 +669,8 @@ def get_active_endpoints(endpoints_name=direct_svc_name,
     """
     try:
         endpoints = k8s_api_instance.read_namespaced_endpoints(
-            name=endpoints_name, namespace=pod_namespace)
+            name=endpoints_name, namespace=pod_namespace,
+            _request_timeout=K8S_API_TIMEOUT)
     except kubernetes.client.rest.ApiException as error:
         logger.error("Failed to get mariadb service with error: {0}".format(error))
         raise error
@@ -683,7 +705,8 @@ def check_if_cluster_data_is_fresh():
     """Check if the state_configmap is both current and reasonably stable."""
     logger.info("Checking to see if cluster data is fresh")
     state_configmap = k8s_api_instance.read_namespaced_config_map(
-        name=state_configmap_name, namespace=pod_namespace)
+        name=state_configmap_name, namespace=pod_namespace,
+        _request_timeout=K8S_API_TIMEOUT)
     state_configmap_dict = state_configmap.to_dict()
     sample_times = dict()
     for key, value in list(state_configmap_dict['data'].items()):
@@ -696,9 +719,17 @@ def check_if_cluster_data_is_fresh():
     for key, value in list(sample_times.items()):
         sample_time = iso8601.parse_date(value).replace(tzinfo=None)
         # NOTE(vsaienko): give some time on resolving configmap update conflicts
-        sample_cutoff_time = datetime.utcnow().replace(
+        sample_cutoff_time = utcnow().replace(
             tzinfo=None) - timedelta(seconds=5*state_configmap_update_period)
-        if not sample_time >= sample_cutoff_time:
+        # seqno is -1 while mysqld runs, so a node with a seqno has stopped
+        # cleanly and published its final position, which cannot change
+        # before it starts again and publishes anew.
+        if (sample_time < sample_cutoff_time and int(
+                state_configmap_dict['data'].get(
+                    'seqno.{0}'.format(key), -1)) >= 0):
+            logger.info(
+                "Node {0} has stopped cleanly, its data is final".format(key))
+        elif not sample_time >= sample_cutoff_time:
             logger.info(
                 "The data we have from the cluster is too old to make a "
                 "decision for node {0}".format(key))
@@ -719,7 +750,8 @@ def get_nodes_with_highest_seqno():
     # to wait for a value taken by wsrep recover.
     while True:
         state_configmap = k8s_api_instance.read_namespaced_config_map(
-            name=state_configmap_name, namespace=pod_namespace)
+            name=state_configmap_name, namespace=pod_namespace,
+            _request_timeout=K8S_API_TIMEOUT)
         state_configmap_dict = state_configmap.to_dict()
         seqnos = dict()
         for key, value in list(state_configmap_dict['data'].items()):
@@ -802,7 +834,7 @@ def monitor_cluster(stop_event):
             update_grastate_configmap()
         except Exception as error:
             logger.error("Error updating grastate configmap: {0}".format(error))
-        time.sleep(state_configmap_update_period)
+        stop_event.wait(state_configmap_update_period)
 
 # Stop event
 stop_event = threading.Event()
@@ -828,7 +860,7 @@ def leader_election(stop_event):
             deadmans_leader_election()
         except Exception as error:
             logger.error("Error electing leader: {0}".format(error))
-        time.sleep(cluster_leader_ttl / 2)
+        stop_event.wait(cluster_leader_ttl / 2)
 
 
 # Setup the thread for the leader election
@@ -922,13 +954,35 @@ def mysqld_reboot():
     run_mysqld(cluster='new')
 
 
+def publish_final_grastate():
+    """Publish grastate.dat of the stopped mysqld to the state configmap."""
+    # The last pass of the monitor read grastate.dat while mysqld ran and
+    # could write seqno -1 over the final one.
+    if monitor_cluster_thread.is_alive():
+        monitor_cluster_thread.join()
+    # A write that collides with another node is dropped, so check it.
+    key = "seqno.{0}".format(local_hostname)
+    seqno = get_grastate_val(key='seqno')
+    while get_configmap_value(type='data', key=key) != seqno:
+        update_grastate_configmap()
+    logger.info("Published the final grastate: seqno {0}".format(seqno))
+
+
 def sigterm_shutdown(x, y):
     """Shutdown the instance of mysqld on shutdown signal."""
     logger.info("Got a sigterm from the container runtime, time to go.")
     stop_event.set()
     stop_mysqld()
-    monitor_cluster_thread.join()
-    leader_election_thread.join()
+    # Publish the seqno of the clean shutdown, so that the other nodes can
+    # recover the cluster without waiting for this pod to come back. Best
+    # effort, and bounded: the Kubernetes API may not respond.
+    final_grastate_thread = threading.Thread(target=publish_final_grastate)
+    final_grastate_thread.daemon = True
+    final_grastate_thread.start()
+    final_grastate_thread.join(timeout=cluster_leader_ttl / 2)
+    # Do not join the monitor and leader election threads: they are daemons,
+    # and one blocked on an unresponsive Kubernetes API would hold the pod
+    # in Terminating for the whole grace period after mysqld has stopped.
     sys.exit(0)
 
 
