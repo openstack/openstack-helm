@@ -105,6 +105,10 @@ MARIADB_ADMIN_CNF = "/etc/mysql/admin_user.cnf"
 API_VERSION = f"{MARIADB_DB_CONTROLLER_API_GROUP}/v1alpha1"
 FINALIZER = f"{MARIADB_DB_CONTROLLER_API_GROUP}/finalizer"
 CONNECTION_LABEL = f"{MARIADB_DB_CONTROLLER_API_GROUP}/connection"
+CONNECTION_SECRET_SELECTOR = {
+    "application": "mariadb",
+    "component": "db-connection",
+}
 DEFAULT_CREDS_KEY = "password"
 
 READY_CONDITION = "Ready"
@@ -774,13 +778,30 @@ def owner_reference(obj):
     }
 
 
+def connection_secret_name(obj, spec):
+    return spec.get("secretName") or obj.name
+
+
+def list_connection_secrets():
+    """Names of the secrets written for Connections, with a single LIST."""
+    return {
+        secret.name
+        for secret in pykube.Secret.objects(api)
+        .filter(
+            namespace=MARIADB_DB_CONTROLLER_NAMESPACE,
+            selector=CONNECTION_SECRET_SELECTOR,
+        )
+        .iterator()
+    }
+
+
 def apply_connection_secret(obj, spec, data):
     """Create or update the secret, only writing when the content changed."""
-    name = spec.get("secretName") or obj.name
+    name = connection_secret_name(obj, spec)
     template = spec.get("secretTemplate") or {}
     metadata = template.get("metadata") or {}
     labels = dict(metadata.get("labels") or {})
-    labels.update({"application": "mariadb", "component": "db-connection"})
+    labels.update(CONNECTION_SECRET_SELECTOR)
     labels[CONNECTION_LABEL] = obj.name
     encoded = {
         key: base64.b64encode(value.encode("utf-8")).decode("ascii")
@@ -809,7 +830,12 @@ def apply_connection_secret(obj, spec, data):
         pykube.Secret(api, body).create()
         LOG.info(f"Created connection secret {name}")
         return name
-    if (secret.obj.get("data") or {}) == encoded:
+    # The labels are compared too: a secret without them is not listed by
+    # list_connection_secrets and would otherwise be rewritten on every sweep.
+    current_labels = secret.obj["metadata"].get("labels") or {}
+    if (secret.obj.get("data") or {}) == encoded and all(
+        current_labels.get(key) == value for key, value in labels.items()
+    ):
         LOG.debug(f"Connection secret {name} is up to date")
         return name
     secret.patch({"metadata": body["metadata"], "data": encoded})
@@ -859,6 +885,8 @@ backoff = {}
 # secret name -> data, or None if it does not exist; read once per sweep, as
 # the User and the Connection of a service usually share one password secret
 secrets = {}
+# names of the secrets written for Connections, listed once per sweep
+connection_secrets = set()
 
 
 def desired_hash(obj, spec, extra=""):
@@ -1003,6 +1031,16 @@ def reconcile(obj, handler, finalizer):
         or previous[0] != digest
         or now - previous[1] >= MARIADB_DB_CONTROLLER_FULL_RESYNC_INTERVAL
     )
+    # A deleted connection secret would otherwise only come back on the full
+    # resync, and every consumer pod started in between waits for it, since
+    # the secret is projected without being optional.
+    missing = (
+        obj.kind == "Connection"
+        and connection_secret_name(obj, spec) not in connection_secrets
+    )
+    if not stale and missing:
+        LOG.info(f"Connection {obj.name}: its secret is missing, rewriting it")
+        stale = True
     if not stale:
         set_ready(obj, "True", REASON_RECONCILED, ready_message(obj))
         return
@@ -1015,6 +1053,8 @@ def reconcile(obj, handler, finalizer):
 
 def sweep():
     secrets.clear()
+    connection_secrets.clear()
+    connection_secrets.update(list_connection_secrets())
     live = set()
     for klass, handler, finalizer in HANDLERS:
         for obj in list_resources(klass):
