@@ -311,11 +311,19 @@ function is_available {
 }
 
 function ceph_cmd_retry() {
-  cnt=0
-  until "ceph" "$@" || [ $cnt -ge 6 ]; do
-    sleep 10
-    ((cnt++))
+  local attempt rc
+  for attempt in 1 2 3 4 5 6 7; do
+    if ceph "$@"; then
+      return 0
+    else
+      rc=$?
+    fi
+    if [ "${attempt}" -lt 7 ]; then
+      sleep 10
+    fi
   done
+  # Never allow an OSD to start after its CRUSH registration failed.
+  return "${rc}"
 }
 
 function crush_create_or_move {
