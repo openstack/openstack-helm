@@ -42,6 +42,8 @@ spec:
 {{ tuple $envAll "watcher" "decision-engine" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
 {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        secret-etc-hash: {{ tuple "secret-etc.yaml" . | include "helm-toolkit.utils.hash" }}
 {{ tuple "watcher_decision_engine" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
@@ -49,6 +51,9 @@ spec:
 {{ tuple $envAll "watcher" "decision-engine" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.decision_engine.node_selector_key }}: {{ .Values.labels.decision_engine.node_selector_value }}
+{{ if $envAll.Values.pod.tolerations.watcher.enabled }}
+{{ tuple $envAll "watcher" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
+{{ end }}
       initContainers:
 {{ tuple $envAll "decision_engine" $mounts_watcher_decision_engine_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:
