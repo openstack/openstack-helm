@@ -826,6 +826,7 @@ conf:
     composite:metadata:
       use: egg:Paste#urlmap
       /: meta
+      /healthcheck: healthcheck
     pipeline:meta:
       pipeline: cors metaapp
     app:metaapp:
@@ -835,6 +836,7 @@ conf:
       /: oscomputeversions
       /v2: openstack_compute_api_v21_legacy_v2_compatible
       /v2.1: openstack_compute_api_v21
+      /healthcheck: healthcheck
     composite:openstack_compute_api_v21:
       use: call:nova.api.auth:pipeline_factory_v21
       noauth2: cors http_proxy_to_wsgi compute_req_id faultwrap sizelimit noauth2 osapi_compute_app_v21
@@ -863,6 +865,10 @@ conf:
       pipeline: faultwrap http_proxy_to_wsgi oscomputeversionapp
     app:oscomputeversionapp:
       paste.app_factory: nova.api.openstack.compute.versions:Versions.factory
+    app:healthcheck:
+      paste.app_factory: oslo_middleware:Healthcheck.app_factory
+      backends: disable_by_file
+      disable_by_file_path: /tmp/healthcheck_disable
     filter:cors:
       paste.filter_factory: oslo_middleware.cors:filter_factory
       oslo_config_project: nova
@@ -1569,6 +1575,7 @@ endpoints:
       #     key: null
     path:
       default: "/v2.1/"
+      healthcheck: /healthcheck
     scheme:
       default: 'http'
       service: 'http'
@@ -1591,6 +1598,7 @@ endpoints:
       default: null
     path:
       default: /
+      healthcheck: /healthcheck
     scheme:
       default: 'http'
     port:

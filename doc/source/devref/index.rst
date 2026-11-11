@@ -7,6 +7,7 @@ Contents:
    :maxdepth: 2
 
    endpoints
+   api-healthchecks
    identity-auth
    images
    release-notes
