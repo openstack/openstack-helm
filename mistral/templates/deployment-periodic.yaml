@@ -1,0 +1,101 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.manifests.deployment_periodic }}
+{{- $envAll := . }}
+
+{{- $mounts_mistral_periodic := .Values.pod.mounts.mistral_periodic.mistral_periodic }}
+{{- $mounts_mistral_periodic_init := .Values.pod.mounts.mistral_periodic.init_container }}
+
+{{- $serviceAccountName := "mistral-periodic" }}
+{{ tuple $envAll "periodic" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mistral-periodic
+  annotations:
+    {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
+  labels:
+{{ tuple $envAll "mistral" "periodic" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 4 }}
+spec:
+  replicas: {{ .Values.pod.replicas.periodic }}
+  selector:
+    matchLabels:
+{{ tuple $envAll "mistral" "periodic" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 6 }}
+{{ tuple $envAll | include "helm-toolkit.snippets.kubernetes_upgrades_deployment" | indent 2 }}
+  template:
+    metadata:
+      labels:
+{{ tuple $envAll "mistral" "periodic" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
+      annotations:
+{{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" | indent 8 }}
+        configmap-bin-hash: {{ tuple "configmap-bin.yaml" . | include "helm-toolkit.utils.hash" }}
+        secret-etc-hash: {{ tuple "secret-etc.yaml" . | include "helm-toolkit.utils.hash" }}
+{{ tuple "mistral_periodic" . | include "helm-toolkit.snippets.custom_pod_annotations" | indent 8 }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      affinity:
+{{ tuple $envAll "mistral" "periodic" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
+      nodeSelector:
+        {{ .Values.labels.periodic.node_selector_key }}: {{ .Values.labels.periodic.node_selector_value }}
+      initContainers:
+{{ tuple $envAll "periodic" $mounts_mistral_periodic_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+      containers:
+        - name: mistral-periodic
+{{ tuple $envAll "mistral_periodic" | include "helm-toolkit.snippets.image" | indent 10 }}
+{{ tuple $envAll $envAll.Values.pod.resources.periodic | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
+          securityContext:
+            runAsUser: {{ .Values.pod.user.mistral.uid }}
+          command:
+            - mistral-server
+            - --server
+            - periodic
+            - --config-file
+            - /etc/mistral/mistral.conf
+          volumeMounts:
+            - name: pod-tmp
+              mountPath: /tmp
+            - name: oslo-lock-path
+              mountPath: {{ .Values.conf.mistral.oslo_concurrency.lock_path }}
+            - name: pod-etc-mistral
+              mountPath: /etc/mistral
+            - name: mistral-etc
+              mountPath: /etc/mistral/mistral.conf
+              subPath: mistral.conf
+              readOnly: true
+            {{- if .Values.conf.mistral.DEFAULT.log_config_append }}
+            - name: mistral-etc
+              mountPath: {{ .Values.conf.mistral.DEFAULT.log_config_append }}
+              subPath: {{ base .Values.conf.mistral.DEFAULT.log_config_append }}
+              readOnly: true
+            {{- end }}
+{{ if $mounts_mistral_periodic.volumeMounts }}{{ toYaml $mounts_mistral_periodic.volumeMounts | indent 12 }}{{ end }}
+      volumes:
+        - name: pod-tmp
+          emptyDir: {}
+        - name: oslo-lock-path
+          emptyDir: {}
+        - name: pod-etc-mistral
+          emptyDir: {}
+        - name: mistral-bin
+          configMap:
+            name: mistral-bin
+            defaultMode: 0555
+        - name: mistral-etc
+          secret:
+            secretName: mistral-etc
+            defaultMode: 0444
+{{ if $mounts_mistral_periodic.volumes }}{{ toYaml $mounts_mistral_periodic.volumes | indent 8 }}{{ end }}
+{{- end }}
