@@ -208,7 +208,7 @@ conf:
     [DEFAULT]
     # List of directories to load filter definitions from (separated by ',').
     # These directories MUST all be only writeable by root !
-    filters_path=/etc/glance/rootwrap.d,/usr/share/glance/rootwrap
+    filters_path=/etc/glance/rootwrap.d,/usr/share/glance/rootwrap,/var/lib/openstack/etc/glance/rootwrap.d
 
     # List of directories to search executables in, in case filters do not
     # explicitely specify a full path (separated by ',')
@@ -229,27 +229,17 @@ conf:
     # INFO means log all usage
     # ERROR means only log unsuccessful attempts
     syslog_log_level=ERROR
-  rootwrap_filters:
-    glance_cinder_store:
-      pods:
-        - api
-      content: |
-        # glance-rootwrap command filters for glance cinder store
-        # This file should be owned by (and only-writable by) the root user
-
-        [Filters]
-        # cinder store driver
-        disk_chown: RegExpFilter, chown, root, chown, \d+, /dev/(?!.*/\.\.).*
-
-        # os-brick library commands
-        # os_brick.privileged.run_as_root oslo.privsep context
-        # This line ties the superuser privs with the config files, context name,
-        # and (implicitly) the actual python code invoked.
-        privsep-rootwrap: RegExpFilter, privsep-helper, root, privsep-helper, --config-file, /etc/(?!\.\.).*, --privsep_context, os_brick.privileged.default, --privsep_sock_path, /tmp/.*
-
-        chown: CommandFilter, chown, root
-        mount: CommandFilter, mount, root
-        umount: CommandFilter, umount, root
+  # Additional rootwrap filter files. The filters that glance ships are loaded
+  # from the image through filters_path in rootwrap above. Each entry is
+  # mounted as /etc/glance/rootwrap.d/<name>.filters into the listed pods,
+  # for example:
+  #   glance_cinder_store:
+  #     pods:
+  #       - api
+  #     content: |
+  #       [Filters]
+  #       ...
+  rootwrap_filters: {}
   glance:
     DEFAULT:
       log_config_append: /etc/glance/logging.conf
