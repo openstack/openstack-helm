@@ -60,7 +60,75 @@
 - name: "Gathering descriptions for namespace scoped objects"
   shell: |-
           set -e
-          export OBJECT_TYPE=configmaps,cronjobs,daemonsets,deployment,endpoints,ingresses,jobs,networkpolicies,pods,persistentvolumeclaims,rolebindings,roles,secrets,serviceaccounts,services,statefulsets
+          OBJECT_TYPES=(
+            configmaps
+            cronjobs
+            daemonsets
+            deployment
+            endpoints
+            ingresses
+            jobs
+            networkpolicies
+            pods
+            persistentvolumeclaims
+            rolebindings
+            roles
+            secrets
+            serviceaccounts
+            services
+            statefulsets
+          )
+          # Custom resources rendered by the charts. Use fully-qualified names
+          # since some plurals (users, roles, services, endpoints, policies)
+          # clash with core types or across API groups.
+          CUSTOM_OBJECT_TYPES=(
+            databases.mariadb.osh.openstack.org
+            users.mariadb.osh.openstack.org
+            grants.mariadb.osh.openstack.org
+            connections.mariadb.osh.openstack.org
+            vhosts.rabbitmq.osh.openstack.org
+            users.rabbitmq.osh.openstack.org
+            permissions.rabbitmq.osh.openstack.org
+            queues.rabbitmq.osh.openstack.org
+            exchanges.rabbitmq.osh.openstack.org
+            bindings.rabbitmq.osh.openstack.org
+            policies.rabbitmq.osh.openstack.org
+            domains.keystone.osh.openstack.org
+            projects.keystone.osh.openstack.org
+            roles.keystone.osh.openstack.org
+            groups.keystone.osh.openstack.org
+            users.keystone.osh.openstack.org
+            roleassignments.keystone.osh.openstack.org
+            services.keystone.osh.openstack.org
+            endpoints.keystone.osh.openstack.org
+            # Third-party operators (mariadb_db.api_group: k8s.mariadb.com,
+            # rabbitmq_topology.api_group: rabbitmq.com)
+            mariadbs.k8s.mariadb.com
+            databases.k8s.mariadb.com
+            users.k8s.mariadb.com
+            grants.k8s.mariadb.com
+            connections.k8s.mariadb.com
+            rabbitmqclusters.rabbitmq.com
+            vhosts.rabbitmq.com
+            users.rabbitmq.com
+            permissions.rabbitmq.com
+            queues.rabbitmq.com
+            exchanges.rabbitmq.com
+            bindings.rabbitmq.com
+            policies.rabbitmq.com
+          )
+          # Only gather custom resources whose CRD is installed. Discovery can
+          # partially fail (e.g. an unavailable aggregated API), so don't let
+          # it abort collection of the other objects.
+          API_RESOURCES=$(kubectl api-resources --namespaced=true -o name || true)
+          for TYPE in "${CUSTOM_OBJECT_TYPES[@]}"; do
+            if grep -qxF "${TYPE}" <<< "${API_RESOURCES}"; then
+              OBJECT_TYPES+=("${TYPE}")
+            fi
+          done
+          # Arrays can't be exported to the bash -c subshells below, so pass
+          # the list as a comma-separated string.
+          export OBJECT_TYPE=$(IFS=,; echo "${OBJECT_TYPES[*]}")
           export PARALLELISM_FACTOR=2
           function get_namespaces () {
             kubectl get namespaces -o name | awk -F '/' '{ print $NF }'
