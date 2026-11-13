@@ -29,6 +29,9 @@ labels:
   executor:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
+  periodic:
+    node_selector_key: openstack-control-plane
+    node_selector_value: enabled
   job:
     node_selector_key: openstack-control-plane
     node_selector_value: enabled
@@ -54,6 +57,7 @@ images:
     mistral_engine: quay.io/airshipit/mistral:2026.2-ubuntu_resolute
     mistral_event_engine: quay.io/airshipit/mistral:2026.2-ubuntu_resolute
     mistral_executor: quay.io/airshipit/mistral:2026.2-ubuntu_resolute
+    mistral_periodic: quay.io/airshipit/mistral:2026.2-ubuntu_resolute
     image_repo_sync: docker.io/docker:17.07.0
   pull_policy: "IfNotPresent"
   local_registry:
@@ -132,6 +136,17 @@ dependencies:
         - endpoint: internal
           service: identity
     executor:
+      jobs:
+        - mistral-db-sync
+        - mistral-ks-user
+        - mistral-ks-endpoints
+        - mistral-rabbit-init
+      services:
+        - endpoint: internal
+          service: oslo_db
+        - endpoint: internal
+          service: identity
+    periodic:
       jobs:
         - mistral-db-sync
         - mistral-ks-user
@@ -544,6 +559,11 @@ pod:
       mistral_event_engine:
         volumeMounts:
         volumes:
+    mistral_periodic:
+      init_container: null
+      mistral_periodic:
+        volumeMounts:
+        volumes:
     mistral_bootstrap:
       init_container: null
       mistral_bootstrap:
@@ -563,6 +583,7 @@ pod:
     engine: 1
     event_engine: 1
     executor: 1
+    periodic: 1
   lifecycle:
     upgrades:
       statefulsets:
@@ -601,6 +622,12 @@ pod:
       limits:
         memory: "1024Mi"
     executor:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1024Mi"
+    periodic:
       requests:
         memory: "128Mi"
         cpu: "100m"
@@ -725,6 +752,12 @@ manifests:
   configmap_etc: true
   deployment_api: true
   deployment_executor: true
+  # -- Run cron trigger processing in a dedicated periodic server
+  ## (mistral-server --server periodic) instead of only in the API workers.
+  ## Needs a Mistral image from 2026.2 or later. Once the periodic server is
+  ## running, set conf.mistral.cron_trigger.run_in_api to false so that the
+  ## API workers stop processing cron triggers as well.
+  deployment_periodic: false
   job_bootstrap: true
   job_db_init: false
   # -- Render the MariaDB Database/User/Grant/Connection custom resources
