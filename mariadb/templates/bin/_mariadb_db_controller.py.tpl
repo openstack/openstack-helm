@@ -665,10 +665,18 @@ def reconcile_grant(obj, spec):
 def finalize_grant(obj, spec):
     privileges, target, account = grant_target(spec)
     LOG.info(f"Revoking {privileges} on {target} from {account}")
-    sql.execute(
-        # See reconcile_grant.
-        f"REVOKE IF EXISTS {', '.join(privileges)} ON {target} FROM {account}"
-    )
+    try:
+        sql.execute(
+            # See reconcile_grant.
+            f"REVOKE {', '.join(privileges)} ON {target} FROM {account}"
+        )
+    except pymysql.err.MySQLError as error:
+        # MariaDB has no REVOKE IF EXISTS. A grant or account that is already
+        # gone is reported as 1141, or 1147 for a table, and leaves nothing
+        # to revoke.
+        if error.args[0] not in (1141, 1147):
+            raise
+        LOG.info(f"Nothing to revoke: {error.args[1]}")
 
 
 # The Go template subset understood in Connection.spec.secretTemplate.format.
