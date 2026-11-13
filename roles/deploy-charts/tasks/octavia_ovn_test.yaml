@@ -1,0 +1,193 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Integration test of the Octavia OVN provider driver. A Heat stack creates
+# two web servers on different compute nodes behind an OVN load balancer.
+# The test checks that:
+#   - OVN implements the load balancer: it is in the northbound database with
+#     both servers as its backends;
+#   - the health monitor reports both members ONLINE. With the OVN provider
+#     the status comes from the provider agent in the octavia-driver-agent
+#     container, which reads the health checks from the southbound database;
+#   - requests to the floating IP of the load balancer reach both servers;
+#   - when a server stops, its member goes to ERROR and all requests reach
+#     the other server.
+---
+- name: Stage the Octavia OVN assets on the node
+  copy:
+    src: octavia_ovn/
+    dest: "{{ osh_scripts_dir }}/octavia_ovn/"
+    mode: "0755"
+
+# Downloaded here and pushed to Glance instead of being created by the stack
+# with OS::Glance::WebImage, for the reason given in octavia_resources.yaml.
+- name: Download and create test server image
+  shell: |
+    set -xe
+    if [ ! -f "/tmp/{{ osh_octavia_test_image_file }}" ]; then
+      curl --fail -sSL {{ osh_octavia_test_image_url }} -o /tmp/{{ osh_octavia_test_image_file }}
+    fi
+    export OS_CLOUD=openstack_helm
+    export OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS="-v /tmp:/tmp"
+    openstack image show "{{ osh_octavia_test_image_name }}" 2>/dev/null || \
+        openstack image create -f value -c id \
+          --public \
+          --container-format=bare \
+          --disk-format qcow2 \
+          --min-disk 3 \
+          --file /tmp/{{ osh_octavia_test_image_file }} \
+          "{{ osh_octavia_test_image_name }}"
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+# The /tmp/inventory_k8s_nodes.txt file is created by the deploy-env role and
+# contains the list of all K8s nodes. The two servers run on the first two, so
+# the load balancer spreads the traffic over two OVN chassis.
+- name: Get target hosts for the server VMs
+  command: head -n 2 /tmp/inventory_k8s_nodes.txt
+  register: _octavia_ovn_test_hosts
+  changed_when: false
+
+- name: Create Octavia OVN test Heat stack
+  shell: |
+    set -xe
+    HEAT_DIR="$(readlink -f {{ osh_scripts_dir }}/octavia_ovn)"
+    export OS_CLOUD=openstack_helm
+    export OPENSTACK_CLIENT_CONTAINER_EXTRA_ARGS=" -v ${HEAT_DIR}:/heat"
+    openstack stack show octavia-ovn 2>/dev/null || \
+      openstack stack create --wait \
+        --parameter image_name="{{ osh_octavia_test_image_name }}" \
+        --parameter az_1="nova:{{ _octavia_ovn_test_hosts.stdout_lines[0] }}" \
+        --parameter az_2="nova:{{ _octavia_ovn_test_hosts.stdout_lines[1] }}" \
+        -t /heat/heat_octavia_ovn_env.yaml \
+        octavia-ovn
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+- name: Get the load balancer, its pool and the server addresses
+  shell: |
+    set -e
+    export OS_CLOUD=openstack_helm
+    LB_ID=$(openstack loadbalancer show osh-ovn -f value -c id)
+    VIP_PORT_ID=$(openstack loadbalancer show osh-ovn -f value -c vip_port_id)
+    echo "lb_id=${LB_ID}"
+    echo "pool_id=$(openstack loadbalancer pool list --loadbalancer ${LB_ID} -f value -c id)"
+    echo "fip=$(openstack floating ip list --port ${VIP_PORT_ID} -f value -c 'Floating IP Address' | head -n1)"
+    for s in server_1 server_2; do
+      SERVER_ID=$(openstack stack resource show octavia-ovn ${s} -f value -c physical_resource_id)
+      echo "${s}_id=${SERVER_ID}"
+      PORT_ID=$(openstack stack resource show octavia-ovn server_port_${s#server_} -f value -c physical_resource_id)
+      echo "${s}_ip=$(openstack port show ${PORT_ID} -f json | jq -r '.fixed_ips[0].ip_address')"
+    done
+  args:
+    executable: /bin/bash
+  register: _octavia_ovn_test_ids
+  changed_when: false
+
+- name: Record the load balancer, its pool and the server addresses
+  set_fact:
+    _octavia_ovn_test: "{{ dict(_octavia_ovn_test_ids.stdout_lines | map('split', '=')) }}"
+
+# The OVN load balancer is named after the Octavia one. It is looked up by
+# name with find, because lb-list cuts the name to 16 characters. Its vips
+# map the floating IP, added by the provider agent, and the VIP to both
+# servers.
+- name: Verify that OVN implements the load balancer
+  shell: |
+    set -xe
+    kubectl -n {{ osh_namespace | default('osh') }} exec ovn-ovsdb-nb-0 -c ovsdb -- \
+      ovn-nbctl lb-list
+    kubectl -n {{ osh_namespace | default('osh') }} exec ovn-ovsdb-nb-0 -c ovsdb -- \
+      ovn-nbctl --bare --columns=vips find Load_Balancer 'name="{{ _octavia_ovn_test.lb_id }}"' \
+      | tee /tmp/octavia_ovn_lb_vips.txt
+    grep -F "{{ _octavia_ovn_test.fip }}:80=" /tmp/octavia_ovn_lb_vips.txt
+    grep -F "{{ _octavia_ovn_test.server_1_ip }}:8000" /tmp/octavia_ovn_lb_vips.txt
+    grep -F "{{ _octavia_ovn_test.server_2_ip }}:8000" /tmp/octavia_ovn_lb_vips.txt
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Wait for both load balancer members to be ONLINE
+  shell: |
+    set -xe
+    export OS_CLOUD=openstack_helm
+    openstack loadbalancer member list {{ _octavia_ovn_test.pool_id }} -f value -c address -c operating_status
+    test "$(openstack loadbalancer member list {{ _octavia_ovn_test.pool_id }} -f value -c operating_status | grep -cx ONLINE)" -eq 2
+  args:
+    executable: /bin/bash
+  register: _octavia_ovn_test_online
+  retries: 30
+  delay: 10
+  until: _octavia_ovn_test_online is succeeded
+  changed_when: false
+
+# SOURCE_IP_PORT picks a member by a hash of the connection, and every curl
+# opens a connection from a new source port, so 20 requests reach both
+# servers unless the balancing is broken.
+- name: Verify that the load balancer balances between both servers
+  shell: |
+    set -xe
+    echo -n > /tmp/octavia_ovn_curl.txt
+    for i in $(seq 1 20); do
+      curl -sS --fail --max-time 10 --retry 3 --retry-connrefused \
+        http://{{ _octavia_ovn_test.fip }} >> /tmp/octavia_ovn_curl.txt
+    done
+    sort /tmp/octavia_ovn_curl.txt | uniq -c
+    grep "Hello from server_1" /tmp/octavia_ovn_curl.txt
+    grep "Hello from server_2" /tmp/octavia_ovn_curl.txt
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Stop server_2
+  shell: |
+    set -xe
+    export OS_CLOUD=openstack_helm
+    openstack server stop {{ _octavia_ovn_test.server_2_id }}
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+# The OVN health check of the member fails, the provider agent sets the
+# member to ERROR, and OVN stops sending connections to it.
+- name: Wait for the member of server_2 to be ERROR
+  shell: |
+    set -xe
+    export OS_CLOUD=openstack_helm
+    openstack loadbalancer member list {{ _octavia_ovn_test.pool_id }} -f value -c address -c operating_status \
+      | tee /tmp/octavia_ovn_members.txt
+    grep -x "{{ _octavia_ovn_test.server_2_ip }} ERROR" /tmp/octavia_ovn_members.txt
+    grep -x "{{ _octavia_ovn_test.server_1_ip }} ONLINE" /tmp/octavia_ovn_members.txt
+  args:
+    executable: /bin/bash
+  register: _octavia_ovn_test_error
+  retries: 30
+  delay: 10
+  until: _octavia_ovn_test_error is succeeded
+  changed_when: false
+
+- name: Verify that all requests reach server_1
+  shell: |
+    set -xe
+    echo -n > /tmp/octavia_ovn_curl_failover.txt
+    for i in $(seq 1 20); do
+      curl -sS --fail --max-time 10 --retry 3 --retry-connrefused \
+        http://{{ _octavia_ovn_test.fip }} >> /tmp/octavia_ovn_curl_failover.txt
+    done
+    sort /tmp/octavia_ovn_curl_failover.txt | uniq -c
+    test "$(grep -c 'Hello from server_1' /tmp/octavia_ovn_curl_failover.txt)" -eq 20
+  args:
+    executable: /bin/bash
+  changed_when: false
+...

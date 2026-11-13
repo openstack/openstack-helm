@@ -1,0 +1,35 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Deploy Octavia for the OVN provider driver alone. values_overrides/octavia/
+# ovn.yaml enables the driver. The worker and the health manager serve only
+# amphorae and plug ports of the lb-mgmt-net network, which the OVN job does
+# not create (see octavia_resources.yaml), so they are disabled.
+---
+- name: Create Octavia values file
+  copy:
+    dest: /tmp/octavia.yaml
+    content: |
+      conf:
+        octavia:
+          task_flow:
+            jobboard_enabled: false
+      manifests:
+        daemonset_health_manager: false
+        daemonset_worker: false
+
+- name: Deploy octavia
+  include_tasks: _install.yaml
+  vars:
+    osh_chart: octavia
+    osh_values_overrides_octavia:
+      - /tmp/octavia.yaml
