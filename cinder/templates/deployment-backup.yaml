@@ -272,10 +272,16 @@ spec:
               mountPath: /etc/cinder/rootwrap.conf
               subPath: rootwrap.conf
               readOnly: true
+            {{- range $key, $value := $envAll.Values.conf.rootwrap_filters }}
+            {{- if ( has "backup" $value.pods ) }}
+            {{- $filePrefix := replace "_" "-"  $key }}
+            {{- $rootwrapFile := printf "/etc/cinder/rootwrap.d/%s.filters" $filePrefix }}
             - name: cinder-etc
-              mountPath: /etc/cinder/rootwrap.d/volume.filters
-              subPath: volume.filters
+              mountPath: {{ $rootwrapFile }}
+              subPath: {{ base $rootwrapFile }}
               readOnly: true
+            {{- end }}
+            {{- end }}
             {{- if .Values.conf.enable_iscsi }}
             - name: host-rootfs
               mountPath: /mnt/host-rootfs
