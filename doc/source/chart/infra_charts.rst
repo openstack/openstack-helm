@@ -51,4 +51,3 @@ Infra charts options
     prometheus-process-exporter
     rabbitmq
     redis
-    registry
