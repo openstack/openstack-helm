@@ -31,3 +31,15 @@ pod.mandatory_access_control, fail rather than silently dropping them.
 {{- end }}
 {{- end }}
 {{- end }}
+
+{{- /*
+keystone-api runs uWSGI, not Apache. The Apache values are gone, fail rather
+than silently dropping an Apache configuration, for example the auth module
+setup of a federated deployment. Run Apache as a sidecar instead, see the
+comment on conf.keystone_api_uwsgi.
+*/}}
+{{- range $key := list "security" "software" "mpm_event" "wsgi_script" "wsgi_keystone" }}
+{{- if hasKey $.Values.conf $key }}
+{{- fail (printf "conf.%s is no longer used: keystone-api runs uWSGI (conf.keystone_api_uwsgi). To keep the Apache auth modules, run Apache as a sidecar with pod.extraContainers.keystone_api, see the comment on conf.keystone_api_uwsgi in the chart values." $key) }}
+{{- end }}
+{{- end }}

@@ -77,14 +77,9 @@ spec:
 {{ tuple $envAll $envAll.Values.pod.resources.api | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "keystone" "container" "keystone_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           command:
-            - /tmp/keystone-api.sh
-            - start
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /tmp/keystone-api.sh
-                  - stop
+            - uwsgi
+            - --ini
+            - /etc/keystone/keystone-api-uwsgi.ini
           ports:
             - name: ks-pub
               containerPort: {{ tuple "identity" "service" "api" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}
@@ -97,14 +92,6 @@ spec:
               mountPath: {{ .Values.conf.keystone.oslo_concurrency.lock_path }}
             - name: etckeystone
               mountPath: /etc/keystone
-            - name: logs-apache
-              mountPath: /var/log/apache2
-            - name: run-apache
-              mountPath: /var/run/apache2
-            - name: keystone-bin
-              mountPath: /var/www/cgi-bin/keystone/wsgi.py
-              subPath: wsgi.py
-              readOnly: true
             - name: keystone-etc
               mountPath: /etc/keystone/keystone.conf
               subPath: keystone.conf
@@ -113,8 +100,8 @@ spec:
               mountPath: /etc/keystone/keystone.conf.d/
               readOnly: true
             - name: keystone-etc
-              mountPath: /etc/apache2/ports.conf
-              subPath: ports.conf
+              mountPath: /etc/keystone/keystone-api-uwsgi.ini
+              subPath: keystone-api-uwsgi.ini
               readOnly: true
             {{- if .Values.conf.keystone.DEFAULT.log_config_append }}
             - name: keystone-etc
@@ -133,24 +120,6 @@ spec:
             - name: keystone-etc
               mountPath: /etc/keystone/sso_callback_template.html
               subPath: sso_callback_template.html
-              readOnly: true
-            - name: keystone-etc
-              mountPath: {{ .Values.conf.software.apache2.conf_dir }}/wsgi-keystone.conf
-              subPath: wsgi-keystone.conf
-              readOnly: true
-            - name: keystone-etc
-              mountPath: {{ .Values.conf.software.apache2.mods_dir }}/mpm_event.conf
-              subPath: mpm_event.conf
-              readOnly: true
-{{- if .Values.conf.security }}
-            - name: keystone-etc
-              mountPath: {{ .Values.conf.software.apache2.conf_dir }}/security.conf
-              subPath: security.conf
-              readOnly: true
-{{- end }}
-            - name: keystone-bin
-              mountPath: /tmp/keystone-api.sh
-              subPath: keystone-api.sh
               readOnly: true
 {{- if .Values.endpoints.ldap.auth.client.tls.ca }}
             - name: keystone-ldap-tls
@@ -177,10 +146,6 @@ spec:
         - name: oslo-lock-path
           emptyDir: {}
         - name: etckeystone
-          emptyDir: {}
-        - name: logs-apache
-          emptyDir: {}
-        - name: run-apache
           emptyDir: {}
         - name: keystone-etc
           secret:
