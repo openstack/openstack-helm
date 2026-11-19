@@ -30,6 +30,17 @@ httpGet:
 {{- $envAll := . }}
 
 {{- $mounts_horizon := .Values.pod.mounts.horizon.horizon }}
+{{- $etcSources := .Values.pod.etcSources.horizon }}
+{{- if .Values.conf.horizon.local_settings_d }}
+{{- $items := list }}
+{{- range $key, $value := .Values.conf.horizon.local_settings_d }}
+{{- $items = append $items (dict "key" (printf "%s.py" $key) "path" (printf "%s.py" $key)) }}
+{{- end }}
+{{- $etcSources = prepend $etcSources (dict "secret" (dict "name" "horizon-etc" "items" $items)) }}
+{{- end }}
+{{- if .Values.manifests.mariadb_db }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "horizon-db-conn")) }}
+{{- end }}
 {{- $mounts_horizon_init := .Values.pod.mounts.horizon.init_container }}
 
 {{- $serviceAccountName := "horizon" }}
@@ -135,6 +146,9 @@ spec:
               mountPath: /etc/openstack-dashboard/local_settings
               subPath: local_settings
               readOnly: true
+            - name: horizon-local-settings-d
+              mountPath: /etc/openstack-dashboard/local_settings.d/
+              readOnly: true
             {{- range $key, $value := $envAll.Values.conf.horizon.custom_panels }}
             {{- $customPanelsFile := printf "/etc/openstack-dashboard/custom_panels/%s.py" $key }}
             - name: horizon-etc
@@ -154,13 +168,6 @@ spec:
             - name: horizon-etc
               mountPath: {{ $policyJsonFile }}
               subPath: {{ base $policyJsonFile }}
-              readOnly: true
-            {{- end }}
-            {{- range $key, $value := $envAll.Values.conf.horizon.local_settings_d }}
-            {{- $localSettingsFile := printf "/etc/openstack-dashboard/local_settings.d/%s.py" $key }}
-            - name: horizon-etc
-              mountPath: {{ $localSettingsFile }}
-              subPath: {{ base $localSettingsFile }}
               readOnly: true
             {{- end }}
             {{- if .Values.manifests.configmap_logo }}
@@ -195,6 +202,15 @@ spec:
           secret:
             secretName: horizon-etc
             defaultMode: 0444
+        - name: horizon-local-settings-d
+{{- if $etcSources }}
+          projected:
+            defaultMode: 0444
+            sources:
+{{ toYaml $etcSources | indent 14 }}
+{{- else }}
+          emptyDir: {}
+{{- end }}
         {{- if .Values.manifests.configmap_logo }}
         - name: horizon-logo
           configMap:

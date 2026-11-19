@@ -23,6 +23,10 @@ the values, so add it there. */}}
 
 {{- $mounts_horizon_db_sync := .Values.pod.mounts.horizon_db_sync.horizon_db_sync }}
 {{- $mounts_horizon_db_sync_init := .Values.pod.mounts.horizon_db_sync.init_container }}
+{{- $etcSources := .Values.pod.etcSources.horizon_db_sync }}
+{{- if .Values.manifests.mariadb_db }}
+{{- $etcSources = append $etcSources (dict "secret" (dict "name" "horizon-db-conn")) }}
+{{- end }}
 
 {{- $serviceAccountName := "horizon-db-sync" }}
 {{ tuple $envAll "db_sync" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -69,6 +73,9 @@ spec:
             mountPath: /etc/openstack-dashboard/local_settings
             subPath: local_settings
             readOnly: true
+          - name: horizon-local-settings-d
+            mountPath: /etc/openstack-dashboard/local_settings.d/
+            readOnly: true
           - name: horizon-bin
             mountPath: /tmp/db-sync.sh
             subPath: db-sync.sh
@@ -84,6 +91,15 @@ spec:
         secret:
           secretName: horizon-etc
           defaultMode: 0444
+      - name: horizon-local-settings-d
+{{- if $etcSources }}
+        projected:
+          defaultMode: 0444
+          sources:
+{{ toYaml $etcSources | indent 12 }}
+{{- else }}
+        emptyDir: {}
+{{- end }}
       - name: horizon-bin
         configMap:
           name: horizon-bin

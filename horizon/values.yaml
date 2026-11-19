@@ -407,6 +407,8 @@ conf:
                 'LOCATION': '{{ tuple "oslo_cache" "internal" "memcache" . | include "helm-toolkit.endpoints.host_and_port_endpoint_uri_lookup" }}',
             }
         }
+        {{- /* The Connection renders DATABASES into a snippet of its own. */}}
+        {{- if not .Values.manifests.mariadb_db }}
         DATABASES = {
             'default': {
                 # Database configuration here
@@ -428,6 +430,7 @@ conf:
                 'PORT': '{{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}'
             }
         }
+        {{- end }}
         SESSION_ENGINE = '{{ .Values.conf.horizon.local_settings.config.session_engine }}'
 
         # Send email to the console by default
@@ -1117,6 +1120,14 @@ pod:
     horizon: []
   extraVolumes:
     horizon: []
+  # -- A list of projected volume source objects for each pod. They are
+  ## mounted in /etc/openstack-dashboard/local_settings.d together with
+  ## conf.horizon.local_settings_d, and every Python file there is linked into
+  ## the Horizon local_settings.d when the pod starts.
+  ## https://kubernetes.io/docs/concepts/storage/projected-volumes/
+  etcSources:
+    horizon: []
+    horizon_db_sync: []
   security_context:
     horizon:
       pod:
@@ -1431,9 +1442,8 @@ mariadb_db:
   ## The User and Connection resources read it from here.
   password_secret:
     # -- Render the secret from endpoints.oslo_db.auth.horizon.password. Set
-    ## to false to use a secret that already exists. The service config is
-    ## still rendered from endpoints.oslo_db.auth.horizon.password, so the
-    ## secret must hold the same password.
+    ## to false to use a secret that already exists, such as one synced from
+    ## an external secret store.
     create: true
     name: horizon-db-password
     key: password

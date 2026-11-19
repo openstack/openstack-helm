@@ -324,7 +324,12 @@ Follow-ups, deliberately out of scope here:
 * Horizon, which reads a bare URI through ``inputType: secret`` rather than an
   ``oslo.config`` snippet. The ``Connection`` side of this already works --
   Nova's cell0 mapping uses it -- but Horizon is not part of the job this change
-  adds.
+  adds. This was addressed in 2026.2: Horizon is not an ``oslo.config`` service
+  and Django cannot read a URI, so its ``Connection`` renders a Django settings
+  snippet (``_10_database.py``) that defines ``DATABASES``. The pods project the
+  secret through ``pod.etcSources`` and link the snippet into
+  ``local_settings.d``, so the password is no longer rendered into
+  ``horizon-etc``.
 * The remaining charts that own a database.
 * Retire the db-init job once every chart is converted.
 * Opt-in privilege revocation in the ``Grant`` reconciler.
