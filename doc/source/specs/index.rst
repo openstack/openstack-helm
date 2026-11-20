@@ -15,6 +15,7 @@ Here is a list of the current specs:
    2025.2/*
    2026.1/*
    2026.2/*
+   2027.1/*
    *
 
 Specifications Purpose
