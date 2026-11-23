@@ -128,14 +128,15 @@ class KekRewrap(object):
         successes = []
         failures = []
 
-        for project in projects:
-            keks = self.get_keks_for_project(project)
-            for kek in keks:
-                try:
-                    self.rewrap_kek(project, kek)
-                    successes.append(kek.id)
-                except Exception:
-                    failures.append(kek.id)
+        with self.db_session.begin():
+            for project in projects:
+                keks = self.get_keks_for_project(project)
+                for kek in keks:
+                    try:
+                        self.rewrap_kek(project, kek)
+                        successes.append(kek.id)
+                    except Exception:
+                        failures.append(kek.id)
 
         if successes:
             print('Sucessfully processed the following KEKs:')
