@@ -15,14 +15,15 @@ limitations under the License.
 {{- /*
 MariaDB custom resources declaring the database this chart owns. They are
 reconciled by the mariadb chart's db controller, which creates the database,
-the account and its grants, and writes the connection string into the secret
-named below as a bare URI.
+the account and its grants, and writes the connection details into the secret
+named below.
 
-Enable this instead of the db-init job. Horizon is not an oslo.config service:
-its Django settings are rendered from endpoints.oslo_db. The service config
-therefore keeps the connection string generated from endpoints.oslo_db, which
-names the same account, password and database these resources provision, and
-the first consumer of the database waits for the Connection to report Ready.
+Enable this instead of the db-init job. Horizon is not an oslo.config service,
+so the Connection renders a Django settings snippet instead of a connection
+string. The pods project the secret into
+/etc/openstack-dashboard/local_settings.d and the start script links the
+snippet into the Horizon local_settings.d, where it defines DATABASES. The
+password is then not rendered into the horizon-etc secret.
 */}}
 {{- if .Values.manifests.mariadb_db }}
 {{- $envAll := . }}
@@ -56,9 +57,7 @@ One account for the horizon database. Its password is read from a secret. By
 default the chart renders that secret from endpoints.oslo_db.auth.horizon,
 which puts the password in the Helm values. Set
 mariadb_db.password_secret.create to false to reference a secret that already
-exists, such as one synced from an external secret store. The service config
-is still rendered from endpoints.oslo_db.auth.horizon, so that secret must
-hold the same password.
+exists, such as one synced from an external secret store.
 */}}
 {{- if $passwordSecret.create }}
 ---
@@ -163,14 +162,37 @@ spec:
   database: {{ $dbName | quote }}
   secretName: horizon-db-conn
   secretTemplate:
-    {{- /* A bare URI rather than an oslo.config snippet, under the key the
-    chart's own horizon-db-user secret uses. The block scalar strips the trailing
-    newline, which a consumer reading it as an environment variable would be
-    handed verbatim. The placeholders are rendered by the controller, not by
-    Helm, so they are escaped here. */}}
-    key: DB_CONNECTION
-    format: |-
-      {{ .Values.endpoints.oslo_db.scheme }}://{{ `{{ .Username }}` }}:{{ if $osh }}{{ `{{ .PasswordEncoded }}` }}{{ else }}{{ `{{ .Password }}` }}{{ end }}@{{ `{{ .Host }}` }}:{{ `{{ .Port }}` }}/{{ `{{ .Database }}` }}{{ if .Values.tls.oslo_db }}?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert{{ else }}?charset=utf8{{ end }}
+    {{- /* A Django settings snippet rather than an oslo.config one. The key must
+    end in .py for the start script to link it into local_settings.d. The
+    placeholders are rendered by the controller, not by Helm, so they are
+    escaped here. The osh group percent-encodes the password, which also makes
+    it safe inside a Python string literal, so the snippet decodes it, and
+    leaves the import unused upstream. The upstream group has no encoded variant, so a password containing a quote or
+    a backslash needs the osh group. */}}
+    key: _10_database.py
+    format: |
+      from urllib.parse import unquote
+
+      DATABASES = {
+          'default': {
+              'ENGINE': 'django.db.backends.mysql',
+              'NAME': '{{ `{{ .Database }}` }}',
+              'USER': '{{ `{{ .Username }}` }}',
+              'PASSWORD': {{ if $osh }}unquote('{{ `{{ .PasswordEncoded }}` }}'){{ else }}'{{ `{{ .Password }}` }}'{{ end }},
+              'HOST': '{{ `{{ .Host }}` }}',
+              'PORT': '{{ `{{ .Port }}` }}',
+              'default-character-set': 'utf8',
+              {{- if .Values.tls.oslo_db }}
+              'OPTIONS': {
+                  'ssl': {
+                      'ca': '/etc/mysql/certs/ca.crt',
+                      'cert': '/etc/mysql/certs/tls.crt',
+                      'key': '/etc/mysql/certs/tls.key'
+                  }
+              },
+              {{- end }}
+          }
+      }
   healthCheck:
     interval: 30s
     retryInterval: 3s
