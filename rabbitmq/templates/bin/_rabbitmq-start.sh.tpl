@@ -119,6 +119,50 @@ if ! [ "${POD_INCREMENT}" -eq "0" ] && ! [ -d "/var/lib/rabbitmq/mnesia" ] ; the
   rm -fv /tmp/rabbit-disable-readiness /tmp/rabbit-disable-liveness-probe
 fi
 
+# Pod 0 is the seed of the k8s peer discovery backend: a virgin seed node does
+# not look for peers, it forms a cluster of its own. That is right on a fresh
+# install, but when pod 0 alone comes back without data (its volume was lost or
+# replaced and the node was removed with forget_cluster_node) the other members
+# are still running, and a second one-node cluster appears under the same
+# service. Join the running members instead. On a fresh install the other pods
+# wait for pod 0 above, so none of them answers here and pod 0 forms the
+# cluster as before.
+if [ "${POD_INCREMENT}" -eq "0" ] && ! [ -d "/var/lib/rabbitmq/mnesia" ] ; then
+  PEER_NODE=""
+  for TARGET_POD in $(seq 1 +1 $(({{ .Values.pod.replicas.server }} - 1))); do
+    if check_rabbit_node_ready "${TARGET_POD}"; then
+      PEER_NODE="$(get_node_name ${TARGET_POD})"
+      break
+    fi
+  done
+  if [ -n "${PEER_NODE}" ]; then
+    echo "Pod 0 has no data but ${PEER_NODE} is running: joining that cluster"
+    # Not ready, so the headless service does not publish this pod and no
+    # client reaches the one-node cluster the first boot forms.
+    touch /tmp/rabbit-disable-liveness-probe /tmp/rabbit-disable-readiness
+
+    function abandon_join () {
+      rabbitmqctl shutdown || true
+      find /var/lib/rabbitmq/* ! -name 'definitions.json' ! -name '.erlang.cookie' -exec rm -rf {} +
+      exit 1
+    }
+
+    rabbitmq-server &
+    END=$(($(date +%s) + 180))
+    while ! rabbitmqctl -q cluster_status; do
+      sleep 5
+      [ "$(date +%s)" -gt "$END" ] && abandon_join
+    done
+    rabbitmqctl stop_app || abandon_join
+    rabbitmqctl join_cluster "${PEER_NODE}" || abandon_join
+    rabbitmqctl -l --node "${PEER_NODE}" -q cluster_status | grep -q "${RABBITMQ_NODENAME}" || abandon_join
+    # Quorum queue replicas on this node are not restored by joining; add them
+    # back with `rabbitmq-queues grow` once the pod is ready.
+    rabbitmqctl shutdown
+    rm -fv /tmp/rabbit-disable-readiness /tmp/rabbit-disable-liveness-probe
+  fi
+fi
+
 {{- if .Values.forceBoot.enabled }}
 if [ "${POD_INCREMENT}" -eq "0" ] && [ -d "/var/lib/rabbitmq/mnesia/${RABBITMQ_NODENAME}" ]; then rabbitmqctl force_boot; fi
 {{- end}}
